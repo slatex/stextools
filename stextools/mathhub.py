@@ -5,6 +5,7 @@ import itertools
 import logging
 import multiprocessing
 import os
+import time
 from pathlib import Path
 from typing import Optional, Iterator, Literal
 
@@ -16,10 +17,8 @@ logger = logging.getLogger(__name__)
 
 class MathHub:
     def __init__(self):
-        self.archive_lookup: dict[str, Repository] = {
-            repo.get_archive_name(): repo for repo in get_mathhub_repos()
-        }
-        logger.info(f'Found {len(self.archive_lookup)} archives, {len(self.archive_lookup)} of which are stex archives')
+        self.archive_lookup: dict[str, Repository] = {}
+        self.update()
 
     def get_archive(self, archive_name: str) -> Optional[Repository]:
         return self.archive_lookup.get(archive_name)
@@ -29,17 +28,46 @@ class MathHub:
             if repo.is_stex_archive():
                 yield repo
 
-    def load_all_doc_infos(self):
+    def update(self):
+        """Updates the repo information"""
+        still_needed: set[str] = set()
+        for repo in _get_mathhub_repos():
+            if repo.get_archive_name() not in self.archive_lookup:
+                self.archive_lookup[repo.get_archive_name()] = repo
+            still_needed.add(repo.get_archive_name())
+
+        for repo in self.archive_lookup.values():
+            if repo.get_archive_name() not in still_needed:
+                del self.archive_lookup[repo.get_archive_name()]
+            else:
+                repo.update()
+
+        logger.info(f'Found {len(self.archive_lookup)} MathHub archives')
+
+    def load_all_doc_infos(self) -> bool:
         """ quick hack for parallel loading """
         def doc_iter():
             for repo in self.iter_stex_archives():
                 yield from repo.stex_doc_iter()
-        documents: list[STeXDocument] = list(doc_iter())
+        documents: list[STeXDocument] = [doc for doc in doc_iter() if doc._doc_info is None]
+
+        if not documents:
+            return False
+
+        logger.info(f'Updating the information for {len(documents)} files')
+        last_printed = time.time()
+        processed = 0
 
         _load_doc_info.mh = self   # type: ignore
-        with multiprocessing.Pool(8) as pool:
+        with multiprocessing.Pool(12) as pool:
             for i, doc_info in pool.imap(_load_doc_info, zip(range(len(documents)), documents), chunksize=30):
                 documents[i]._doc_info = doc_info
+                processed += 1
+                if time.time() - last_printed > 2:
+                    logger.info(f'Processed {processed}/{len(documents)} files')
+                    last_printed = time.time()
+        logger.info('Finished updating the information')
+        return True
 
 
 def _load_doc_info(arg) -> tuple[int, DocInfo]:
@@ -72,28 +100,52 @@ class Repository:
         self._manifest: Optional[Manifest] = None
         self._stex_documents: Optional[dict[str, STeXDocument]] = None  # rel. path -> document
 
-    def load_stex_documents(self):
+    def update(self):
+        """Updates the repo information (e.g. necessary when loading from pickle)"""
+        self._manifest = None   # might have changed
+        if self._stex_documents is None:
+            return
+        still_needed: set[str] = set()
+        for path in self._relevant_file_iterate():
+            rel_path = path.relative_to(self.path).as_posix()
+            still_needed.add(rel_path)
+            if rel_path not in self._stex_documents:
+                self._stex_documents[rel_path] = STeXDocument(self, path)
+            else:
+                self._stex_documents[rel_path].delete_doc_info_if_outdated()
+
+        for key in list(self._stex_documents):
+            if key not in still_needed:
+                del self._stex_documents[key]
+
+    def _relevant_file_iterate(self) -> Iterator[Path]:
+        return itertools.chain(
+            (self.path / 'source').rglob('**/*.tex'),
+            (self.path / 'lib').rglob('**/*.tex')
+        )
+
+    def _ensure_stex_docs_loaded(self):
         if self._stex_documents:
             return
         self._stex_documents = {}
-        for file in itertools.chain(
-                (self.path / 'source').rglob('**/*.tex'),
-                (self.path / 'lib').rglob('**/*.tex')
-        ):
+        for file in self._relevant_file_iterate():
             stex_doc = STeXDocument(self, file)
             self._stex_documents[stex_doc.get_rel_path()] = stex_doc
 
     def get_stex_doc(self, rel_path: str) -> Optional[STeXDocument]:
-        if self._stex_documents is None:
-            self.load_stex_documents()
+        self._ensure_stex_docs_loaded()
         assert self._stex_documents is not None
         return self._stex_documents.get(rel_path)
 
     def stex_doc_iter(self) -> Iterator[STeXDocument]:
-        if self._stex_documents is None:
-            self.load_stex_documents()
+        self._ensure_stex_docs_loaded()
         assert self._stex_documents is not None
         yield from self._stex_documents.values()
+
+    def number_of_documents(self) -> int:
+        self._ensure_stex_docs_loaded()
+        assert self._stex_documents is not None
+        return len(self._stex_documents)
 
     def get_manifest(self) -> Manifest:
         """Returns the manifest of the repository."""
@@ -148,7 +200,7 @@ class Repository:
             return name_guess
 
 
-def get_mathhub_repos() -> Iterator[Repository]:
+def _get_mathhub_repos() -> Iterator[Repository]:
     """Returns an iterator over all MathHub repositories."""
     mathhub = get_mathhub_path()
     for path in mathhub.glob('*/*'):

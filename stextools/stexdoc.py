@@ -15,6 +15,8 @@ if typing.TYPE_CHECKING:
     from stextools.mathhub import MathHub, Repository
 
 
+# NOTE: According to my benchmark, using `slots=True` noticably slows down pickling/unpickling
+
 @dataclasses.dataclass(frozen=True, eq=True, repr=True)
 class Dependency:
     archive: str
@@ -35,7 +37,8 @@ class ModuleInfo:
 
 @dataclasses.dataclass(repr=True)
 class DocInfo:
-    # dependencies introduced outsidef of modules
+    # dependencies introduced outside of modules
+    last_modified: float
     dependencies: list[Dependency] = dataclasses.field(default_factory=list)
     modules: list[ModuleInfo] = dataclasses.field(default_factory=list)
 
@@ -58,9 +61,6 @@ class DependencyProducer:
     target_no_tex: bool = False
 
     def produce(self, node: LatexMacroNode, from_archive: str, from_subdir: str, mh: MathHub) -> Optional[Dependency]:
-        # dprint = print   # debug print
-        dprint = lambda _: None
-        dprint(f'PROCESSING {node.macroname}')
         # STEP 1: Determine the target archive
         target_archive: Optional[str] = None
         if self.opt_param_is_archive:
@@ -76,13 +76,11 @@ class DependencyProducer:
         main_arg = get_first_main_arg(node.nodeargd)
 
         if main_arg is None:
-            dprint('no main arg')
             return None
         top_dir: Literal['lib', 'source'] = 'lib' if self.is_lib else 'source'   # type: ignore
         archive = mh.get_archive(target_archive or from_archive)
 
         if archive is None:    # not locally installed, but we still want to store a dependency
-            dprint('archive not installed')
             return Dependency(archive=target_archive or from_archive, file=None, module_name=None,
                               is_lib=self.is_lib, is_use=self.is_use, target_no_tex=self.target_no_tex)
 
@@ -102,11 +100,8 @@ class DependencyProducer:
             for path_option in path_options:
                 file = archive.normalize_tex_file_ref(path_option, top_dir)
                 if file is not None:
-                    dprint(f'succeeded {path_option}, {file}')
                     return Dependency(archive.get_archive_name(), file, module_name=module_name,
                                       is_lib=self.is_lib, is_use=self.is_use, target_no_tex=self.target_no_tex)
-                else:
-                    dprint(f'failed {path_option}')
 
             # couldn't determine file, but still make dependency to archive
             return Dependency(archive.get_archive_name(), None, module_name=module_name,
@@ -174,12 +169,18 @@ class STeXDocument:
     def get_rel_path(self) -> str:
         return str(self.path.relative_to(self.archive.path).as_posix())
 
+    def delete_doc_info_if_outdated(self):
+        if self._doc_info is None:
+            return
+        if self.path.stat().st_mtime > self._doc_info.last_modified:
+            self._doc_info = None
+
     def create_doc_info(self, mh: MathHub):
         """Create the DocInfo object for this document."""
         with open(self.path) as fp:
             walker = LatexWalker(fp.read(), latex_context=STEX_CONTEXT_DB)
 
-        doc_info = DocInfo()
+        doc_info = DocInfo(self.path.stat().st_mtime)
 
         def process(nodes, module_info: Optional[ModuleInfo] = None):
             for node in nodes:

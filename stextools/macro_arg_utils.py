@@ -17,18 +17,19 @@ class OptArgKeyVals:
         current_key: str = ''
         looking_for_val: bool = False
         current_val: str = ''
-        # TODO: the following can also track the source refs to enable edits in the source
+        # TODO: the following could also track the source refs to enable edits in the source
         for node in self.nodelist:
             if isinstance(node, LatexCharsNode):
                 remainder = node.chars
                 while remainder:
                     if looking_for_val:
                         if ',' in remainder:
-                            valrest, _, remainder = remainder.partition('=')
+                            valrest, _, remainder = remainder.partition(',')
                             current_val += valrest
                             self._keyvals[current_key.strip()] = current_val.strip()
                             current_key = ''
                             current_val = ''
+                            looking_for_val = False
                         else:
                             current_val += remainder
                             remainder = None

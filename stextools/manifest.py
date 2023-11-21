@@ -16,7 +16,9 @@ class Manifest(dict):
             raise FileNotFoundError(f'{path} is does not exist')
         with open(self.path) as fp:
             for line in fp:
-                before, _, after = line.rpartition(':')
+                if not line.strip():
+                    continue
+                before, _, after = line.partition(':')
                 if not before:
                     raise ManifestProcessingException(f'Failed to process a line in {self.path}: {line!r}')
                 self[before] = after.strip()
