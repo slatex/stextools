@@ -6,10 +6,11 @@ from stextools.cache import Cache
 
 logger = logging.getLogger(__name__)
 
+
 def always_keep_dependency_check(dep: str) -> bool:
     """Some dependencies should be kept even if we do not detect them"""
-#     if dep == 'sTeX/meta-inf':
-#         return True
+    #     if dep == 'sTeX/meta-inf':
+    #         return True
     if dep.endswith('/meta-inf'):
         return True
     if dep.startswith('MMT/'):
@@ -22,7 +23,7 @@ def dependency_check(mode: Literal['test', 'ask', 'write'] = 'test'):
     if mh.load_all_doc_infos():
         Cache.store_mathhub(mh)
 
-    logger.info(f'Getting dependencies from server...')
+    logger.info('Getting dependencies from server...')
     server_dependencies = stexmmtquery.get_dependencies()
     logger.info(f'Found dependencies for {len(server_dependencies)} archives on the server, '
                 'but I will only update dependencies of locally installed archives.')
@@ -39,17 +40,13 @@ def dependency_check(mode: Literal['test', 'ask', 'write'] = 'test'):
             if always_keep_dependency_check(dependency):
                 new_dependencies.append(dependency)
         for dependency in needed_dependencies:
-            if dependency == archive.get_archive_name():   # no self-dependencies
+            if dependency == archive.get_archive_name():  # no self-dependencies
                 continue
             if dependency not in new_dependencies:
                 new_dependencies.append(dependency)
 
         print()
-        # if needed_dependencies_my_data != needed_dependencies_server:
-        #     print(f'WARNING: The server and the local data do not agree on the dependencies of {archive.get_archive_name()}')
-        #     print(f'Dependencies only in local data: {needed_dependencies_my_data - needed_dependencies_server}')
-        #     print(f'Dependencies only on server: {needed_dependencies_server - needed_dependencies_my_data or "{}"}')
-        if (deps_only_on_server := needed_dependencies_server - needed_dependencies_my_data):
+        if deps_only_on_server := needed_dependencies_server - needed_dependencies_my_data:
             print(f'WARNING - the following dependencies were not found locally: {deps_only_on_server}')
             # Note: it is expected that some dependencies are missing on the server (e.g. from \cmhtikzinput)
         if set(new_dependencies) == set(manifest.get_dependencies()):

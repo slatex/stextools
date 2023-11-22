@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
               help='Keep the cache despite changes to the stextools package (saves time when developing)')
 def cli(keep_cache):
     if keep_cache:
-        Cache.clear = lambda: None
+        Cache.clear = lambda: None  # type: ignore
     logging.getLogger('pylatexenc.latexwalker').setLevel(logging.WARNING)
     logging.basicConfig(level=logging.INFO)
 

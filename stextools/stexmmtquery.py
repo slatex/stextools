@@ -11,7 +11,7 @@ PREFIX archive: <mmt://memory/archive#>
 
 def get_sparql_result(query):
     r = requests.post('https://stexmmt.mathhub.info/:query/sparql', data=query,
-                      headers={'content-type':'text/plain'})
+                      headers={'content-type': 'text/plain'})
     if not r.ok:
         r.raise_for_status()
     return r.json()

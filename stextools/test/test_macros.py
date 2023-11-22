@@ -1,8 +1,8 @@
 import unittest
 
-from pylatexenc.latexwalker import LatexWalker, LatexNode, LatexMacroNode
+from pylatexenc.latexwalker import LatexWalker, LatexMacroNode
 
-from stextools.macro_arg_utils import get_first_macro_arg_opt, OptArgKeyVals
+from stextools.macro_arg_utils import OptArgKeyVals
 from stextools.macros import STEX_CONTEXT_DB
 
 
@@ -19,7 +19,7 @@ class MacroTest(unittest.TestCase):
             parse_macro(r'\mhtikzinput[archive=MiKoMH/ComSem,width=10cm]{hou/tikz/ellipsis-ex}').nodeargd
         )
         self.assertIsNotNone(keyvals)
+        assert keyvals is not None   # for mypy
         self.assertEqual(len(keyvals), 2)
         self.assertEqual(keyvals.get_val('archive'), 'MiKoMH/ComSem')
         self.assertEqual(keyvals.get_val('width'), '10cm')
-

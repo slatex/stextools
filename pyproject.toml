@@ -16,7 +16,8 @@ requires-python = ">=3.10"
 
 [options]
 install_requires = [
-    "pylatexenc >= 2.10"
+    "pylatexenc >= 2.10",
+    "click >= 8.1"
 ]
 
 [build-system]
