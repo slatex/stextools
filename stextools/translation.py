@@ -9,6 +9,7 @@
 #     This might be relevant if we use external services for translation.
 
 import dataclasses
+import logging
 from io import StringIO
 from pathlib import Path
 from typing import Optional, Iterator
@@ -19,6 +20,9 @@ from pylatexenc.latexwalker import LatexWalker, LatexNode, LatexCommentNode, Lat
 
 from stextools.macro_arg_utils import OptArgKeyVals
 from stextools.macros import STEX_CONTEXT_DB
+
+
+logger = logging.getLogger(__name__)
 
 
 # We can ignore some macros and environments because they will be "imported" by [sig=en] in the smodule
@@ -80,11 +84,27 @@ ENVIRONMENT_RULES: dict[str, TranslationRule] = {
 
 def bergamot_html_translate(html: str, repository: str = 'browsermt', model_name: str = 'en-de-base') -> str:
     # import is slow, so we only do it when we actually need it
-    from bergamot import REPOSITORY, ResponseOptions, Service, ServiceConfig, VectorString  # type: ignore
+    try:
+        from bergamot import REPOSITORY, ResponseOptions, Service, ServiceConfig, VectorString  # type: ignore
+    except ModuleNotFoundError:
+        raise Exception('Bergamot is not installed. '
+                        'Please install it with "python3 -m pip install bergamot-translator"')
 
     config = ServiceConfig(numWorkers=1)  #, logLevel=args.log_level)
     service = Service(config)       # TODO: Should we use a global service?
-    model = service.modelFromConfigPath(REPOSITORY.modelConfigPath(repository, model_name))
+    config_path = REPOSITORY.modelConfigPath(repository, model_name)
+    try:
+        model = service.modelFromConfigPath(config_path)
+    except RuntimeError:
+        logger.info(f'A runtime error occurred while loading the Bergamot translation model {model_name} '
+                    f'from repository {repository}. This might be because the model has not been downloading '
+                    f'- attempting to download it now...')
+        REPOSITORY.download(repository, model_name)
+        model = service.modelFromConfigPath(config_path)
+        # config_path = REPOSITORY.modelConfigPath(repository, model_name)
+        # raise Exception(f'Could not find bergamot translation model {model_name} in repository {repository}. '
+        #                 f'You should be able to download it with "python3 -m bergamot download -m {model_name} -r {repository}"')
+
 
     # Configure a few options which require how a Response is constructed
     options = ResponseOptions(
@@ -121,14 +141,16 @@ def stex_to_html_recurse(lnode: LatexNode, parent_hnode: etree._Element):
         if lnode.macroname in MACROS_TO_IGNORE:
             return
 
-        if lnode.macroname in {'sn', 'definame', 'sns'}:
+        if lnode.macroname in {'sn', 'definame', 'sns', 'Definame'}:
             opt_args: dict[str, str] = {}
             if lnode.nodeargd.argspec.startswith('['):
-                opt_args = dict(OptArgKeyVals.from_first_macro_arg(lnode.nodeargd) or {})
-            argument = lnode.nodeargd.argnlist[0]
+                _kv = OptArgKeyVals.from_first_macro_arg(lnode.nodeargd)
+                if _kv:
+                    opt_args = _kv.as_dict()
+            argument = lnode.nodeargd.argnlist[-1]
             hnode = etree.SubElement(
                 parent_hnode, 'span',
-                attrib={'data-pre': '\\' + {'definame': 'definiendum', 'sn': 'sr', 'sns': 'sr'}[lnode.macroname] + argument.latex_verbatim() + '{',
+                attrib={'data-pre': '\\' + {'definame': 'definiendum', 'sn': 'sr', 'sns': 'sr', 'Definame': 'definiendum'}[lnode.macroname] + argument.latex_verbatim() + '{',
                         'data-post': '}'}
             )
             text = argument.latex_verbatim()[1:-1]
@@ -136,6 +158,8 @@ def stex_to_html_recurse(lnode: LatexNode, parent_hnode: etree._Element):
                 text = text.split('?')[-1]
             if lnode.macroname == 'sns':
                 text += 's'
+            if lnode.macroname in {'Definame'}:
+                text = text[0].upper() + text[1:]
             if opt_args.get('pre'):
                 text = opt_args['pre'] + text
             if opt_args.get('post'):
@@ -256,4 +280,3 @@ def translate(path: Path) -> str:
     html = documents_to_html([path])
     html2 = html.replace('\n', '<img data-replace="&#10;"/>')
     return html_to_stex(bergamot_html_translate(html2))[0][1]
-
