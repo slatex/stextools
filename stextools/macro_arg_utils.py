@@ -49,6 +49,9 @@ class OptArgKeyVals:
         if current_key:
             self._keyvals[current_key.strip()] = current_val.strip()
 
+    def __dict__(self) -> dict[str, str]:
+        return self._keyvals
+
     @classmethod
     def from_first_macro_arg(cls, args: ParsedMacroArgs) -> Optional['OptArgKeyVals']:
         if not args.argnlist:

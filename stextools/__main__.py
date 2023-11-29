@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 
 import click
 from stextools.cache import Cache
@@ -47,6 +48,13 @@ def show_dependency_graph(filter):
 def show_weak_dependencies(filter):
     from stextools.dependency_graph import show_weak_dependencies
     show_weak_dependencies(filter)
+
+
+@cli.command()
+@click.argument('path')
+def translate(path):
+    from stextools.translation import translate
+    print(translate(Path(path)))
 
 
 if __name__ == '__main__':

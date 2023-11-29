@@ -17,6 +17,7 @@ import lxml.etree as etree
 from pylatexenc.latexwalker import LatexWalker, LatexNode, LatexCommentNode, LatexSpecialsNode, LatexGroupNode, \
     LatexMathNode, LatexMacroNode, LatexEnvironmentNode, LatexCharsNode
 
+from stextools.macro_arg_utils import OptArgKeyVals
 from stextools.macros import STEX_CONTEXT_DB
 
 
@@ -41,7 +42,7 @@ class KeyValParam(LNodeComponent):
 
 @dataclasses.dataclass
 class Argument(LNodeComponent):
-    n: int = 0
+    n: int = 0    # includes optional arguments
 
 
 @dataclasses.dataclass
@@ -58,8 +59,9 @@ class TranslationRule:
 
 
 # Does not include macros that require custom treatment
-MACRO_RULES: dict[str, list[TranslationRule]] = {
-
+MACRO_RULES: dict[str, TranslationRule] = {
+    'definiendum': TranslationRule(inplace_transparent=Argument(2)),
+    'sr': TranslationRule(inplace_transparent=Argument(1)),
 }
 
 
@@ -118,10 +120,47 @@ def stex_to_html_recurse(lnode: LatexNode, parent_hnode: etree._Element):
     elif isinstance(lnode, LatexMacroNode):
         if lnode.macroname in MACROS_TO_IGNORE:
             return
-        # TODO: handle macros that require custom treatment
+
+        if lnode.macroname in {'sn', 'definame', 'sns'}:
+            opt_args: dict[str, str] = {}
+            if lnode.nodeargd.argspec.startswith('['):
+                opt_args = dict(OptArgKeyVals.from_first_macro_arg(lnode.nodeargd) or {})
+            argument = lnode.nodeargd.argnlist[0]
+            hnode = etree.SubElement(
+                parent_hnode, 'span',
+                attrib={'data-pre': '\\' + {'definame': 'definiendum', 'sn': 'sr', 'sns': 'sr'}[lnode.macroname] + argument.latex_verbatim() + '{',
+                        'data-post': '}'}
+            )
+            text = argument.latex_verbatim()[1:-1]
+            if '?' in text:
+                text = text.split('?')[-1]
+            if lnode.macroname == 'sns':
+                text += 's'
+            if opt_args.get('pre'):
+                text = opt_args['pre'] + text
+            if opt_args.get('post'):
+                text += opt_args['post']
+            hnode.text = text
+            return
+
         if lnode.macroname not in MACRO_RULES:          # opaque macro
             hnode = etree.SubElement(parent_hnode, 'img', attrib={'data-replace': lnode.latex_verbatim()})
             return
+
+        rule = MACRO_RULES[lnode.macroname]
+        if rule.inplace_transparent is None:
+            hnode = etree.SubElement(parent_hnode, 'span', attrib={'data-replace': lnode.latex_verbatim()})
+        else:
+            assert isinstance(rule.inplace_transparent, Argument)
+            argument = lnode.nodeargd.argnlist[rule.inplace_transparent.n]
+            hnode = etree.SubElement(
+                parent_hnode, 'span',
+                attrib={'data-pre': lnode.latex_verbatim()[:argument.nodelist[0].pos - lnode.pos],
+                        'data-post': lnode.latex_verbatim()[
+                                     argument.nodelist[-1].pos + argument.nodelist[-1].len - lnode.pos:]}
+            )
+            for lchild in argument.nodelist:
+                stex_to_html_recurse(lchild, hnode)
     elif isinstance(lnode, LatexEnvironmentNode):
         if lnode.environmentname in ENVIRONMENTS_TO_IGNORE:
             return
@@ -144,18 +183,16 @@ def stex_to_html_recurse(lnode: LatexNode, parent_hnode: etree._Element):
 
     elif isinstance(lnode, LatexCharsNode):
         children = list(parent_hnode)
+        chars = lnode.chars
+        if ' iff ' in chars:
+            chars = chars.replace(' iff ', ' exactly then if ')
         if children:
-            # if lnode.chars.isspace():
-            #     if 'data-post' in children[-1].attrib:
-            #         children[-1].attrib['data-post'] += lnode.chars
-            #     else:
-            #         children[-1].attrib['data-post'] = lnode.chars
             if not children[-1].tail:
-                children[-1].tail = lnode.chars
+                children[-1].tail = chars
             else:   # possible if we ignored a node
-                children[-1].tail = lnode.chars
+                children[-1].tail = chars
         else:
-            parent_hnode.text = lnode.chars
+            parent_hnode.text = chars
 
 
 def stex_to_html(doc_path: Path) -> etree._Element:
@@ -215,4 +252,8 @@ def html_to_stex(html: str) -> list[tuple[Path, str]]:
     return results
 
 
+def translate(path: Path) -> str:
+    html = documents_to_html([path])
+    html2 = html.replace('\n', '<img data-replace="&#10;"/>')
+    return html_to_stex(bergamot_html_translate(html2))[0][1]
 

@@ -32,8 +32,11 @@ STEX_MACRO_SPECS: list = [
     MacroSpec('notation', '{[{'),
     MacroSpec('symdecl', '*{'),
     MacroSpec('symdef', '{{'),
-    MacroSpec('definiendum', '{{'),
+    MacroSpec('definiendum', '[{{'),
     MacroSpec('definame', '{'),
+    MacroSpec('sn', '{'),
+    MacroSpec('sns', '{'),
+    MacroSpec('sr', '{{'),
 ]
 
 STEX_ENV_SPECS: list = [
