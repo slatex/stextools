@@ -50,7 +50,7 @@ class OptArgKeyVals:
             self._keyvals[current_key.strip()] = current_val.strip()
 
     def as_dict(self) -> dict[str, str]:
-        return {k:v for k, v in self._keyvals.items()}
+        return {k: v for k, v in self._keyvals.items()}
 
     @classmethod
     def from_first_macro_arg(cls, args: ParsedMacroArgs) -> Optional['OptArgKeyVals']:

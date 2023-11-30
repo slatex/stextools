@@ -66,6 +66,8 @@ class TranslationRule:
 MACRO_RULES: dict[str, TranslationRule] = {
     'definiendum': TranslationRule(inplace_transparent=Argument(2)),
     'sr': TranslationRule(inplace_transparent=Argument(1)),
+
+    # weird ones
 }
 
 
@@ -77,6 +79,7 @@ class EnvTransparencyRule:
 # Does not include environments that require custom treatment
 ENVIRONMENT_RULES: dict[str, TranslationRule] = {
     'document': TranslationRule(inplace_transparent=EnvBody()),
+    'itemize': TranslationRule(inplace_transparent=EnvBody()),
     'sdefinition': TranslationRule(inplace_transparent=EnvBody()),
     'smodule': TranslationRule(inplace_transparent=EnvBody(), external_transparent=KeyValParam('title')),
 }
@@ -90,7 +93,7 @@ def bergamot_html_translate(html: str, repository: str = 'browsermt', model_name
         raise Exception('Bergamot is not installed. '
                         'Please install it with "python3 -m pip install bergamot-translator"')
 
-    config = ServiceConfig(numWorkers=1)  #, logLevel=args.log_level)
+    config = ServiceConfig(numWorkers=1)  # , logLevel=args.log_level)
     service = Service(config)       # TODO: Should we use a global service?
     config_path = REPOSITORY.modelConfigPath(repository, model_name)
     try:
@@ -101,16 +104,8 @@ def bergamot_html_translate(html: str, repository: str = 'browsermt', model_name
                     f'- attempting to download it now...')
         REPOSITORY.download(repository, model_name)
         model = service.modelFromConfigPath(config_path)
-        # config_path = REPOSITORY.modelConfigPath(repository, model_name)
-        # raise Exception(f'Could not find bergamot translation model {model_name} in repository {repository}. '
-        #                 f'You should be able to download it with "python3 -m bergamot download -m {model_name} -r {repository}"')
 
-
-    # Configure a few options which require how a Response is constructed
-    options = ResponseOptions(
-        alignment=False, qualityScores=False, HTML=True
-        # HTML=True
-    )
+    options = ResponseOptions(alignment=False, qualityScores=False, HTML=True)
 
     responses = service.translate(model, VectorString([html]), options)
     assert len(responses) == 1
@@ -130,8 +125,8 @@ def stex_to_html_recurse(lnode: LatexNode, parent_hnode: etree._Element):
     if lnode.nodeType() in {LatexCommentNode, LatexSpecialsNode}:
         return    # TODO: Should we keep comments? How should we treat specials?
     elif isinstance(lnode, LatexGroupNode):
-        hnode = etree.SubElement(parent_hnode, 'span', attrib={'data-pre': lnode.delimiters[0],
-                                                        'data-post': lnode.delimiters[1]})
+        hnode = etree.SubElement(parent_hnode, 'span',
+                                 attrib={'data-pre': lnode.delimiters[0], 'data-post': lnode.delimiters[1]})
         for child in lnode.nodelist:
             stex_to_html_recurse(child, hnode)
     elif isinstance(lnode, LatexMathNode):
@@ -148,9 +143,10 @@ def stex_to_html_recurse(lnode: LatexNode, parent_hnode: etree._Element):
                 if _kv:
                     opt_args = _kv.as_dict()
             argument = lnode.nodeargd.argnlist[-1]
+            newname = {'definame': 'definiendum', 'sn': 'sr', 'sns': 'sr', 'Definame': 'definiendum'}
             hnode = etree.SubElement(
                 parent_hnode, 'span',
-                attrib={'data-pre': '\\' + {'definame': 'definiendum', 'sn': 'sr', 'sns': 'sr', 'Definame': 'definiendum'}[lnode.macroname] + argument.latex_verbatim() + '{',
+                attrib={'data-pre': '\\' + newname[lnode.macroname] + argument.latex_verbatim() + '{',
                         'data-post': '}'}
             )
             text = argument.latex_verbatim()[1:-1]
@@ -179,9 +175,11 @@ def stex_to_html_recurse(lnode: LatexNode, parent_hnode: etree._Element):
             argument = lnode.nodeargd.argnlist[rule.inplace_transparent.n]
             hnode = etree.SubElement(
                 parent_hnode, 'span',
-                attrib={'data-pre': lnode.latex_verbatim()[:argument.nodelist[0].pos - lnode.pos],
-                        'data-post': lnode.latex_verbatim()[
-                                     argument.nodelist[-1].pos + argument.nodelist[-1].len - lnode.pos:]}
+                attrib={
+                    'data-pre': lnode.latex_verbatim()[:argument.nodelist[0].pos - lnode.pos],
+                    'data-post':
+                        lnode.latex_verbatim()[argument.nodelist[-1].pos + argument.nodelist[-1].len - lnode.pos:]
+                }
             )
             for lchild in argument.nodelist:
                 stex_to_html_recurse(lchild, hnode)
@@ -199,8 +197,10 @@ def stex_to_html_recurse(lnode: LatexNode, parent_hnode: etree._Element):
             assert isinstance(rule.inplace_transparent, EnvBody)
             hnode = etree.SubElement(
                 parent_hnode, 'span',
-                attrib={'data-pre': lnode.latex_verbatim()[:lnode.nodelist[0].pos-lnode.pos],
-                        'data-post': lnode.latex_verbatim()[lnode.nodelist[-1].pos + lnode.nodelist[-1].len -lnode.pos:]}
+                attrib={
+                    'data-pre': lnode.latex_verbatim()[:lnode.nodelist[0].pos - lnode.pos],
+                    'data-post': lnode.latex_verbatim()[lnode.nodelist[-1].pos + lnode.nodelist[-1].len - lnode.pos:]
+                }
             )
             for lchild in lnode.nodelist:
                 stex_to_html_recurse(lchild, hnode)
@@ -231,31 +231,37 @@ def stex_to_html(doc_path: Path) -> etree._Element:
 
 def documents_to_html(doc_paths: list[Path]) -> str:
     return '\n'.join(
-            # ['<!DOCTYPE html>'] +    # bergamot does not like this
-            ['<html>', '<body>'] +
-            [etree.tostring(stex_to_html(doc_path)).decode() for doc_path in doc_paths] +
-            ['</body>', '</html>']
+        # ['<!DOCTYPE html>'] +    # bergamot does not like this
+        ['<html>', '<body>'] +
+        [etree.tostring(stex_to_html(doc_path)).decode() for doc_path in doc_paths] +
+        ['</body>', '</html>']
     )
+
+
+def _is_str(s: str | bytes) -> str:
+    """Helper function to make mypy happy"""
+    assert isinstance(s, str)
+    return s
 
 
 def html_to_str_iter(hnode: etree._Element) -> Iterator[str]:
     if hnode.tag == 'span':
         if 'data-pre' in hnode.attrib:
-            yield hnode.attrib['data-pre']
+            yield _is_str(hnode.attrib['data-pre'])
             yield hnode.text or ''
 
         if 'data-replace' in hnode.attrib:
-            yield hnode.attrib['data-replace']
+            yield _is_str(hnode.attrib['data-replace'])
         else:
             for child in hnode:
                 yield from html_to_str_iter(child)
         if 'data-post' in hnode.attrib:
-            yield hnode.attrib['data-post']
+            yield _is_str(hnode.attrib['data-post'])
         yield hnode.tail or ''
     elif hnode.tag == 'img':
-        yield hnode.attrib['data-replace']
+        yield _is_str(hnode.attrib['data-replace'])
         if 'data-post' in hnode.attrib:
-            yield hnode.attrib['data-post']
+            yield _is_str(hnode.attrib['data-post'])
         yield hnode.tail or ''
     elif hnode.tag == 'div':
         for child in hnode:
@@ -268,8 +274,9 @@ def html_to_stex(html: str) -> list[tuple[Path, str]]:
     """Translate an HTML node back to LaTeX."""
     tree = etree.parse(StringIO(html), etree.HTMLParser())   # type: ignore
     results: list[tuple[Path, str]] = []
-    for hnode in tree.xpath('//div[@class="document"]'):
-        path = Path(hnode.attrib['id'])
+    for hnode in tree.xpath('//div[@class="document"]'):   # type: ignore
+        assert isinstance(hnode, etree._Element)
+        path = Path(_is_str(hnode.attrib['id']))
         stex = ''.join(html_to_str_iter(hnode))
         results.append((path, stex))
 

@@ -38,6 +38,9 @@ STEX_MACRO_SPECS: list = [
     MacroSpec('sn', '{'),
     MacroSpec('sns', '{'),
     MacroSpec('sr', '{{'),
+
+
+    # No clue where these come from
 ]
 
 STEX_ENV_SPECS: list = [
