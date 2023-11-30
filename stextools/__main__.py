@@ -34,7 +34,7 @@ def update_dependencies(mode):
     dependency_check(mode)
 
 
-@cli.command(help='Visualizes the archive dependency graph (requires networkx and matplotlib).')
+@cli.command(help='Visualize the archive dependency graph (requires networkx and matplotlib).')
 @click.option('--filter', default=None,
               help='Filter pattern to only show some archives (e.g. \'smglom/*,MiKoMH/*\')')
 def show_dependency_graph(filter):
@@ -42,7 +42,7 @@ def show_dependency_graph(filter):
     show_graph(filter)
 
 
-@cli.command(help='Lists archive dependencies that may be candidates for removal.')
+@cli.command(help='List archive dependencies that may be candidates for removal.')
 @click.option('--filter', default=None,
               help='Filter pattern to only show some archives (e.g. \'smglom/*,MiKoMH/*\')')
 def show_weak_dependencies(filter):
@@ -50,7 +50,7 @@ def show_weak_dependencies(filter):
     show_weak_dependencies(filter)
 
 
-@cli.command()
+@cli.command(help='Translate an sTeX document (experimental).')
 @click.argument('path')
 def translate(path):
     from stextools.translation import translate
