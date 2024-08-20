@@ -50,6 +50,14 @@ def show_weak_dependencies(filter):
     show_weak_dependencies(filter)
 
 
+@cli.command(help='Recursively clone all public repositories in the specified MathHub groups.')
+@click.argument('groups', nargs=-1)
+def clone_groups(groups):
+    from stextools.remote_repositories import clone_group
+    for group in groups:
+        clone_group(group)
+
+
 @cli.command(help='Translate an sTeX document (experimental).')
 @click.argument('path')
 def translate(path):
