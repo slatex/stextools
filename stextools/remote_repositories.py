@@ -21,7 +21,6 @@ def clone_group(group: Group | str, recurse: bool = True):
     # TODO: deal properly with pagination (also below for subgroups)
     projects = group.projects.list(per_page=1000)
 
-
     for project in projects:
         directory = get_mathhub_path() / project.path_with_namespace
         if not directory.parent.exists():

@@ -34,11 +34,11 @@ STEX_MACRO_SPECS: list = [
     MacroSpec('symdef', '{[{'),
     MacroSpec('definiendum', '[{{'),
     MacroSpec('definame', '[{'),
-    MacroSpec('Definame', '{'),
+    MacroSpec('Definame', '[{'),
     MacroSpec('sn', '{'),
     MacroSpec('sns', '{'),
     MacroSpec('sr', '{{'),
-
+    MacroSpec('objective', '{{'),
 
     # No clue where these come from
 ]
@@ -46,6 +46,7 @@ STEX_MACRO_SPECS: list = [
 STEX_ENV_SPECS: list = [
     std_environment('smodule', '[{'),
     std_environment('sdefinition', '['),
+    std_environment('sproblem', '['),
 ]
 
 STEX_CONTEXT_DB = get_default_latex_context_db()

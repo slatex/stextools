@@ -33,6 +33,7 @@ class ModuleInfo:
     """Basic information about a document (dependencies, created symbols, verbalizations, etc.)"""
     name: str
     dependencies: list[Dependency] = dataclasses.field(default_factory=list)
+    nldefs: dict[str, list[str]] = dataclasses.field(default_factory=dict)    # symbol -> [verbalizations]
 
 
 @dataclasses.dataclass(repr=True)
@@ -41,6 +42,7 @@ class DocInfo:
     last_modified: float
     dependencies: list[Dependency] = dataclasses.field(default_factory=list)
     modules: list[ModuleInfo] = dataclasses.field(default_factory=list)
+    nldefs: dict[str, list[str]] = dataclasses.field(default_factory=dict)    # symbol -> [verbalizations]
 
     def flattened_dependencies(self) -> Iterator[Dependency]:
         yield from self.dependencies
@@ -157,7 +159,7 @@ DEPENDENCY_PRODUCER_BY_MACRONAME: dict[str, DependencyProducer] = {dp.macroname:
 class STeXDocument:
     def __init__(self, archive: Repository, path: Path):
         self.archive = archive
-        self.path = path
+        self.path = path.absolute()
         self._doc_info: Optional[DocInfo] = None
 
     def get_doc_info(self, mh: MathHub) -> DocInfo:
@@ -206,6 +208,24 @@ class STeXDocument:
                                 module_info.dependencies.append(dep)
                             else:
                                 doc_info.dependencies.append(dep)
+
+                    elif node.macroname in {'definiendum', 'definame', 'Definame'}:
+                        # TODO: sometimes we have '?' in the symbols...
+                        if node.macroname == 'definiendum':
+                            symbol = node.nodeargd.argnlist[-2].latex_verbatim()[1:-1]
+                            verbalization = node.nodeargd.argnlist[-1].latex_verbatim()[1:-1]
+                        elif node.macroname in {'definame', 'Definame'}:
+                            symbol = node.nodeargd.argnlist[-1].latex_verbatim()[1:-1]
+                            verbalization = symbol
+                            if node.macroname == 'Definame':
+                                verbalization = verbalization.capitalize()
+                        else:
+                            raise RuntimeError('Unexpected macroname')
+
+                        if module_info:
+                            module_info.nldefs.setdefault(symbol, []).append(verbalization)
+                        else:
+                            doc_info.nldefs.setdefault(symbol, []).append(verbalization)
                 else:
                     raise Exception(f'Unexpected node type: {node.nodeType()}')
 

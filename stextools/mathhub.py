@@ -203,6 +203,5 @@ class Repository:
 def _get_mathhub_repos() -> Iterator[Repository]:
     """Returns an iterator over all MathHub repositories."""
     mathhub = get_mathhub_path()
-    for path in mathhub.glob('*/*'):
-        if (path / '.git').is_dir():
-            yield Repository(path)
+    for path in mathhub.glob('**/.git'):
+        yield Repository(path.parent)

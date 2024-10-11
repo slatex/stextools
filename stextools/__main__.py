@@ -65,5 +65,12 @@ def translate(path):
     print(translate(Path(path)))
 
 
+@cli.command(help='\\sr-ify sTeX documents. (early prototype)')
+@click.argument('files', nargs=-1)
+def srify(files):
+    from stextools.srify import srify
+    srify(files)
+
+
 if __name__ == '__main__':
     cli()
