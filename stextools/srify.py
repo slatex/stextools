@@ -1,12 +1,5 @@
 # TODO
-# Extra interaktion: usemodule vs importmodule
-#
-# usemodule auf sparagraph-Ebene
-# importmodule auf smodule-Ebene
-#
-# skipsr als tex comment (bottom of file)
-#
-# kompakte makro-Wahl
+# documents sollte als "electronic document" annotiert werden
 import functools
 import re
 from collections import defaultdict
@@ -82,8 +75,8 @@ def text_and_skipped_words_from_file(path: Path) -> tuple[str, set[str]]:
     skip_words: set[str] = set()
     with open(path) as f:
         for line in f:
-            if line.startswith('%srskip '):
-                for e in line[len('%srskip'):].split(','):
+            if line.startswith('% srskip '):
+                for e in line[len('% srskip'):].split(','):
                     e = e.strip()
                     if e:
                         skip_words.add(e)
@@ -94,14 +87,14 @@ def text_and_skipped_words_from_file(path: Path) -> tuple[str, set[str]]:
 
 def skipped_words_to_comments(skip_words: set[str]) -> str:
     lines: list[str] = []
-    current_line = '%srskip'
+    current_line = '% srskip'
     for word in skip_words:
         if len(current_line) + len(word) + 2 > 80:
             lines.append(current_line)
-            current_line = '%srskip ' + word + ','
+            current_line = '% srskip ' + word + ','
         else:
             current_line += ' ' + word + ','
-    if current_line != '%srskip':
+    if current_line != '% srskip':
         lines.append(current_line)
     if lines:
         return '\n'.join(lines) + '\n'
