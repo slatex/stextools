@@ -1,5 +1,5 @@
 from pylatexenc.latexwalker import get_default_latex_context_db
-from pylatexenc.macrospec import MacroSpec, std_environment
+from pylatexenc.macrospec import MacroSpec, std_environment, VerbatimArgsParser
 
 STEX_MACRO_SPECS: list = [
     # from section 3.5 of the stex manual (targets modules)
@@ -52,8 +52,18 @@ STEX_ENV_SPECS: list = [
     std_environment('sparagraph', '['),
 ]
 
+
+STANDARD_MACRO_SPECS: list = [
+    MacroSpec('lstinline', args_parser = VerbatimArgsParser(verbatim_arg_type="verb-macro")),
+]
+
+STANDARD_ENV_SPECS: list = [
+    std_environment('lstlisting', '['),
+]
+
 STEX_CONTEXT_DB = get_default_latex_context_db()
 STEX_CONTEXT_DB.add_context_category('stex', macros=STEX_MACRO_SPECS, environments=STEX_ENV_SPECS)
+STEX_CONTEXT_DB.add_context_category('std', macros=STANDARD_MACRO_SPECS, environments=STANDARD_ENV_SPECS)
 try:
     STEX_CONTEXT_DB.freeze()
 except AttributeError:   # freeze is only available in newer pylatexenc versions

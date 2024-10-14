@@ -20,6 +20,10 @@ from stextools.tree_regex import words_to_regex
 logger = logging.getLogger(__name__)
 
 
+INTRANSPARENT_ENVS: set[str] = {'lstlisting'}
+TRANSPARENT_MACROS: set[str] = set()
+
+
 class FoundWord(Exception):
     def __init__(self, start: int, end: int):
         self.start = start
@@ -147,13 +151,11 @@ def srify(files: list[str]):
                         continue
                     verb = mystem(verb)
                     all_verbs = [verb]
-                    # sub-verbalizations also attractive (e.g. 'electronic document' -> 'document')
-                    if ' ' in verb:
-                        # TODO: ignoring this for now (too many false positives). E.g. we get 'document' from 'document root'
-                        #   -> maybe with pos-tagging we can only do this for adjectives?
-                        # all_verbs.append(verb.split(' ')[0])   # 'even number' -> 'even'
-                        for i in range(1, len(verb.split(' '))):
-                            all_verbs.append(' '.join(verb.split(' ')[i:]))
+#                     # sub-verbalizations actually not attractive (too many)
+#                     if ' ' in verb:
+#                         all_verbs.append(verb.split(' ')[0])   # 'even number' -> 'even'
+#                         for i in range(1, len(verb.split(' '))):
+#                             all_verbs.append(' '.join(verb.split(' ')[i:]))
 
                     for verb in all_verbs:
                         all_words.add(verb)
@@ -178,6 +180,8 @@ def srify(files: list[str]):
 
                 for node in nodes:
                     if node.nodeType() in {LatexMacroNode, LatexMathNode, LatexCommentNode, LatexSpecialsNode}:
+                        if node.nodeType() == LatexMacroNode and node.macroname in TRANSPARENT_MACROS:
+                            _recurse(node.nodeargs)
                         continue
                     elif node.nodeType() in {LatexGroupNode, LatexEnvironmentNode}:
                         if node.nodeType() == LatexEnvironmentNode and \
@@ -186,7 +190,8 @@ def srify(files: list[str]):
                             if node.environmentname == 'smodule':
                                 # imports are generally at a higher level - TODO: Is this the correct heuristic?
                                 import_insert_pos = node.nodelist[0].pos
-                        _recurse(node.nodelist)
+                        if node.environmentname not in INTRANSPARENT_ENVS:
+                            _recurse(node.nodelist)
                     else:
                         assert node.nodeType() == LatexCharsNode
                         lstr: LinkedStr = string_to_lstr(node.chars)
@@ -216,7 +221,7 @@ def srify(files: list[str]):
                 opt_style = lambda x: '  ' + click.style(x, bold=True)
                 print(opt_style('[s]') + 'kip once')
                 print(opt_style('[S]') + 'kip always (in this file)')
-                print(opt_style('[i]') + 'gnore this word forever')
+                print(opt_style('[i]') + f'gnore this word forever (word list in {ignore_list.path})')
                 print(opt_style('[X]') + ' exit this file')
                 for i, (symb, doc) in enumerate(word_to_symb[mystem(word)]):
                     print(opt_style(f'[{i}]'), doc.archive.get_archive_name(), doc_path_rel_spec(doc) + '?' + symb)
