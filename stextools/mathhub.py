@@ -68,9 +68,8 @@ class MathHub:
         last_printed = time.time()
         processed = 0
 
-        _load_doc_info.mh = self   # type: ignore
         with multiprocessing.Pool(12) as pool:
-            for i, doc_info in pool.imap(_load_doc_info, zip(range(len(documents)), documents), chunksize=30):
+            for i, doc_info in pool.imap(_load_doc_info, zip(range(len(documents)), documents, [self] * len(documents)), chunksize=30):
                 documents[i]._doc_info = doc_info
                 processed += 1
                 if time.time() - last_printed > 2:
@@ -81,8 +80,8 @@ class MathHub:
 
 
 def _load_doc_info(arg) -> tuple[int, DocInfo]:
-    i, document = arg
-    document.create_doc_info(_load_doc_info.mh)   # type: ignore
+    i, document, mh = arg
+    document.create_doc_info(mh)   # type: ignore
     return i, document._doc_info
 
 
