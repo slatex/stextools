@@ -54,7 +54,7 @@ STEX_ENV_SPECS: list = [
 
 
 STANDARD_MACRO_SPECS: list = [
-    MacroSpec('lstinline', args_parser = VerbatimArgsParser(verbatim_arg_type="verb-macro")),
+    MacroSpec('lstinline', args_parser=VerbatimArgsParser(verbatim_arg_type="verb-macro")),
     MacroSpec('lstset', '{'),
     MacroSpec('lstinputlisting', '[{'),
 ]

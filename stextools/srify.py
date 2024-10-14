@@ -1,3 +1,6 @@
+# TODO
+# wenn symdecl symbol einführt und danach definiendum kommt, gibt es gerade doppelte einträge
+
 import functools
 import logging
 import re
@@ -163,8 +166,6 @@ def srify(files: list[str]):
 
     Cache.store_mathhub(mh)
 
-    # print('Skipped', skipped, 'words')
-
     for file in files:
         tmp_skip: set[str] = set()
         while True:
@@ -223,6 +224,7 @@ def srify(files: list[str]):
                 opt_style = lambda x: '  ' + click.style(x, bold=True)
                 print(opt_style('[s]') + 'kip once')
                 print(opt_style('[S]') + 'kip always (in this file)')
+                print(opt_style('[r]') + 'eplace this word')
                 print(opt_style('[i]') + f'gnore this word forever (word list in {ignore_list.path})')
                 print(opt_style('[X]') + ' exit this file')
                 for i, (symb, doc) in enumerate(word_to_symb[mystem(word)]):
@@ -232,7 +234,7 @@ def srify(files: list[str]):
                 print()
                 choice = click.prompt(
                     click.style('>>> ', reverse=True, bold=True),
-                    type=click.Choice(['S', 's', 'i', 'X'] + [str(i) for i in range(len(word_to_symb[mystem(word)]))]),
+                    type=click.Choice(['S', 's', 'i', 'r', 'X'] + [str(i) for i in range(len(word_to_symb[mystem(word)]))]),
                     show_choices=False, prompt_suffix=''
                 )
                 if choice == 'X':
@@ -246,6 +248,9 @@ def srify(files: list[str]):
                 elif choice == 'i':
                     ignore_list.add(mystem(word))
                     new_text = text
+                elif choice == 'r':
+                    new_word = click.prompt('New word:', default=word)
+                    new_text = text[:e.start] + new_word + text[e.end:]
                 else:
                     # Making a new STeXDocument as the existing one is not guaranteed to be up-to-date
                     current_document = STeXDocument(mh.get_archive_from_path(Path(file)), Path(file))
