@@ -6,20 +6,18 @@ authors = [
 ]
 description = "sTeX tooling"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.9"
+dependencies = [
+    "pylatexenc >= 2.10",
+    "click >= 8.1",
+    "nltk"
+]
+
 
 # setuptools doesn't support PEP 660
 # [build-system]
 # requires = ["setuptools>=62.6"]
 # build-backend = "setuptools.build_meta"
-
-
-[options]
-install_requires = [
-    "pylatexenc >= 2.10",
-    "click >= 8.1",
-    "nltk"
-]
 
 [build-system]
 requires = ["flit_core>=3.2"]

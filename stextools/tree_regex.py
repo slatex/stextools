@@ -1,7 +1,9 @@
 import re
-from typing import TypeAlias, Iterable
+from typing import Iterable, Any
 
-TREE_TYPE: TypeAlias = dict[str, 'TREE_TYPE']
+# python 3.9 doesn't have TypeAlias yet
+# TREE_TYPE: TypeAlias = dict[str, 'TREE_TYPE']
+TREE_TYPE = Any
 
 
 def words_to_tree(words: Iterable[str]) -> TREE_TYPE:

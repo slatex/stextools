@@ -42,6 +42,7 @@ STEX_MACRO_SPECS: list = [
     MacroSpec('sr', '{{'),
     MacroSpec('objective', '{{'),
     MacroSpec('sref', '[{'),
+    MacroSpec('usestructure', '{'),
 ]
 
 STEX_ENV_SPECS: list = [

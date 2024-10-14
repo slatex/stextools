@@ -16,7 +16,20 @@ LinkedStr_T = TypeVar('LinkedStr_T', bound='LinkedStr')
 _MetaInfoType = TypeVar('_MetaInfoType')
 
 
-@dataclasses.dataclass(frozen=True, slots=True)
+
+def pairwise(iterable):
+    iterator = iter(iterable)
+    a = next(iterator, None)
+    for b in iterator:
+        yield a, b
+        a = b
+
+if not hasattr(itertools, 'pairwise'):
+    # only available in python 3.10+
+    itertools.pairwise = pairwise
+
+
+@dataclasses.dataclass(frozen=True)
 class _RelData(Generic[_MetaInfoType]):
     """ It is expensive to copy references and strings.
     By storing the offsets relative to another LinkedStr, we can save memory and computation time.
@@ -185,7 +198,7 @@ class LinkedStr(Generic[_MetaInfoType]):
             positions_are_references: bool = True,    # if False, positions are indices into the string
     ) -> LinkedStr_T:
 
-        @dataclasses.dataclass(frozen=True, slots=True)
+        @dataclasses.dataclass(frozen=True)
         class Entry:
             start_str: int
             end_str: int

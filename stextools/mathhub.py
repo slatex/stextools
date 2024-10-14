@@ -29,7 +29,7 @@ class MathHub:
                 yield repo
 
     def get_archive_from_path(self, path: Path) -> Repository:
-        path = path.absolute()
+        path = path.absolute().resolve()
         while not (path / '.git').is_dir():
             path = path.parent
             if path == Path('/'):

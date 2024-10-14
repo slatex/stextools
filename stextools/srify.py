@@ -151,7 +151,7 @@ def srify(files: list[str]):
                         continue
                     elif node.nodeType() in {LatexGroupNode, LatexEnvironmentNode}:
                         if node.nodeType() == LatexEnvironmentNode and \
-                                node.environmentname in {'sproblem', 'smodule', 'sdefinition', 'sparagraph'}:
+                                node.environmentname in {'sproblem', 'smodule', 'sdefinition', 'sparagraph', 'document'}:
                             use_insert_pos = node.nodelist[0].pos
                             if node.environmentname == 'smodule':
                                 # imports are generally at a higher level - TODO: Is this the correct heuristic?
@@ -201,7 +201,7 @@ def srify(files: list[str]):
                     break
                 if choice == 'S':
                     skip_words.add(mystem(word))
-                    new_text = text + skipped_words_to_comments(skip_words)
+                    new_text = text
                 elif choice == 's':
                     tmp_skip.add(mystem(word))
                     new_text = text
@@ -232,6 +232,7 @@ def srify(files: list[str]):
                             new_text = text[:import_insert_pos] + f'\n  \\importmodule{args}' + \
                                        text[import_insert_pos:e.start]
                         else:
+                            assert use_insert_pos is not None, 'No use_insert_pos, which means that I could not find the place for inserting the \\usemodule'
                             new_text = text[:use_insert_pos] + f'\n  \\usemodule{args}' + text[use_insert_pos:e.start]
 
                     # check if symbol name is unique
@@ -256,7 +257,7 @@ def srify(files: list[str]):
                         new_text += '\\Sns{' + prefix + symb + '}'
                     else:
                         new_text += '\\sr{' + prefix + symb + '}' + '{' + word + '}'
-                    new_text += text[e.end:] + skipped_words_to_comments(skip_words)
+                    new_text += text[e.end:]
 
                 with open(file, 'w') as f:
-                    f.write(new_text)
+                    f.write(new_text + skipped_words_to_comments(skip_words))

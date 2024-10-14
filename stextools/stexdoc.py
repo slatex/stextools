@@ -159,7 +159,7 @@ DEPENDENCY_PRODUCER_BY_MACRONAME: dict[str, DependencyProducer] = {dp.macroname:
 class STeXDocument:
     def __init__(self, archive: Repository, path: Path):
         self.archive = archive
-        self.path = path.absolute()
+        self.path = path.absolute().resolve()
         self._doc_info: Optional[DocInfo] = None
 
     def get_doc_info(self, mh: MathHub) -> DocInfo:
