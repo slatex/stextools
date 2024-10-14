@@ -144,7 +144,7 @@ DEPENDENCY_PRODUCERS = [
     DependencyProducer('lstinputmhlisting', archive_in_params=True, target_no_tex=True),
 
     DependencyProducer('includeproblem', archive_in_params=True),
-    DependencyProducer('includeassignment', archive_in_params=True),
+    # DependencyProducer('includeassignment', archive_in_params=True),
 
     DependencyProducer('libinput', opt_param_is_archive=True, is_lib=True),
     DependencyProducer('addmhbibresource', archive_in_params=True, target_no_tex=True, is_lib=True),
@@ -210,15 +210,16 @@ class STeXDocument:
                                 doc_info.dependencies.append(dep)
 
                     elif node.macroname in {'definiendum', 'definame', 'Definame'}:
-                        # TODO: sometimes we have '?' in the symbols...
+                        # TODO: sometimes we have '?' in the symbols... Should we skip those?
+                        # (it presumably means that the symbol is re-defined)
                         if node.macroname == 'definiendum':
                             symbol = node.nodeargd.argnlist[-2].latex_verbatim()[1:-1]
                             verbalization = node.nodeargd.argnlist[-1].latex_verbatim()[1:-1]
                         elif node.macroname in {'definame', 'Definame'}:
                             symbol = node.nodeargd.argnlist[-1].latex_verbatim()[1:-1]
                             verbalization = symbol
-                            if node.macroname == 'Definame':
-                                verbalization = verbalization.capitalize()
+                            if node.macroname == 'Definame' and verbalization:
+                                verbalization = verbalization[0].upper() + verbalization[1:]
                         else:
                             raise RuntimeError('Unexpected macroname')
 
