@@ -160,7 +160,7 @@ def srify(files: list[str]):
         while True:
             text, skip_words = text_and_skipped_words_from_file(Path(file))
             walker = LatexWalker(Path(file).read_text(), latex_context=STEX_CONTEXT_DB)
-            regex = re.compile(r'\b' + words_to_regex([word for word in all_words if word not in skip_words and word not in tmp_skip]) + r'\b')
+            regex = re.compile(r'\b' + words_to_regex([word for word in all_words if word not in skip_words and word not in tmp_skip and word not in ignore_list.word_set]) + r'\b')
 
             import_insert_pos: Optional[int] = None
             use_insert_pos: Optional[int] = None
