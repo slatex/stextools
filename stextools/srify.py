@@ -134,10 +134,11 @@ def srify(files: list[str]):
     # print('Skipped', skipped, 'words')
 
     for file in files:
+        tmp_skip: set[str] = set()
         while True:
             text, skip_words = text_and_skipped_words_from_file(Path(file))
             walker = LatexWalker(Path(file).read_text(), latex_context=STEX_CONTEXT_DB)
-            regex = re.compile(r'\b' + words_to_regex([word for word in all_words if word not in skip_words]) + r'\b')
+            regex = re.compile(r'\b' + words_to_regex([word for word in all_words if word not in skip_words and word not in tmp_skip]) + r'\b')
 
             import_insert_pos: Optional[int] = None
             use_insert_pos: Optional[int] = None
@@ -151,7 +152,7 @@ def srify(files: list[str]):
                     elif node.nodeType() in {LatexGroupNode, LatexEnvironmentNode}:
                         if node.nodeType() == LatexEnvironmentNode and \
                                 node.environmentname in {'sproblem', 'smodule', 'sdefinition', 'sparagraph'}:
-                            use_insert_pos = node.pos
+                            use_insert_pos = node.nodelist[0].pos
                             if node.environmentname == 'smodule':
                                 # imports are generally at a higher level - TODO: Is this the correct heuristic?
                                 import_insert_pos = node.nodelist[0].pos
@@ -183,8 +184,9 @@ def srify(files: list[str]):
                 print()
                 print('Options:')
                 opt_style = lambda x: '  ' + click.style(x, bold=True)
-                print(opt_style('[S]') + 'kip file')
-                print(opt_style('[s]') + 'kip word')
+                print(opt_style('[s]') + 'kip once')
+                print(opt_style('[S]') + 'kip always (in this file)')
+                print(opt_style('[X]') + ' exit this file')
                 for i, (symb, doc) in enumerate(word_to_symb[mystem(word)]):
                     print(opt_style(f'[{i}]'), doc.archive.get_archive_name(), doc_path_rel_spec(doc) + '?' + symb)
                     print('         ', click.style(doc.path, italic=True))
@@ -192,14 +194,17 @@ def srify(files: list[str]):
                 print()
                 choice = click.prompt(
                     click.style('>>> ', reverse=True, bold=True),
-                    type=click.Choice(['S', 's'] + [str(i) for i in range(len(word_to_symb[mystem(word)]))]),
+                    type=click.Choice(['S', 's', 'X'] + [str(i) for i in range(len(word_to_symb[mystem(word)]))]),
                     show_choices=False, prompt_suffix=''
                 )
-                if choice == 'S':
+                if choice == 'X':
                     break
-                if choice == 's':
+                if choice == 'S':
                     skip_words.add(mystem(word))
                     new_text = text + skipped_words_to_comments(skip_words)
+                elif choice == 's':
+                    tmp_skip.add(mystem(word))
+                    new_text = text
                 else:
                     # Making a new STeXDocument as the existing one is not guaranteed to be up-to-date
                     current_document = STeXDocument(mh.get_archive_from_path(Path(file)), Path(file))
