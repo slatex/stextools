@@ -1,6 +1,7 @@
 # TODO
 # documents sollte als "electronic document" annotiert werden
 import functools
+import logging
 import re
 from collections import defaultdict
 from pathlib import Path
@@ -16,6 +17,9 @@ from stextools.macros import STEX_CONTEXT_DB
 from stextools.mathhub import MathHub
 from stextools.stexdoc import STeXDocument
 from stextools.tree_regex import words_to_regex
+
+
+logger = logging.getLogger(__name__)
 
 
 class FoundWord(Exception):
@@ -101,9 +105,34 @@ def skipped_words_to_comments(skip_words: set[str]) -> str:
     return ''
 
 
+class IgnoreList:
+    def __init__(self):
+        self.path = Path('~/.config/stextools/srify_ignore').expanduser()
+        self.path.parent.mkdir(exist_ok=True)
+        if not self.path.exists():
+            self.path.write_text('')
+            logger.info(f'Created {self.path}')
+        self.word_list: list[str] = []
+        with open(self.path) as f:
+            for line in f:
+                word = line.strip()
+                if word:
+                    self.word_list.append(word)
+        self.word_set: set[str] = set(self.word_list)
+        logger.info(f'Loaded {len(self.word_list)} words from {self.path}')
+
+    def add(self, word: str):
+        if word not in self.word_set:
+            self.word_set.add(word)
+            self.word_list.append(word)
+            self.path.write_text('\n'.join(self.word_list) + '\n')
+
+
 def srify(files: list[str]):
     mh = Cache.get_mathhub()
     mh.load_all_doc_infos()   # Doing it now (and not later) to take advantage of multiprocessing implementation
+
+    ignore_list = IgnoreList()
 
     skipped = 0
 
@@ -179,6 +208,7 @@ def srify(files: list[str]):
                 opt_style = lambda x: '  ' + click.style(x, bold=True)
                 print(opt_style('[s]') + 'kip once')
                 print(opt_style('[S]') + 'kip always (in this file)')
+                print(opt_style('[i]') + 'gnore this word forever')
                 print(opt_style('[X]') + ' exit this file')
                 for i, (symb, doc) in enumerate(word_to_symb[mystem(word)]):
                     print(opt_style(f'[{i}]'), doc.archive.get_archive_name(), doc_path_rel_spec(doc) + '?' + symb)
@@ -187,7 +217,7 @@ def srify(files: list[str]):
                 print()
                 choice = click.prompt(
                     click.style('>>> ', reverse=True, bold=True),
-                    type=click.Choice(['S', 's', 'X'] + [str(i) for i in range(len(word_to_symb[mystem(word)]))]),
+                    type=click.Choice(['S', 's', 'i', 'X'] + [str(i) for i in range(len(word_to_symb[mystem(word)]))]),
                     show_choices=False, prompt_suffix=''
                 )
                 if choice == 'X':
@@ -197,6 +227,9 @@ def srify(files: list[str]):
                     new_text = text
                 elif choice == 's':
                     tmp_skip.add(mystem(word))
+                    new_text = text
+                elif choice == 'i':
+                    ignore_list.add(mystem(word))
                     new_text = text
                 else:
                     # Making a new STeXDocument as the existing one is not guaranteed to be up-to-date
