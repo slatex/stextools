@@ -209,12 +209,25 @@ class STeXDocument:
                             else:
                                 doc_info.dependencies.append(dep)
 
-                    elif node.macroname in {'definiendum', 'definame', 'Definame'}:
+                    elif node.macroname in {'definiendum', 'definame', 'Definame', 'symdef', 'symdecl'}:
                         # TODO: sometimes we have '?' in the symbols... Should we skip those?
                         # (it presumably means that the symbol is re-defined)
                         if node.macroname == 'definiendum':
                             symbol = node.nodeargd.argnlist[-2].latex_verbatim()[1:-1]
                             verbalization = node.nodeargd.argnlist[-1].latex_verbatim()[1:-1]
+                        elif node.macroname == 'symdef':
+                            arg = node.nodeargd.argnlist[1]
+                            if arg:
+                                params = OptArgKeyVals(arg.nodelist)
+                                symbol = params.get_val('name')
+                            else:
+                                symbol = None
+                            if symbol is None:
+                                symbol = node.nodeargd.argnlist[0].latex_verbatim()[1:-1]
+                            verbalization = symbol
+                        elif node.macroname == 'symdecl':
+                            symbol = node.nodeargd.argnlist[-1].latex_verbatim()[1:-1]
+                            verbalization = symbol
                         elif node.macroname in {'definame', 'Definame'}:
                             symbol = node.nodeargd.argnlist[-1].latex_verbatim()[1:-1]
                             verbalization = symbol

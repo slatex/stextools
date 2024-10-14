@@ -35,7 +35,7 @@ STEX_MACRO_SPECS: list = [
     MacroSpec('definiendum', '[{{'),
     MacroSpec('definame', '[{'),
     MacroSpec('Definame', '[{'),
-    MacroSpec('sn', '{'),
+    MacroSpec('sn', '[{'),
     MacroSpec('sns', '{'),
     MacroSpec('Sn', '{'),
     MacroSpec('Sns', '{'),
@@ -55,6 +55,8 @@ STEX_ENV_SPECS: list = [
 
 STANDARD_MACRO_SPECS: list = [
     MacroSpec('lstinline', args_parser = VerbatimArgsParser(verbatim_arg_type="verb-macro")),
+    MacroSpec('lstset', '{'),
+    MacroSpec('lstinputlisting', '[{'),
 ]
 
 STANDARD_ENV_SPECS: list = [
