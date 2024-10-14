@@ -183,7 +183,7 @@ def srify(files: list[str]):
                         if node.nodeType() == LatexMacroNode and node.macroname in TRANSPARENT_MACROS:
                             _recurse(node.nodeargs)
                         continue
-                    elif node.nodeType() in {LatexGroupNode, LatexEnvironmentNode}:
+                    elif node.nodeType() == LatexEnvironmentNode:
                         if node.nodeType() == LatexEnvironmentNode and \
                                 node.environmentname in {'sproblem', 'smodule', 'sdefinition', 'sparagraph', 'document'}:
                             use_insert_pos = node.nodelist[0].pos
@@ -192,6 +192,8 @@ def srify(files: list[str]):
                                 import_insert_pos = node.nodelist[0].pos
                         if node.environmentname not in INTRANSPARENT_ENVS:
                             _recurse(node.nodelist)
+                    elif node.nodeType() == LatexGroupNode:
+                        _recurse(node.nodelist)
                     else:
                         assert node.nodeType() == LatexCharsNode
                         lstr: LinkedStr = string_to_lstr(node.chars)
