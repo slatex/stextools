@@ -1,5 +1,3 @@
-# TODO
-# documents sollte als "electronic document" annotiert werden
 import functools
 import logging
 import re
@@ -148,8 +146,18 @@ def srify(files: list[str]):
                         skipped += 1
                         continue
                     verb = mystem(verb)
-                    all_words.add(verb)
-                    word_to_symb[verb].append((symb, doc))
+                    all_verbs = [verb]
+                    # sub-verbalizations also attractive (e.g. 'electronic document' -> 'document')
+                    if ' ' in verb:
+                        # TODO: ignoring this for now (too many false positives). E.g. we get 'document' from 'document root'
+                        #   -> maybe with pos-tagging we can only do this for adjectives?
+                        # all_verbs.append(verb.split(' ')[0])   # 'even number' -> 'even'
+                        for i in range(1, len(verb.split(' '))):
+                            all_verbs.append(' '.join(verb.split(' ')[i:]))
+
+                    for verb in all_verbs:
+                        all_words.add(verb)
+                        word_to_symb[verb].append((symb, doc))
 
     Cache.store_mathhub(mh)
 
