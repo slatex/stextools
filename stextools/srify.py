@@ -3,6 +3,7 @@
 # skip: just press space
 
 import functools
+import itertools
 import logging
 import re
 from collections import defaultdict
@@ -23,7 +24,6 @@ from stextools.ui import pale_color, print_options, simple_choice_prompt
 
 logger = logging.getLogger(__name__)
 
-
 INTRANSPARENT_ENVS: set[str] = {'lstlisting'}
 TRANSPARENT_MACROS: set[str] = set()
 
@@ -34,7 +34,7 @@ class FoundWord(Exception):
         self.end = end
 
 
-def doc_path_rel_spec(doc: STeXDocument, stylize_file_name: bool=False) -> str:
+def doc_path_rel_spec(doc: STeXDocument, stylize_file_name: bool = False) -> str:
     p = doc.get_rel_path()
     if p.endswith('.en.tex'):
         p = p[:-len('.en.tex')]
@@ -45,7 +45,7 @@ def doc_path_rel_spec(doc: STeXDocument, stylize_file_name: bool=False) -> str:
 @functools.cache
 def mystem(word: str) -> str:
     import nltk.stem.porter
-    if word.isupper():   # acronym
+    if word.isupper():  # acronym
         return word
     if word and word[-1] == 's' and word[:-1].isupper():  # plural acronym
         return word[:-1]
@@ -141,7 +141,7 @@ class IgnoreList:
             self.path.write_text('\n'.join(self.word_list) + '\n')
 
 
-def get_verb_info(mh: MathHub, filter_fun: Callable[[str], bool])\
+def get_verb_info(mh: MathHub, filter_fun: Callable[[str], bool]) \
         -> tuple[set[str], dict[str, list[tuple[str, STeXDocument]]]]:
     skipped = 0
     all_words = set()
@@ -165,7 +165,10 @@ def get_verb_info(mh: MathHub, filter_fun: Callable[[str], bool])\
 
 
 def look_for_next_word(all_words: Iterable[str], to_ignore: set[str], text: str) -> Optional[tuple[int, int, int, int]]:
-    regex = re.compile(r'\b' + words_to_regex([word for word in all_words if word not in to_ignore]) + r'\b')
+    regex_core = words_to_regex([word for word in all_words if word not in to_ignore])
+    if not regex_core:
+        return None
+    regex = re.compile(r'\b' + regex_core + r'\b')
     import_insert_pos: Optional[int] = None
     use_insert_pos: Optional[int] = None
 
@@ -199,6 +202,7 @@ def look_for_next_word(all_words: Iterable[str], to_ignore: set[str], text: str)
                     replacements.append((match.start(), match.end(), mystem(str(word))))
                 lstr = lstr.replacements_at_positions(replacements, positions_are_references=False)
                 for match in regex.finditer(str(lstr)):
+                    print('found match', match, lstr[match])
                     raise FoundWord(lstr[match].get_start_ref() + node.pos, lstr[match].get_end_ref() + node.pos)
 
     walker = LatexWalker(text, latex_context=STEX_CONTEXT_DB)
@@ -214,6 +218,45 @@ class Srifier:
         self.ignore_list = IgnoreList()
         self.mh = Cache.get_mathhub(update_all=True)
         self.all_words, self.word_to_symb = get_verb_info(self.mh, filter_fun)
+        if not self.all_words:
+            raise click.ClickException('No words found...')
+        self.main_commands: list[tuple[str, str]] = [
+            ('h', 'elp (show all commands)'),
+            ('s', 'kip once'),
+            ('S', 'kip always (in this file)'),
+            ('i', 'gnore this word forever' + \
+             click.style(f' (word list in {self.ignore_list.path})', fg=pale_color())),
+        ]
+        self.other_commands: list[tuple[str, str]] = [
+            ('r', 'eplace this word'),
+            ('X', ' exit this file'),
+        ]
+
+    def get_commmand(self, word: str) -> str:
+        options = self.main_commands[:]
+        for i, (symb, doc) in enumerate(self.word_to_symb[mystem(word)]):
+            options.append((str(i), (
+                    ' ' + doc.archive.get_archive_name() +
+                    ' ' + doc_path_rel_spec(doc, stylize_file_name=True) + '?' + click.style(symb, fg='green') +
+                    '\n        ' + click.style(doc.path, italic=True, fg=pale_color())
+            )))
+        print_options('Commands:', options)
+
+        print()
+        choice = simple_choice_prompt(
+            [e[0] for e in itertools.chain(options, self.other_commands)],
+        )
+        return choice
+
+    def show_help(self):
+        click.clear()
+        print(click.style(f'{"Help":^80}', bg='bright_yellow'))
+        print()
+        print_options('Main commands:', self.main_commands)
+        print()
+        print_options('Other commands:', self.other_commands)
+        print()
+        click.pause('Press any key to continue...')
 
     def process_file(self, file: str):
         tmp_skip: set[str] = set()
@@ -228,70 +271,57 @@ class Srifier:
 
             word = text[word_start_index:word_end_index]
             click.clear()
-            print(click.style(f'{file:-^80}', bg='bright_green'))
+            print(click.style(f'{file:^80}', bg='bright_green'))
             print('...' + text[max(0, word_start_index - 150):word_start_index], end='', sep='')
             print(click.style(word, fg='red', bold=True), end='', sep='')
             print(text[word_end_index:min(len(text), word_end_index + 150)] + '...', sep='')
             print()
-            options = [
-                ('s', 'kip once'),
-                ('S', 'kip always (in this file)'),
-                ('r', 'eplace this word'),
-                ('i', 'gnore this word forever' + \
-                 click.style(f' (word list in {self.ignore_list.path})', fg=pale_color())),
-                ('X', ' exit this file')
-            ]
-            for i, (symb, doc) in enumerate(self.word_to_symb[mystem(word)]):
-                options.append((str(i), (
-                        ' ' + doc.archive.get_archive_name() +
-                        ' ' + doc_path_rel_spec(doc, stylize_file_name=True) + '?' + click.style(symb, fg='green') +
-                        '\n        ' + click.style(doc.path, italic=True, fg=pale_color())
-                )))
-            print_options('Commands:', options)
 
-            print()
-            choice = simple_choice_prompt(
-                ['S', 's', 'i', 'r', 'X'] + [str(i) for i in range(len(self.word_to_symb[mystem(word)]))]
-            )
-            if choice == 'X':
+            command = self.get_commmand(word)
+            if command == 'X':
                 break
-            if choice == 'S':
+            if command == 'S':
                 skip_words.add(mystem(word))
                 new_text = text
-            elif choice == 's':
+            elif command == 's':
                 tmp_skip.add(mystem(word))
                 new_text = text
-            elif choice == 'i':
+            elif command == 'i':
                 self.ignore_list.add(mystem(word))
                 new_text = text
-            elif choice == 'r':
+            elif command == 'r':
                 new_word = click.prompt('New word:', default=word)
                 new_text = text[:word_start_index] + new_word + text[word_end_index:]
-            else:  # choice is a number
+            elif command == 'h':
+                self.show_help()
+                continue
+            else:  # command is a number
+                assert command.isdigit(), f'Internal error: unexpected command {command}'
                 # Making a new STeXDocument as the existing one is not guaranteed to be up-to-date
                 current_document = STeXDocument(self.mh.get_archive_from_path(Path(file)), Path(file))
                 current_document.create_doc_info(self.mh)
 
-                symb, symbdoc = self.word_to_symb[mystem(word)][int(choice)]
+                symb, symbdoc = self.word_to_symb[mystem(word)][int(command)]
 
                 if symbol_is_imported(current_document, symbdoc, self.mh):
                     new_text = text[:word_start_index]
                 else:
                     if import_insert_pos is not None:
                         print_options('The symbol has to be imported. Do you want to use', [
-                                      ('i', 'mportmodule'),
-                                      ('u', 'semodule')
+                            ('i', 'mportmodule'),
+                            ('u', 'semodule')
                         ])
-                        choice = simple_choice_prompt(['i', 'u'])
+                        command = simple_choice_prompt(['i', 'u'])
                     else:
-                        choice = 'u'
+                        command = 'u'
                     args = f'[{symbdoc.archive.get_archive_name()}]{{{doc_path_rel_spec(symbdoc)}}}'
-                    if choice == 'i':
+                    if command == 'i':
                         new_text = text[:import_insert_pos] + f'\n  \\importmodule{args}' + \
                                    text[import_insert_pos:word_start_index]
                     else:
                         assert use_insert_pos is not None, 'No use_insert_pos, which means that I could not find the place for inserting the \\usemodule'
-                        new_text = text[:use_insert_pos] + f'\n  \\usemodule{args}' + text[use_insert_pos:word_start_index]
+                        new_text = text[:use_insert_pos] + f'\n  \\usemodule{args}' + text[
+                                                                                      use_insert_pos:word_start_index]
 
                 new_text += self.get_sr(symb, word, symbdoc)
                 new_text += text[word_end_index:]

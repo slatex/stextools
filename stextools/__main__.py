@@ -5,6 +5,7 @@ import click
 
 from stextools import ui
 from stextools.cache import Cache
+from stextools.config import get_config
 
 logger = logging.getLogger(__name__)
 
@@ -13,10 +14,12 @@ logger = logging.getLogger(__name__)
 @click.option('--keep-cache', is_flag=True, default=False,
               help='Keep the cache despite changes to the stextools package.'
                    'This can be useful for stextools development, but may lead to errors.')
-@click.option('--simplified-color', is_flag=True, default=False,
-              help='Use ANSI color codes instead of 24-bit colors.')
-def cli(keep_cache, simplified_color):
-    ui.USE_24_BIT_COLORS = not simplified_color
+@click.option('--use-true-color',
+              default=lambda: get_config().getboolean('stextools', 'use_true_color', fallback=True),
+              type=bool,
+              help='Use 24-bit ("true") colors. Not all terminals support this.')
+def cli(keep_cache, use_true_color):
+    ui.USE_24_BIT_COLORS = use_true_color
     if keep_cache:
         Cache.clear = lambda: None  # type: ignore
     logging.getLogger('pylatexenc.latexwalker').setLevel(logging.WARNING)
@@ -72,9 +75,11 @@ def translate(path):
 
 @cli.command(help='\\sr-ify sTeX documents. (early prototype)')
 @click.argument('files', nargs=-1)
-@click.option('--filter', default=None,
+@click.option('--filter',
+              default=lambda: get_config().get('stextools.srify', 'filter', fallback=None),
               help='Filter pattern to only show some archives (e.g. \'smglom/*,courses/*\')')
-@click.option('--ignore', default=None,
+@click.option('--ignore',
+              default=lambda: get_config().get('stextools.srify', 'ignore', fallback=None),
               help='Pattern to exclude some archives (e.g. \'Papers/*,smglom/mv\')')
 def srify(files, filter, ignore):
     from stextools.srify import srify
