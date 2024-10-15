@@ -237,9 +237,11 @@ class STeXDocument:
                             raise RuntimeError('Unexpected macroname')
 
                         if module_info:
-                            module_info.nldefs.setdefault(symbol, []).append(verbalization)
+                            verbs = module_info.nldefs.setdefault(symbol, [])
                         else:
-                            doc_info.nldefs.setdefault(symbol, []).append(verbalization)
+                            verbs = doc_info.nldefs.setdefault(symbol, [])
+                        if verbalization not in verbs:
+                            verbs.append(verbalization)
                 else:
                     raise Exception(f'Unexpected node type: {node.nodeType()}')
 
