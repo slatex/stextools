@@ -3,6 +3,7 @@ import logging
 import math
 import pickle
 from pathlib import Path
+from typing import Optional
 
 from stextools.mathhub import MathHub
 
@@ -16,6 +17,9 @@ MATHHUB_PICKLE_FILE = CACHE_DIR / 'mathhub.pickle'
 
 
 class Cache:
+    _mh: Optional[MathHub] = None
+    _mh_uptodate: bool = False
+
     @classmethod
     @functools.cache
     def get_stextools_version(cls) -> str:
@@ -29,18 +33,27 @@ class Cache:
         return str(last_modified)
 
     @classmethod
-    @functools.cache
-    def get_mathhub(cls) -> MathHub:
+    def get_mathhub(cls, update_all: bool = False) -> MathHub:
         """Returns the MathHub instance."""
+        if cls._mh is not None:
+            if update_all and not cls._mh_uptodate:
+                cls._mh.load_all_doc_infos()
+                cls._mh_uptodate = True
+            return cls._mh
+
         cls.ensure_uptodate()
         if MATHHUB_PICKLE_FILE.exists():
             logger.info('Loading MathHub info from cache...')
             with open(MATHHUB_PICKLE_FILE, 'rb') as fp:
-                mh = pickle.load(fp)
-                mh.update()
-                return mh
-        logger.info('No MathHub info found in cache - I will start from scratch.')
-        return MathHub()
+                cls._mh: MathHub = pickle.load(fp)
+                cls._mh.update()
+        else:
+            logger.info('No MathHub info found in cache - I will start from scratch.')
+            cls._mh = MathHub()
+        if update_all:
+            cls._mh.load_all_doc_infos()
+            Cache.store_mathhub(cls._mh)
+        return cls._mh
 
     @classmethod
     def store_mathhub(cls, mh: MathHub):

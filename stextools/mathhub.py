@@ -54,7 +54,7 @@ class MathHub:
 
         logger.info(f'Found {len(self.archive_lookup)} MathHub archives')
 
-    def load_all_doc_infos(self) -> bool:
+    def load_all_doc_infos(self) -> int:
         """ quick hack for parallel loading """
         def doc_iter():
             for repo in self.iter_stex_archives():
@@ -62,21 +62,27 @@ class MathHub:
         documents: list[STeXDocument] = [doc for doc in doc_iter() if doc._doc_info is None]
 
         if not documents:
-            return False
+            return 0
 
         logger.info(f'Updating the information for {len(documents)} files')
         last_printed = time.time()
         processed = 0
 
+        if len(documents) < 50:
+            for i, doc in enumerate(documents):
+                doc.create_doc_info(self)
+                processed += 1
+            return len(documents)
+
         with multiprocessing.Pool(12) as pool:
             for i, doc_info in pool.imap(_load_doc_info, zip(range(len(documents)), documents, [self] * len(documents)), chunksize=30):
                 documents[i]._doc_info = doc_info
                 processed += 1
-                if time.time() - last_printed > 2:
+                if time.time() - last_printed > 1:
                     logger.info(f'Processed {processed}/{len(documents)} files')
                     last_printed = time.time()
         logger.info('Finished updating the information')
-        return True
+        return len(documents)
 
 
 def _load_doc_info(arg) -> tuple[int, DocInfo]:

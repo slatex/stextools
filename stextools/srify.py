@@ -1,12 +1,13 @@
 # TODO
 # wenn symdecl symbol einführt und danach definiendum kommt, gibt es gerade doppelte einträge
+# skip: just press space
 
 import functools
 import logging
 import re
 from collections import defaultdict
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Iterable
 
 import click
 from pylatexenc.latexwalker import LatexWalker, LatexMacroNode, LatexGroupNode, LatexMathNode, LatexCommentNode, \
@@ -18,7 +19,7 @@ from stextools.macros import STEX_CONTEXT_DB
 from stextools.mathhub import MathHub
 from stextools.stexdoc import STeXDocument
 from stextools.tree_regex import words_to_regex
-
+from stextools.ui import pale_color, print_options, simple_choice_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -111,6 +112,13 @@ def skipped_words_to_comments(skip_words: set[str]) -> str:
 
 
 class IgnoreList:
+    _ignore_list: Optional['IgnoreList'] = None
+
+    def __new__(cls):  # singleton...
+        if cls._ignore_list is None:
+            cls._ignore_list = super().__new__(cls)
+        return cls._ignore_list
+
     def __init__(self):
         self.path = Path('~/.config/stextools/srify_ignore').expanduser()
         self.path.parent.mkdir(exist_ok=True)
@@ -133,14 +141,8 @@ class IgnoreList:
             self.path.write_text('\n'.join(self.word_list) + '\n')
 
 
-def srify(files: list[str]):
-    mh = Cache.get_mathhub()
-    mh.load_all_doc_infos()   # Doing it now (and not later) to take advantage of multiprocessing implementation
-
-    ignore_list = IgnoreList()
-
+def get_verb_info(mh: MathHub) -> tuple[set[str], dict[str, list[tuple[str, STeXDocument]]]]:
     skipped = 0
-
     all_words = set()
     word_to_symb: dict[str, list[tuple[str, STeXDocument]]] = defaultdict(list)
     for archive in mh.iter_stex_archives():
@@ -153,157 +155,170 @@ def srify(files: list[str]):
                         skipped += 1
                         continue
                     verb = mystem(verb)
-                    all_verbs = [verb]
-#                     # sub-verbalizations actually not attractive (too many)
-#                     if ' ' in verb:
-#                         all_verbs.append(verb.split(' ')[0])   # 'even number' -> 'even'
-#                         for i in range(1, len(verb.split(' '))):
-#                             all_verbs.append(' '.join(verb.split(' ')[i:]))
+                    all_words.add(verb)
+                    word_to_symb[verb].append((symb, doc))
 
-                    for verb in all_verbs:
-                        all_words.add(verb)
-                        word_to_symb[verb].append((symb, doc))
+    return all_words, word_to_symb
 
-    Cache.store_mathhub(mh)
 
-    for file in files:
+def look_for_next_word(all_words: Iterable[str], to_ignore: set[str], text: str) -> Optional[tuple[int, int, int, int]]:
+    regex = re.compile(r'\b' + words_to_regex([word for word in all_words if word not in to_ignore]) + r'\b')
+    import_insert_pos: Optional[int] = None
+    use_insert_pos: Optional[int] = None
+
+    def _recurse(nodes):
+        nonlocal import_insert_pos, use_insert_pos
+
+        for node in nodes:
+            if node.nodeType() in {LatexMacroNode, LatexMathNode, LatexCommentNode, LatexSpecialsNode}:
+                if node.nodeType() == LatexMacroNode and node.macroname in TRANSPARENT_MACROS:
+                    _recurse(node.nodeargs)
+                continue
+            elif node.nodeType() == LatexEnvironmentNode:
+                if node.nodeType() == LatexEnvironmentNode and \
+                        node.environmentname in {'sproblem', 'smodule', 'sdefinition', 'sparagraph', 'document'}:
+                    use_insert_pos = node.nodelist[0].pos
+                    if node.environmentname == 'smodule':
+                        # imports are generally at a higher level - TODO: Is this the correct heuristic?
+                        import_insert_pos = node.nodelist[0].pos
+                if node.environmentname not in INTRANSPARENT_ENVS:
+                    _recurse(node.nodelist)
+            elif node.nodeType() == LatexGroupNode:
+                _recurse(node.nodelist)
+            else:
+                assert node.nodeType() == LatexCharsNode
+                lstr: LinkedStr = string_to_lstr(node.chars)
+                lstr = lstr.normalize_spaces()
+                replacements = []
+                # replace words with their stems
+                for match in re.finditer(r'\b\w+\b', str(lstr)):
+                    word = lstr[match]
+                    replacements.append((match.start(), match.end(), mystem(str(word))))
+                lstr = lstr.replacements_at_positions(replacements, positions_are_references=False)
+                for match in regex.finditer(str(lstr)):
+                    raise FoundWord(lstr[match].get_start_ref() + node.pos, lstr[match].get_end_ref() + node.pos)
+
+    walker = LatexWalker(text, latex_context=STEX_CONTEXT_DB)
+    try:
+        _recurse(walker.get_latex_nodes()[0])
+        return None
+    except FoundWord as e:
+        return e.start, e.end, import_insert_pos, use_insert_pos
+
+
+class Srifier:
+    def __init__(self):
+        self.ignore_list = IgnoreList()
+        self.mh = Cache.get_mathhub()
+        self.all_words, self.word_to_symb = get_verb_info(self.mh)
+
+    def process_file(self, file: str):
         tmp_skip: set[str] = set()
         while True:
             text, skip_words = text_and_skipped_words_from_file(Path(file))
-            walker = LatexWalker(Path(file).read_text(), latex_context=STEX_CONTEXT_DB)
-            regex = re.compile(r'\b' + words_to_regex([word for word in all_words if word not in skip_words and word not in tmp_skip and word not in ignore_list.word_set]) + r'\b')
 
-            import_insert_pos: Optional[int] = None
-            use_insert_pos: Optional[int] = None
-
-            def _recurse(nodes):
-                nonlocal import_insert_pos, use_insert_pos
-
-                for node in nodes:
-                    if node.nodeType() in {LatexMacroNode, LatexMathNode, LatexCommentNode, LatexSpecialsNode}:
-                        if node.nodeType() == LatexMacroNode and node.macroname in TRANSPARENT_MACROS:
-                            _recurse(node.nodeargs)
-                        continue
-                    elif node.nodeType() == LatexEnvironmentNode:
-                        if node.nodeType() == LatexEnvironmentNode and \
-                                node.environmentname in {'sproblem', 'smodule', 'sdefinition', 'sparagraph', 'document'}:
-                            use_insert_pos = node.nodelist[0].pos
-                            if node.environmentname == 'smodule':
-                                # imports are generally at a higher level - TODO: Is this the correct heuristic?
-                                import_insert_pos = node.nodelist[0].pos
-                        if node.environmentname not in INTRANSPARENT_ENVS:
-                            _recurse(node.nodelist)
-                    elif node.nodeType() == LatexGroupNode:
-                        _recurse(node.nodelist)
-                    else:
-                        assert node.nodeType() == LatexCharsNode
-                        lstr: LinkedStr = string_to_lstr(node.chars)
-                        lstr = lstr.normalize_spaces()
-                        replacements = []
-                        # replace words with their stems
-                        for match in re.finditer(r'\b\w+\b', str(lstr)):
-                            word = lstr[match]
-                            replacements.append((match.start(), match.end(), mystem(str(word))))
-                        lstr = lstr.replacements_at_positions(replacements, positions_are_references=False)
-                        for match in regex.finditer(str(lstr)):
-                            raise FoundWord(lstr[match].get_start_ref() + node.pos, lstr[match].get_end_ref() + node.pos)
-
-            try:
-                _recurse(walker.get_latex_nodes()[0])
-                print('done with file')
+            _r = look_for_next_word(self.all_words, skip_words | tmp_skip | self.ignore_list.word_set, text)
+            if _r is None:
+                print('No more words found in', file)
                 break
-            except FoundWord as e:
-                word = text[e.start:e.end]
-                # print('\n' + '~' * 80 + '\n')
-                click.clear()
-                print('...' + text[max(0, e.start - 150):e.start], end='', sep='')
-                print(click.style(word, fg='red', bold=True), end='', sep='')
-                print(text[e.end:min(len(text), e.end + 150)] + '...', sep='')
-                print()
-                print('Options:')
-                opt_style = lambda x: '  ' + click.style(x, bold=True)
-                print(opt_style('[s]') + 'kip once')
-                print(opt_style('[S]') + 'kip always (in this file)')
-                print(opt_style('[r]') + 'eplace this word')
-                print(opt_style('[i]') + f'gnore this word forever (word list in {ignore_list.path})')
-                print(opt_style('[X]') + ' exit this file')
-                for i, (symb, doc) in enumerate(word_to_symb[mystem(word)]):
-                    print(opt_style(f'[{i}]'), doc.archive.get_archive_name(), doc_path_rel_spec(doc) + '?' + symb)
-                    print('         ', click.style(doc.path, italic=True))
+            word_start_index, word_end_index, import_insert_pos, use_insert_pos = _r
 
-                print()
-                choice = click.prompt(
-                    click.style('>>> ', reverse=True, bold=True),
-                    type=click.Choice(['S', 's', 'i', 'r', 'X'] + [str(i) for i in range(len(word_to_symb[mystem(word)]))]),
-                    show_choices=False, prompt_suffix=''
-                )
-                if choice == 'X':
-                    break
-                if choice == 'S':
-                    skip_words.add(mystem(word))
-                    new_text = text
-                elif choice == 's':
-                    tmp_skip.add(mystem(word))
-                    new_text = text
-                elif choice == 'i':
-                    ignore_list.add(mystem(word))
-                    new_text = text
-                elif choice == 'r':
-                    new_word = click.prompt('New word:', default=word)
-                    new_text = text[:e.start] + new_word + text[e.end:]
+            word = text[word_start_index:word_end_index]
+            click.clear()
+            print(click.style(f'{file:-^80}', bg='bright_green'))
+            print('...' + text[max(0, word_start_index - 150):word_start_index], end='', sep='')
+            print(click.style(word, fg='red', bold=True), end='', sep='')
+            print(text[word_end_index:min(len(text), word_end_index + 150)] + '...', sep='')
+            print()
+            options = [
+                ('s', 'kip once'),
+                ('S', 'kip always (in this file)'),
+                ('r', 'eplace this word'),
+                ('i', 'gnore this word forever' + \
+                 click.style(f' (word list in {self.ignore_list.path})', fg=pale_color())),
+                ('X', 'exit this file')
+            ]
+            for i, (symb, doc) in enumerate(self.word_to_symb[mystem(word)]):
+                options.append((str(i), doc.archive.get_archive_name() + ' ' + doc_path_rel_spec(doc) + '?' + symb +\
+                                '\n        ' + click.style(doc.path, italic=True, fg=pale_color())))
+            print_options('Commands:', options)
+
+            print()
+            choice = simple_choice_prompt(
+                ['S', 's', 'i', 'r', 'X'] + [str(i) for i in range(len(self.word_to_symb[mystem(word)]))]
+            )
+            if choice == 'X':
+                break
+            if choice == 'S':
+                skip_words.add(mystem(word))
+                new_text = text
+            elif choice == 's':
+                tmp_skip.add(mystem(word))
+                new_text = text
+            elif choice == 'i':
+                self.ignore_list.add(mystem(word))
+                new_text = text
+            elif choice == 'r':
+                new_word = click.prompt('New word:', default=word)
+                new_text = text[:word_start_index] + new_word + text[word_end_index:]
+            else:  # choice is a number
+                # Making a new STeXDocument as the existing one is not guaranteed to be up-to-date
+                current_document = STeXDocument(self.mh.get_archive_from_path(Path(file)), Path(file))
+                current_document.create_doc_info(self.mh)
+
+                symb, symbdoc = self.word_to_symb[mystem(word)][int(choice)]
+
+                if symbol_is_imported(current_document, symbdoc, self.mh):
+                    new_text = text[:word_start_index]
                 else:
-                    # Making a new STeXDocument as the existing one is not guaranteed to be up-to-date
-                    current_document = STeXDocument(mh.get_archive_from_path(Path(file)), Path(file))
-                    current_document.create_doc_info(mh)
-
-                    symb, symbdoc = word_to_symb[mystem(word)][int(choice)]
-
-                    if symbol_is_imported(current_document, symbdoc, mh):
-                        new_text = text[:e.start]
+                    if import_insert_pos is not None:
+                        print_options('The symbol has to be imported. Do you want to use', [
+                                      ('i', 'mportmodule'),
+                                      ('u', 'semodule')
+                        ])
+                        choice = simple_choice_prompt(['i', 'u'])
                     else:
-                        if import_insert_pos is not None:
-                            print('The symbol has to be imported. Do you want to use')
-                            print(opt_style('[i]') + 'mportmodule')
-                            print(opt_style('[u]') + 'semodule')
-                            print()
-                            choice = click.prompt(
-                                click.style('>>> ', reverse=True, bold=True),
-                                type=click.Choice(['i', 'u']),
-                                show_choices=False, prompt_suffix=''
-                            )
-                        else:
-                            choice = 'u'
-                        args = f'[{symbdoc.archive.get_archive_name()}]{{{doc_path_rel_spec(symbdoc)}}}'
-                        if choice == 'i':
-                            new_text = text[:import_insert_pos] + f'\n  \\importmodule{args}' + \
-                                       text[import_insert_pos:e.start]
-                        else:
-                            assert use_insert_pos is not None, 'No use_insert_pos, which means that I could not find the place for inserting the \\usemodule'
-                            new_text = text[:use_insert_pos] + f'\n  \\usemodule{args}' + text[use_insert_pos:e.start]
-
-                    # check if symbol name is unique
-                    _docs_that_introduce_symb = set()
-                    for _l in word_to_symb.values():
-                        for _s, _doc in _l:
-                            if _s == symb:
-                                _docs_that_introduce_symb.add(_doc)
-                    if len(_docs_that_introduce_symb) > 1:
-                        prefix = symbdoc.get_rel_path()[:-len(".en.tex")].split('/')[-1] + '?'
+                        choice = 'u'
+                    args = f'[{symbdoc.archive.get_archive_name()}]{{{doc_path_rel_spec(symbdoc)}}}'
+                    if choice == 'i':
+                        new_text = text[:import_insert_pos] + f'\n  \\importmodule{args}' + \
+                                   text[import_insert_pos:word_start_index]
                     else:
-                        assert len(_docs_that_introduce_symb) == 1
-                        prefix = ''
+                        assert use_insert_pos is not None, 'No use_insert_pos, which means that I could not find the place for inserting the \\usemodule'
+                        new_text = text[:use_insert_pos] + f'\n  \\usemodule{args}' + text[use_insert_pos:word_start_index]
 
-                    if word == symb:
-                        new_text += '\\sn{' + prefix + symb + '}'
-                    elif word == symb + 's':
-                        new_text += '\\sns{' + prefix + symb + '}'
-                    elif word[0] == symb[0].upper() and word[1:] == symb[1:]:
-                        new_text += '\\Sn{' + prefix + symb + '}'
-                    elif word[0] == symb[0].upper() and word[1:] == symb[1:] + 's':
-                        new_text += '\\Sns{' + prefix + symb + '}'
-                    else:
-                        new_text += '\\sr{' + prefix + symb + '}' + '{' + word + '}'
-                    new_text += text[e.end:]
+                new_text += self.get_sr(symb, word, symbdoc)
+                new_text += text[word_end_index:]
 
-                with open(file, 'w') as f:
-                    f.write(new_text + skipped_words_to_comments(skip_words))
+            with open(file, 'w') as f:
+                f.write(new_text + skipped_words_to_comments(skip_words))
+
+    def get_sr(self, symb: str, word: str, symbdoc: STeXDocument) -> str:
+        # check if symbol name is unique
+        _docs_that_introduce_symb = set()
+        for _l in self.word_to_symb.values():
+            for _s, _doc in _l:
+                if _s == symb:
+                    _docs_that_introduce_symb.add(_doc)
+        if len(_docs_that_introduce_symb) > 1:
+            prefix = symbdoc.get_rel_path()[:-len(".en.tex")].split('/')[-1] + '?'
+        else:
+            assert len(_docs_that_introduce_symb) == 1
+            prefix = ''
+
+        if word == symb:
+            return '\\sn{' + prefix + symb + '}'
+        elif word == symb + 's':
+            return '\\sns{' + prefix + symb + '}'
+        elif word[0] == symb[0].upper() and word[1:] == symb[1:]:
+            return '\\Sn{' + prefix + symb + '}'
+        elif word[0] == symb[0].upper() and word[1:] == symb[1:] + 's':
+            return '\\Sns{' + prefix + symb + '}'
+        else:
+            return '\\sr{' + prefix + symb + '}' + '{' + word + '}'
+
+
+def srify(files: list[str]):
+    srifier = Srifier()
+    for file in files:
+        srifier.process_file(file)

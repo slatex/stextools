@@ -2,6 +2,8 @@ import logging
 from pathlib import Path
 
 import click
+
+from stextools import ui
 from stextools.cache import Cache
 
 logger = logging.getLogger(__name__)
@@ -11,7 +13,10 @@ logger = logging.getLogger(__name__)
 @click.option('--keep-cache', is_flag=True, default=False,
               help='Keep the cache despite changes to the stextools package.'
                    'This can be useful for stextools development, but may lead to errors.')
-def cli(keep_cache):
+@click.option('--simplified-color', is_flag=True, default=False,
+              help='Use ANSI color codes instead of 24-bit colors.')
+def cli(keep_cache, simplified_color):
+    ui.USE_24_BIT_COLORS = not simplified_color
     if keep_cache:
         Cache.clear = lambda: None  # type: ignore
     logging.getLogger('pylatexenc.latexwalker').setLevel(logging.WARNING)
