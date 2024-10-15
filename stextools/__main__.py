@@ -49,7 +49,7 @@ def show_dependency_graph(filter):
 
 @cli.command(help='List archive dependencies that may be candidates for removal.')
 @click.option('--filter', default=None,
-              help='Filter pattern to only show some archives (e.g. \'smglom/*,MiKoMH/*\')')
+              help='Filter pattern to only show some archives (e.g. \'smglom/*,courses/*\')')
 def show_weak_dependencies(filter):
     from stextools.dependency_graph import show_weak_dependencies
     show_weak_dependencies(filter)
@@ -72,9 +72,13 @@ def translate(path):
 
 @cli.command(help='\\sr-ify sTeX documents. (early prototype)')
 @click.argument('files', nargs=-1)
-def srify(files):
+@click.option('--filter', default=None,
+              help='Filter pattern to only show some archives (e.g. \'smglom/*,courses/*\')')
+@click.option('--ignore', default=None,
+              help='Pattern to exclude some archives (e.g. \'Papers/*,smglom/mv\')')
+def srify(files, filter, ignore):
     from stextools.srify import srify
-    srify(files)
+    srify(files, filter, ignore)
 
 
 if __name__ == '__main__':

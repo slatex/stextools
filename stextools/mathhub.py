@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import fnmatch
 import functools
 import itertools
 import logging
@@ -7,7 +8,7 @@ import multiprocessing
 import os
 import time
 from pathlib import Path
-from typing import Optional, Iterator, Literal
+from typing import Optional, Iterator, Literal, Callable
 
 from stextools.manifest import Manifest
 from stextools.stexdoc import STeXDocument, DocInfo
@@ -40,6 +41,7 @@ class MathHub:
 
     def update(self):
         """Updates the repo information"""
+        logger.info('Scanning archives...')
         still_needed: set[str] = set()
         for repo in _get_mathhub_repos():
             if repo.get_archive_name() not in self.archive_lookup:
@@ -220,3 +222,24 @@ def _get_mathhub_repos() -> Iterator[Repository]:
     mathhub = get_mathhub_path()
     for path in mathhub.glob('**/.git'):
         yield Repository(path.parent)
+
+
+def make_filter_fun(filter: Optional[str], ignore: Optional[str] = None) -> Callable[[str], bool]:
+    filter_fun: Callable[[str], bool]
+    if filter or ignore:
+        filter_patterns: list[str] = filter.split(',') if filter else ['*']
+        ignore_patterns: list[str] = ignore.split(',') if ignore else []
+
+        @functools.cache
+        def filter_fun(filename: str) -> bool:
+            for pattern in filter_patterns:
+                if fnmatch.fnmatch(filename, pattern):
+                    for ignore_pattern in ignore_patterns:
+                        if fnmatch.fnmatch(filename, ignore_pattern):
+                            return False
+                    return True
+            return False
+    else:
+        def filter_fun(filename: str) -> bool:
+            return True
+    return filter_fun

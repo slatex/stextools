@@ -7,7 +7,7 @@ import logging
 import re
 from collections import defaultdict
 from pathlib import Path
-from typing import Optional, Iterable
+from typing import Optional, Iterable, Callable
 
 import click
 from pylatexenc.latexwalker import LatexWalker, LatexMacroNode, LatexGroupNode, LatexMathNode, LatexCommentNode, \
@@ -16,7 +16,7 @@ from pylatexenc.latexwalker import LatexWalker, LatexMacroNode, LatexGroupNode, 
 from stextools.cache import Cache
 from stextools.linked_str import string_to_lstr, LinkedStr
 from stextools.macros import STEX_CONTEXT_DB
-from stextools.mathhub import MathHub
+from stextools.mathhub import MathHub, make_filter_fun
 from stextools.stexdoc import STeXDocument
 from stextools.tree_regex import words_to_regex
 from stextools.ui import pale_color, print_options, simple_choice_prompt
@@ -141,11 +141,14 @@ class IgnoreList:
             self.path.write_text('\n'.join(self.word_list) + '\n')
 
 
-def get_verb_info(mh: MathHub) -> tuple[set[str], dict[str, list[tuple[str, STeXDocument]]]]:
+def get_verb_info(mh: MathHub, filter_fun: Callable[[str], bool])\
+        -> tuple[set[str], dict[str, list[tuple[str, STeXDocument]]]]:
     skipped = 0
     all_words = set()
     word_to_symb: dict[str, list[tuple[str, STeXDocument]]] = defaultdict(list)
     for archive in mh.iter_stex_archives():
+        if not filter_fun(archive.get_archive_name()):
+            continue
         for doc in archive.stex_doc_iter():
             if not doc.path.name.endswith('.en.tex'):
                 continue
@@ -207,10 +210,10 @@ def look_for_next_word(all_words: Iterable[str], to_ignore: set[str], text: str)
 
 
 class Srifier:
-    def __init__(self):
+    def __init__(self, filter_fun: Callable[[str], bool]):
         self.ignore_list = IgnoreList()
-        self.mh = Cache.get_mathhub()
-        self.all_words, self.word_to_symb = get_verb_info(self.mh)
+        self.mh = Cache.get_mathhub(update_all=True)
+        self.all_words, self.word_to_symb = get_verb_info(self.mh, filter_fun)
 
     def process_file(self, file: str):
         tmp_skip: set[str] = set()
@@ -321,7 +324,7 @@ class Srifier:
             return '\\sr{' + prefix + symb + '}' + '{' + word + '}'
 
 
-def srify(files: list[str]):
-    srifier = Srifier()
+def srify(files: list[str], filter: str, ignore: str):
+    srifier = Srifier(make_filter_fun(filter, ignore))
     for file in files:
         srifier.process_file(file)

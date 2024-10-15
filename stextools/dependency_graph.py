@@ -1,14 +1,12 @@
 from __future__ import annotations
 
 import dataclasses
-import fnmatch
-import functools
 from collections import defaultdict
 from pathlib import Path
-from typing import Optional, Callable
+from typing import Optional
 
 from stextools.cache import Cache
-from stextools.mathhub import MathHub
+from stextools.mathhub import MathHub, make_filter_fun
 
 
 @dataclasses.dataclass
@@ -55,23 +53,6 @@ def get_dependency_graph(mh: MathHub) -> Graph:
             node.edges.append(Edge(node, dep_node, list(files)))
 
     return graph
-
-
-def make_filter_fun(filter: Optional[str]) -> Callable[[str], bool]:
-    filter_fun: Callable[[str], bool]
-    if filter:
-        filter_patterns: list[str] = filter.split(',')
-
-        @functools.cache
-        def filter_fun(filename: str) -> bool:
-            for pattern in filter_patterns:
-                if fnmatch.fnmatch(filename, pattern):
-                    return True
-            return False
-    else:
-        def filter_fun(filename: str) -> bool:
-            return True
-    return filter_fun
 
 
 def show_graph(filter: Optional[str] = None):
