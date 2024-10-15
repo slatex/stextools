@@ -26,7 +26,7 @@ def pale_color():
 
 def simple_choice_prompt(options: list[str]):
     return click.prompt(
-        click.style('>>> ', reverse=True, bold=True),
+        click.style('>>> ', bold=True),
         type=click.Choice(options),
         show_choices=False, prompt_suffix=''
     )

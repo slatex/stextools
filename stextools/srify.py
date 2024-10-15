@@ -34,12 +34,12 @@ class FoundWord(Exception):
         self.end = end
 
 
-def doc_path_rel_spec(doc: STeXDocument) -> str:
+def doc_path_rel_spec(doc: STeXDocument, stylize_file_name: bool=False) -> str:
     p = doc.get_rel_path()
     if p.endswith('.en.tex'):
         p = p[:-len('.en.tex')]
     l = p.split('/')
-    return '/'.join(l[1:-1]) + '?' + l[-1]
+    return '/'.join(l[1:-1]) + '?' + (click.style(l[-1], fg='cyan') if stylize_file_name else l[-1])
 
 
 @functools.cache
@@ -236,11 +236,14 @@ class Srifier:
                 ('r', 'eplace this word'),
                 ('i', 'gnore this word forever' + \
                  click.style(f' (word list in {self.ignore_list.path})', fg=pale_color())),
-                ('X', 'exit this file')
+                ('X', ' exit this file')
             ]
             for i, (symb, doc) in enumerate(self.word_to_symb[mystem(word)]):
-                options.append((str(i), doc.archive.get_archive_name() + ' ' + doc_path_rel_spec(doc) + '?' + symb +\
-                                '\n        ' + click.style(doc.path, italic=True, fg=pale_color())))
+                options.append((str(i), (
+                        ' ' + doc.archive.get_archive_name() +
+                        ' ' + doc_path_rel_spec(doc, stylize_file_name=True) + '?' + click.style(symb, fg='green') +
+                        '\n        ' + click.style(doc.path, italic=True, fg=pale_color())
+                )))
             print_options('Commands:', options)
 
             print()
