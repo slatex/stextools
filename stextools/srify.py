@@ -1,12 +1,13 @@
 # TODO
 # wenn symdecl symbol einführt und danach definiendum kommt, gibt es gerade doppelte einträge
 # skip: just press space
-
+import dataclasses
 import functools
 import itertools
 import logging
 import re
 from collections import defaultdict
+from copy import deepcopy
 from pathlib import Path
 from typing import Optional, Iterable, Callable
 
@@ -80,10 +81,10 @@ def symbol_is_imported(current_document: STeXDocument, symbdoc: STeXDocument, mh
     return False
 
 
-def text_and_skipped_words_from_file(path: Path) -> tuple[str, set[str]]:
+def text_and_skipped_words_from_file(edit_state: 'EditState'):
     lines: list[str] = []
     skip_words: set[str] = set()
-    with open(path) as f:
+    with open(edit_state.file) as f:
         for line in f:
             if line.startswith('% srskip '):
                 for e in line[len('% srskip'):].split(','):
@@ -92,7 +93,9 @@ def text_and_skipped_words_from_file(path: Path) -> tuple[str, set[str]]:
                         skip_words.add(e)
             else:
                 lines.append(line)
-    return ''.join(lines), skip_words
+    edit_state.text = ''.join(lines)
+    edit_state.skip_words = skip_words
+    edit_state.new_text = edit_state.text
 
 
 def skipped_words_to_comments(skip_words: set[str]) -> str:
@@ -213,6 +216,26 @@ def look_for_next_word(all_words: Iterable[str], to_ignore: set[str], text: str)
         return e.start, e.end, import_insert_pos, use_insert_pos
 
 
+@dataclasses.dataclass
+class EditState:
+    file: Path
+    tmp_skip: set[str] = dataclasses.field(default_factory=set)
+    previous_edit_state: Optional['EditState'] = None
+    text: str = ''
+    skip_words: set[str] = dataclasses.field(default_factory=set)
+    new_text: str = ''
+    word_start_index: int = 0
+    word_end_index: int = 0
+    import_insert_pos: Optional[int] = None
+    use_insert_pos: Optional[int] = None
+    undoable: bool = False
+    no_new_search: bool = False
+
+    @property
+    def word(self) -> str:
+        return self.text[self.word_start_index:self.word_end_index]
+
+
 class Srifier:
     def __init__(self, filter_fun: Callable[[str], bool]):
         self.ignore_list = IgnoreList()
@@ -229,6 +252,7 @@ class Srifier:
         ]
         self.other_commands: list[tuple[str, str]] = [
             ('r', 'eplace this word'),
+            ('u', 'ndo the last change to the file'),
             ('X', ' exit this file'),
         ]
 
@@ -258,76 +282,137 @@ class Srifier:
         print()
         click.pause('Press any key to continue...')
 
+    def get_text_with_import(self, current_document: STeXDocument, symbdoc: STeXDocument, e: EditState) -> str:
+        if symbol_is_imported(current_document, symbdoc, self.mh):
+            return e.text[:e.word_start_index]
+
+        if e.import_insert_pos is not None:
+            print_options('The symbol has to be imported. Do you want to use', [
+                ('i', 'mportmodule'),
+                ('u', 'semodule')
+            ])
+            command = simple_choice_prompt(['i', 'u'])
+        else:
+            command = 'u'
+        args = f'[{symbdoc.archive.get_archive_name()}]{{{doc_path_rel_spec(symbdoc)}}}'
+        if command == 'i':
+            new_text = e.text[:e.import_insert_pos] + f'\n  \\importmodule{args}' + \
+                       e.text[e.import_insert_pos:e.word_start_index]
+        else:
+            assert e.use_insert_pos is not None, 'No use_insert_pos, which means that I could not find the place for inserting the \\usemodule'
+            new_text = e.text[:e.use_insert_pos] + f'\n  \\usemodule{args}' + e.text[e.use_insert_pos:e.word_start_index]
+        return new_text
+
+    def print_word_in_doc(self, e: EditState):
+        context_size = 7   # number of lines before and after the word
+        # we want to print whole lines before and after
+        text = e.text
+        start_index = e.word_start_index
+        for _ in range(context_size):
+            if start_index > 0:
+                start_index -= 1
+            while start_index > 0 and text[start_index - 1] != '\n':
+                start_index -= 1
+
+        end_index = e.word_end_index
+        for _ in range(context_size):
+            if end_index + 1 < len(text):
+                end_index += 1
+            while end_index + 1 < len(text) and text[end_index + 1] != '\n':
+                end_index += 1
+        end_index += 1
+
+        print(click.style(f'{str(e.file):^80}', bg='bright_green'))
+        doc = text[start_index:e.word_start_index]
+        doc += click.style(e.word, bg='bright_yellow', bold=True)
+        doc += text[e.word_end_index:end_index]
+        lineno_start = text[:start_index].count('\n') + 1
+        for i, line in enumerate(doc.split('\n'), lineno_start):
+            print(click.style(f'{i:4} ', fg=pale_color()) + line)
+
+    def notify_user(self, message: str, type: str):
+        assert type in {'error', 'info'}
+        print()
+        print(click.style(f'{type.upper():^80}', bg='bright_cyan' if type == 'info' else 'bright_red', bold=True))
+        print()
+        print(message)
+        print()
+        click.pause('Press any key to continue...')
+
+    def look_for_next_word(self, edit_state: EditState) -> bool:
+        _r = look_for_next_word(
+            self.all_words, edit_state.skip_words | edit_state.tmp_skip | self.ignore_list.word_set, edit_state.text
+        )
+        if _r is None:
+            print('No more words found in', str(edit_state.file))
+            return False
+        edit_state.word_start_index, edit_state.word_end_index, edit_state.import_insert_pos, edit_state.use_insert_pos = _r
+        return True
+
     def process_file(self, file: str):
-        tmp_skip: set[str] = set()
+        edit_state = EditState(file=Path(file))
+        text_and_skipped_words_from_file(edit_state)
+        old_state = deepcopy(edit_state)
         while True:
-            text, skip_words = text_and_skipped_words_from_file(Path(file))
+            if edit_state.undoable:
+                edit_state.undoable = False
+                edit_state = deepcopy(edit_state)
+                edit_state.previous_edit_state = old_state
+                old_state = deepcopy(edit_state)
+            if edit_state.no_new_search:
+                edit_state.no_new_search = False
+            else:
+                text_and_skipped_words_from_file(edit_state)
+                if not self.look_for_next_word(edit_state):   # also modifies edit_state
+                    break
 
-            _r = look_for_next_word(self.all_words, skip_words | tmp_skip | self.ignore_list.word_set, text)
-            if _r is None:
-                print('No more words found in', file)
-                break
-            word_start_index, word_end_index, import_insert_pos, use_insert_pos = _r
-
-            word = text[word_start_index:word_end_index]
             click.clear()
-            print(click.style(f'{file:^80}', bg='bright_green'))
-            print('...' + text[max(0, word_start_index - 150):word_start_index], end='', sep='')
-            print(click.style(word, fg='red', bold=True), end='', sep='')
-            print(text[word_end_index:min(len(text), word_end_index + 150)] + '...', sep='')
+            self.print_word_in_doc(edit_state)
             print()
+            command = self.get_commmand(edit_state.word)
 
-            command = self.get_commmand(word)
             if command == 'X':
                 break
             if command == 'S':
-                skip_words.add(mystem(word))
-                new_text = text
+                edit_state.skip_words.add(mystem(edit_state.word))
+                edit_state.new_text = edit_state.text
+                edit_state.undoable = True
             elif command == 's':
-                tmp_skip.add(mystem(word))
-                new_text = text
+                edit_state.tmp_skip.add(mystem(edit_state.word))
+                edit_state.undoable = True
             elif command == 'i':
-                self.ignore_list.add(mystem(word))
-                new_text = text
+                self.ignore_list.add(mystem(edit_state.word))
             elif command == 'r':
-                new_word = click.prompt('New word:', default=word)
-                new_text = text[:word_start_index] + new_word + text[word_end_index:]
+                new_word = click.prompt('New word:', default=edit_state.word)
+                edit_state.new_text = edit_state.text[:edit_state.word_start_index] + new_word + \
+                                      edit_state.text[edit_state.word_end_index:]
+                # TODO: should we set this for the next iteration and do no_new_search?
+                edit_state.undoable = True
             elif command == 'h':
                 self.show_help()
-                continue
-            else:  # command is a number
-                assert command.isdigit(), f'Internal error: unexpected command {command}'
-                # Making a new STeXDocument as the existing one is not guaranteed to be up-to-date
-                current_document = STeXDocument(self.mh.get_archive_from_path(Path(file)), Path(file))
-                current_document.create_doc_info(self.mh)
+            elif command.isdigit():
+                repo = self.mh.get_archive_from_path(Path(file))
+                current_document = repo.get_stex_doc(str(Path(file).absolute().relative_to(repo.path)))
+                current_document.delete_doc_info_if_outdated()
 
-                symb, symbdoc = self.word_to_symb[mystem(word)][int(command)]
+                symb, symbdoc = self.word_to_symb[mystem(edit_state.word)][int(command)]
+                new_text = self.get_text_with_import(current_document, symbdoc, edit_state)
+                new_text += self.get_sr(symb, edit_state.word, symbdoc)
+                new_text += edit_state.text[edit_state.word_end_index:]
+                edit_state.new_text = new_text
+                edit_state.undoable = True
+            elif command == 'u':
+                if not edit_state.previous_edit_state:
+                    self.notify_user('Nothing to undo', 'error')
+                    continue
+                edit_state = edit_state.previous_edit_state
+                old_state = deepcopy(edit_state)
+            else:
+                raise RuntimeError(f'Internal error: unexpected command {command}')
 
-                if symbol_is_imported(current_document, symbdoc, self.mh):
-                    new_text = text[:word_start_index]
-                else:
-                    if import_insert_pos is not None:
-                        print_options('The symbol has to be imported. Do you want to use', [
-                            ('i', 'mportmodule'),
-                            ('u', 'semodule')
-                        ])
-                        command = simple_choice_prompt(['i', 'u'])
-                    else:
-                        command = 'u'
-                    args = f'[{symbdoc.archive.get_archive_name()}]{{{doc_path_rel_spec(symbdoc)}}}'
-                    if command == 'i':
-                        new_text = text[:import_insert_pos] + f'\n  \\importmodule{args}' + \
-                                   text[import_insert_pos:word_start_index]
-                    else:
-                        assert use_insert_pos is not None, 'No use_insert_pos, which means that I could not find the place for inserting the \\usemodule'
-                        new_text = text[:use_insert_pos] + f'\n  \\usemodule{args}' + text[
-                                                                                      use_insert_pos:word_start_index]
-
-                new_text += self.get_sr(symb, word, symbdoc)
-                new_text += text[word_end_index:]
-
+            new_content = edit_state.new_text + skipped_words_to_comments(edit_state.skip_words)
             with open(file, 'w') as f:
-                f.write(new_text + skipped_words_to_comments(skip_words))
+                f.write(new_content)
 
     def get_sr(self, symb: str, word: str, symbdoc: STeXDocument) -> str:
         # check if symbol name is unique
