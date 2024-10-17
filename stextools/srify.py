@@ -6,6 +6,7 @@ import functools
 import itertools
 import logging
 import re
+import sys
 from collections import defaultdict
 from copy import deepcopy
 from pathlib import Path
@@ -340,6 +341,7 @@ class Srifier:
             ('r', 'eplace this word'),
             ('u', 'ndo the last change to the file'),
             ('X', ' exit this file'),
+            ('q', 'uit the program'),
         ]
 
         self.other_commands_only_print: list[tuple[str, str]] = [
@@ -532,6 +534,9 @@ class Srifier:
                     continue
                 edit_state = edit_state.previous_edit_state
                 old_state = deepcopy(edit_state)
+            elif command == 'q':
+                print('Goodbye!')
+                sys.exit(0)
             else:
                 raise RuntimeError(f'Internal error: unexpected command {command}')
 
