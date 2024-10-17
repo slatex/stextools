@@ -24,14 +24,13 @@ from stextools.macros import STEX_CONTEXT_DB
 from stextools.mathhub import MathHub, make_filter_fun
 from stextools.stexdoc import STeXDocument, Dependency
 from stextools.tree_regex import words_to_regex
-from stextools.ui import pale_color, print_options, simple_choice_prompt, width
-
+from stextools.ui import pale_color, print_options, simple_choice_prompt, width, color
 
 try:
     import pygments
 except ImportError:
     pygments = None
-    print(click.style(f'{"Warning":^{width()}}', bg='bright_yellow'))
+    print(click.style(f'{"Warning":^{width()}}', bold=True, bg='bright_yellow'))
     print()
     print('Failed to import `pygments` – syntax highlighting will be unvailable')
     print('Consider installing it with')
@@ -86,13 +85,13 @@ def symbol_path_without_archive(doc: STeXDocument, doc_internal_symbol_path: str
         l = l[:-1]
 
     symb_name = doc_internal_symbol_path.rpartition('?')[-1]
-    suffix = '?' + (click.style(symb_name, fg='green') if stylize else symb_name)  # symbol
+    suffix = '?' + (click.style(symb_name, bg=color('bright_green', (180, 255, 180))) if stylize else symb_name)  # symbol
     if not include_symbol:
         suffix = ''
 
     return (
             '/'.join(l) + '?' +   # path
-            (click.style(mod_name, fg='cyan') if stylize else mod_name) + # module
+            (click.style(mod_name, bg=color('bright_cyan', (180, 180, 255))) if stylize else mod_name) + # module
             suffix  # symbol (if requested)
     )
 
@@ -369,7 +368,7 @@ class Srifier:
 
     def show_help(self):
         click.clear()
-        print(click.style(f'{"Help":^{width()}}', bg='bright_yellow'))
+        print(click.style(f'{"Help":^{width()}}', bold=True, bg='bright_yellow'))
         print()
         print_options('Main commands:', self.main_commands)
         print()
@@ -393,7 +392,7 @@ class Srifier:
         else:
             command = 'u'
         if command == 'v':
-            print(click.style(f'{str(symb_info.document.path):^{width()}}', bg='bright_green'))
+            print(click.style(f'{str(symb_info.document.path):^{width()}}', bold=True, bg='bright_green'))
             print()
             click.echo_via_pager(latex_format(symb_info.document.path.read_text()))
             return self.get_text_with_import(current_document, symb_info, e)
@@ -439,7 +438,7 @@ class Srifier:
                 end_index += 1
         end_index += 1
 
-        print(click.style(f'{filename:^{width()}}', bg='bright_green'))
+        print(click.style(f'{filename:^{width()}}', bold=True, bg='bright_green'))
         doc = latex_format(text[start_index:start])
         doc += click.style(text[start:end], bg='bright_yellow', bold=True)
         doc += latex_format(text[end:end_index])
