@@ -230,11 +230,12 @@ def get_verb_info(mh: MathHub, filter_fun: Callable[[str], bool]) \
             for module in doc.get_doc_info(mh).iter_modules():
                 for symb in module.symbols:
                     symb_name = module.name + '?' + symb.name
-                    # if symb_name.partition('/')[0] == doc.get_rel_path().rpartition('/')[-1]:
-                    #     symb_name = symb_name.partition('/')[2]  # drop module name if it coincides with document name
                     verbs = symb.verbalizations
-                    if not verbs and symb.decl_def:
-                        verbs = [symb.name, *symb.decl_def]   # use symbol name if no other verbalizations are given
+                    # if not verbs and symb.decl_def:
+                    #     verbs = [symb.name, *symb.decl_def]   # use symbol name if no other verbalizations are given
+                    if verbs:
+                        verbs = verbs[1:] + [verbs[0]]  # (first verbalization is often declaration - less interesting for viewing)
+
                     already_listed_verbs = set()
                     for verb, start, stop in verbs:
                         if len(verb) < 2:
@@ -244,7 +245,7 @@ def get_verb_info(mh: MathHub, filter_fun: Callable[[str], bool]) \
                             continue
                         already_listed_verbs.add(verb)
                         all_words.add(verb)
-                        word_to_symb[verb].append(SymbInfo(doc, symb_name, symb.decl_def))
+                        word_to_symb[verb].append(SymbInfo(doc, symb_name, (start, stop)))
     return all_words, word_to_symb
 
 
@@ -339,12 +340,17 @@ class Srifier:
             ('r', 'eplace this word'),
             ('u', 'ndo the last change to the file'),
             ('X', ' exit this file'),
-            # ('v' + _it_i, f' view the document of the {_it_i}-th symbol suggestion'),
+        ]
+
+        self.other_commands_only_print: list[tuple[str, str]] = [
+            ('v' + _it_i, f' view the document of the {_it_i}-th symbol suggestion'),
         ]
 
     def get_commmand(self, word: str) -> str:
         options = self.main_commands[:]
+        extra_keys = []
         for i, symb_info in enumerate(self.word_to_symb[mystem(word)]):
+            extra_keys.append((f'v{i}', ''))
             doc = symb_info.document
             options.append((str(i), (
                     ' ' + doc.archive.get_archive_name() +
@@ -355,7 +361,7 @@ class Srifier:
 
         print()
         choice = simple_choice_prompt(
-            [e[0] for e in itertools.chain(options, self.other_commands)],
+            [e[0] for e in itertools.chain(options, self.other_commands, extra_keys)],
         )
         return choice
 
@@ -365,7 +371,7 @@ class Srifier:
         print()
         print_options('Main commands:', self.main_commands)
         print()
-        print_options('Other commands:', self.other_commands)
+        print_options('Other commands:', self.other_commands + self.other_commands_only_print)
         print()
         click.pause('Press any key to continue...')
 
@@ -376,11 +382,20 @@ class Srifier:
         if e.import_insert_pos is not None:
             print_options('The symbol has to be imported. Do you want to use', [
                 ('i', 'mportmodule'),
-                ('u', 'semodule')
+                ('u', 'semodule'),
+                ('v', 'view document'),
             ])
-            command = simple_choice_prompt(['i', 'u'])
+            print()
+            print('Document:', str(symb_info.document.path))
+            command = simple_choice_prompt(['i', 'u', 'v'])
         else:
             command = 'u'
+        if command == 'v':
+            print(click.style(f'{str(symb_info.document.path):^{width()}}', bg='bright_green'))
+            print()
+            click.echo_via_pager(latex_format(symb_info.document.path.read_text()))
+            return self.get_text_with_import(current_document, symb_info, e)
+
         args = ''
         if symb_info.document.archive != current_document.archive:
             args += f'[{symb_info.document.archive.get_archive_name()}]'
@@ -405,18 +420,16 @@ class Srifier:
 
         return new_text
 
-    def print_word_in_doc(self, e: EditState):
-        context_size = 7   # number of lines before and after the word
-        # we want to print whole lines before and after
-        text = e.text
-        start_index = e.word_start_index
+    def print_doc_with_highlight(self, filename: str, text: str, start: int, end: int):
+        context_size = 7
+        start_index = start
         for _ in range(context_size):
             if start_index > 0:
                 start_index -= 1
             while start_index > 0 and text[start_index - 1] != '\n':
                 start_index -= 1
 
-        end_index = e.word_end_index
+        end_index = end
         for _ in range(context_size):
             if end_index + 1 < len(text):
                 end_index += 1
@@ -424,10 +437,10 @@ class Srifier:
                 end_index += 1
         end_index += 1
 
-        print(click.style(f'{str(e.file):^{width()}}', bg='bright_green'))
-        doc = latex_format(text[start_index:e.word_start_index])
-        doc += click.style(e.word, bg='bright_yellow', bold=True)
-        doc += latex_format(text[e.word_end_index:end_index])
+        print(click.style(f'{filename:^{width()}}', bg='bright_green'))
+        doc = latex_format(text[start_index:start])
+        doc += click.style(text[start:end], bg='bright_yellow', bold=True)
+        doc += latex_format(text[end:end_index])
         lineno_start = text[:start_index].count('\n') + 1
         for i, line in enumerate(doc.split('\n'), lineno_start):
             print(click.style(f'{i:4} ', fg=pale_color()) + line)
@@ -469,7 +482,7 @@ class Srifier:
                     break
 
             click.clear()
-            self.print_word_in_doc(edit_state)
+            self.print_doc_with_highlight(str(edit_state.file), edit_state.text, edit_state.word_start_index, edit_state.word_end_index)
             print()
             command = self.get_commmand(edit_state.word)
 
@@ -493,7 +506,15 @@ class Srifier:
             elif command == 'h':
                 self.show_help()
             elif command.startswith('v'):
-                ...
+                symb_info = self.word_to_symb[mystem(edit_state.word)][int(command[1:])]
+                self.print_doc_with_highlight(
+                    str(symb_info.document.path),
+                    symb_info.document.path.read_text(),
+                    symb_info.declaration_range[0],
+                    symb_info.declaration_range[1]
+                )
+                print()
+                click.pause('Press any key to continue...')
             elif command.isdigit():
                 repo = self.mh.get_archive_from_path(Path(file))
                 current_document = repo.get_stex_doc(str(Path(file).absolute().relative_to(repo.path)))
