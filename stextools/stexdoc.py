@@ -26,6 +26,15 @@ class Dependency:
     is_lib: bool = False   # dependency is lib
     is_use: bool = False   # symbols from dependency not exported
     target_no_tex: bool = False  # e.g. for graphics and code snippets
+    valid_range: Optional[tuple[int, int]] = None  # range of the document where the dependency is valid
+    intro_range: Optional[tuple[int, int]] = None  # range of the document where the dependency is introduced
+
+
+@dataclasses.dataclass
+class Symbol:
+    name: str
+    verbalizations: list[tuple[str, int, int]] = dataclasses.field(default_factory=list)  # (verbalization, start, end)
+    decl_def: Optional[tuple[int, int]] = None    # (start, end) of the \symdecl/\symdef (if available)
 
 
 @dataclasses.dataclass(repr=True)
@@ -33,7 +42,19 @@ class ModuleInfo:
     """Basic information about a document (dependencies, created symbols, verbalizations, etc.)"""
     name: str
     dependencies: list[Dependency] = dataclasses.field(default_factory=list)
-    nldefs: dict[str, list[str]] = dataclasses.field(default_factory=dict)    # symbol -> [verbalizations]
+    symbols: list[Symbol] = dataclasses.field(default_factory=list)
+    # submodules
+    modules: list[ModuleInfo] = dataclasses.field(default_factory=list)
+
+    def flattened_dependencies(self) -> Iterator[Dependency]:
+        yield from self.dependencies
+        for module in self.modules:
+            yield from module.dependencies
+
+    def iter_modules(self) -> Iterator[ModuleInfo]:
+        yield self
+        for module in self.modules:
+            yield from module.iter_modules()
 
 
 @dataclasses.dataclass(repr=True)
@@ -42,12 +63,17 @@ class DocInfo:
     last_modified: float
     dependencies: list[Dependency] = dataclasses.field(default_factory=list)
     modules: list[ModuleInfo] = dataclasses.field(default_factory=list)
-    nldefs: dict[str, list[str]] = dataclasses.field(default_factory=dict)    # symbol -> [verbalizations]
+    # TODO: should this happen?
+    # nldefs: dict[str, list[str]] = dataclasses.field(default_factory=dict)    # symbol -> [verbalizations]
 
     def flattened_dependencies(self) -> Iterator[Dependency]:
         yield from self.dependencies
         for module in self.modules:
             yield from module.dependencies
+
+    def iter_modules(self) -> Iterator[ModuleInfo]:
+        for module in self.modules:
+            yield from module.iter_modules()
 
 
 @dataclasses.dataclass
@@ -62,7 +88,7 @@ class DependencyProducer:
     is_use: bool = False
     target_no_tex: bool = False
 
-    def produce(self, node: LatexMacroNode, from_archive: str, from_subdir: str, mh: MathHub) -> Optional[Dependency]:
+    def produce(self, node: LatexMacroNode, from_archive: str, from_subdir: str, mh: MathHub, valid_range: tuple[int, int]) -> Optional[Dependency]:
         # STEP 1: Determine the target archive
         target_archive: Optional[str] = None
         if self.opt_param_is_archive:
@@ -81,10 +107,12 @@ class DependencyProducer:
             return None
         top_dir: Literal['lib', 'source'] = 'lib' if self.is_lib else 'source'   # type: ignore
         archive = mh.get_archive(target_archive or from_archive)
+        intro_range: tuple[int, int] = (node.pos, node.pos + node.len)
 
         if archive is None:    # not locally installed, but we still want to store a dependency
             return Dependency(archive=target_archive or from_archive, file=None, module_name=None,
-                              is_lib=self.is_lib, is_use=self.is_use, target_no_tex=self.target_no_tex)
+                              is_lib=self.is_lib, is_use=self.is_use, target_no_tex=self.target_no_tex,
+                              valid_range=valid_range, intro_range=intro_range)
 
         if self.references_module:
             if '?' in main_arg:
@@ -103,16 +131,19 @@ class DependencyProducer:
                 file = archive.normalize_tex_file_ref(path_option, top_dir)
                 if file is not None:
                     return Dependency(archive.get_archive_name(), file, module_name=module_name,
-                                      is_lib=self.is_lib, is_use=self.is_use, target_no_tex=self.target_no_tex)
+                                      is_lib=self.is_lib, is_use=self.is_use, target_no_tex=self.target_no_tex,
+                                      valid_range=valid_range, intro_range=intro_range)
 
             # couldn't determine file, but still make dependency to archive
             return Dependency(archive.get_archive_name(), None, module_name=module_name,
-                              is_lib=self.is_lib, is_use=self.is_use, target_no_tex=self.target_no_tex)
+                              is_lib=self.is_lib, is_use=self.is_use, target_no_tex=self.target_no_tex,
+                              valid_range=valid_range, intro_range=intro_range)
         else:
             if self.target_no_tex:
                 # TODO: determine file (though we don't really care about it, to be honest)
                 return Dependency(archive.get_archive_name(), None, module_name=None,
-                                  is_lib=self.is_lib, is_use=self.is_use, target_no_tex=self.target_no_tex)
+                                  is_lib=self.is_lib, is_use=self.is_use, target_no_tex=self.target_no_tex,
+                                  valid_range=valid_range, intro_range=intro_range)
             else:
                 path_options = []
                 if target_archive is None:  # try relative paths
@@ -122,11 +153,13 @@ class DependencyProducer:
                     file = archive.normalize_tex_file_ref(path_option, top_dir)
                     if file is not None:
                         return Dependency(archive.get_archive_name(), file, module_name=None,
-                                          is_lib=self.is_lib, is_use=self.is_use, target_no_tex=self.target_no_tex)
+                                          is_lib=self.is_lib, is_use=self.is_use, target_no_tex=self.target_no_tex,
+                                          valid_range=valid_range, intro_range=intro_range)
 
             # couldn't determine file, but still make dependency to archive
             return Dependency(archive.get_archive_name(), None, module_name=None,
-                              is_lib=self.is_lib, is_use=self.is_use, target_no_tex=self.target_no_tex)
+                              is_lib=self.is_lib, is_use=self.is_use, target_no_tex=self.target_no_tex,
+                              valid_range=valid_range, intro_range=intro_range)
 
 
 DEPENDENCY_PRODUCERS = [
@@ -184,15 +217,25 @@ class STeXDocument:
 
         doc_info = DocInfo(self.path.stat().st_mtime)
 
-        def process(nodes, module_info: Optional[ModuleInfo] = None):
+        def process(nodes, parent_range: tuple[int, int], module_info: Optional[ModuleInfo] = None):
             for node in nodes:
                 if node.nodeType() in {LatexCommentNode, LatexCharsNode, LatexMathNode, LatexSpecialsNode}:
                     pass    # TODO: should we do something with math nodes?
                 elif node.nodeType() == LatexGroupNode:
-                    process(node.nodelist, module_info)
+                    process(node.nodelist, (node.pos, node.pos + node.len), module_info)
                 elif node.nodeType() == LatexEnvironmentNode:
                     # TODO: handle smodules
-                    process(node.nodelist, module_info)
+                    if node.environmentname == 'smodule':
+                        name = node.nodeargd.argnlist[1].latex_verbatim()[1:-1]
+                        if module_info:
+                            name = f'{module_info.name}/{name}'
+                        new_module_info = ModuleInfo(name=name)
+                        if module_info:
+                            module_info.modules.append(new_module_info)
+                        else:
+                            doc_info.modules.append(new_module_info)
+                        module_info = new_module_info
+                    process(node.nodelist, (node.pos, node.pos + node.len), module_info)
                 elif node.nodeType() == LatexMacroNode:
                     assert isinstance(node, LatexMacroNode)
                     dp = DEPENDENCY_PRODUCER_BY_MACRONAME.get(node.macroname)
@@ -201,14 +244,14 @@ class STeXDocument:
                             node,
                             self.archive.get_archive_name(),
                             '/'.join(self.get_rel_path().split('/')[1:]),   # ignore 'source' or 'lib'
-                            mh
+                            mh,
+                            parent_range
                         )
                         if dep:
                             if module_info:
                                 module_info.dependencies.append(dep)
                             else:
                                 doc_info.dependencies.append(dep)
-
                     elif node.macroname in {'definiendum', 'definame', 'Definame', 'symdef', 'symdecl'}:
                         # TODO: sometimes we have '?' in the symbols... Should we skip those?
                         # (it presumably means that the symbol is re-defined)
@@ -237,13 +280,19 @@ class STeXDocument:
                             raise RuntimeError('Unexpected macroname')
 
                         if module_info:
-                            verbs = module_info.nldefs.setdefault(symbol, [])
-                        else:
-                            verbs = doc_info.nldefs.setdefault(symbol, [])
-                        if verbalization not in verbs:
-                            verbs.append(verbalization)
+                            symbol_obj = None
+                            for s in module_info.symbols:
+                                if s.name == symbol:
+                                    symbol_obj = s
+                                    break
+                            if symbol_obj is None:
+                                symbol_obj = Symbol(name=symbol)
+                                if node.macroname in {'symdef', 'symdecl'}:
+                                    symbol_obj.decl_def = (node.pos, node.pos + node.len)
+                                module_info.symbols.append(symbol_obj)
+                            symbol_obj.verbalizations.append((verbalization, node.pos, node.pos + node.len))
                 else:
                     raise Exception(f'Unexpected node type: {node.nodeType()}')
 
-        process(walker.get_latex_nodes()[0])
+        process(walker.get_latex_nodes()[0], (0, walker.get_latex_nodes()[2]))
         self._doc_info = doc_info

@@ -70,6 +70,8 @@ class MathHub:
         last_printed = time.time()
         processed = 0
 
+        # documents = documents[:40]
+
         if len(documents) < 50:
             for i, doc in enumerate(documents):
                 doc.create_doc_info(self)

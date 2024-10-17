@@ -15,18 +15,55 @@ import click
 from pylatexenc.latexwalker import LatexWalker, LatexMacroNode, LatexGroupNode, LatexMathNode, LatexCommentNode, \
     LatexSpecialsNode, LatexEnvironmentNode, LatexCharsNode
 
+from stextools import ui
+
 from stextools.cache import Cache
 from stextools.linked_str import string_to_lstr, LinkedStr
 from stextools.macros import STEX_CONTEXT_DB
 from stextools.mathhub import MathHub, make_filter_fun
-from stextools.stexdoc import STeXDocument
+from stextools.stexdoc import STeXDocument, Dependency
 from stextools.tree_regex import words_to_regex
-from stextools.ui import pale_color, print_options, simple_choice_prompt
+from stextools.ui import pale_color, print_options, simple_choice_prompt, width
+
+
+try:
+    import pygments
+except ImportError:
+    pygments = None
+    print(click.style(f'{"Warning":^{width()}}', bg='bright_yellow'))
+    print()
+    print('Failed to import `pygments` – syntax highlighting will be unvailable')
+    print('Consider installing it with')
+    print('    pip install pygments')
+    print()
+    click.pause('Press any key to continue...')
+
+
 
 logger = logging.getLogger(__name__)
 
 INTRANSPARENT_ENVS: set[str] = {'lstlisting'}
 TRANSPARENT_MACROS: set[str] = set()
+
+
+def latex_format(code: str) -> str:
+    if pygments is not None:
+        from pygments import highlight
+        from pygments.lexers import TexLexer
+        if ui.USE_24_BIT_COLORS:
+            from pygments.formatters import TerminalTrueColorFormatter as TerminalFormatter
+        else:
+            from pygments.formatters import TerminalFormatter
+
+        # leading and trailing newlines are removed by pygments
+        leading = len(code) - len(code.lstrip('\n'))
+        trailing = len(code) - len(code.rstrip('\n'))
+        return (
+                '\n' * leading +
+                highlight(code, TexLexer(), TerminalFormatter(style='vs')).strip('\n') +
+                '\n' * trailing
+        )
+    return code
 
 
 class FoundWord(Exception):
@@ -35,12 +72,29 @@ class FoundWord(Exception):
         self.end = end
 
 
-def doc_path_rel_spec(doc: STeXDocument, stylize_file_name: bool = False) -> str:
+def symbol_path_without_archive(doc: STeXDocument, doc_internal_symbol_path: str, stylize: bool = False,
+                                include_symbol: bool = True) -> str:
     p = doc.get_rel_path()
     if p.endswith('.en.tex'):
         p = p[:-len('.en.tex')]
-    l = p.split('/')
-    return '/'.join(l[1:-1]) + '?' + (click.style(l[-1], fg='cyan') if stylize_file_name else l[-1])
+    l = p.split('/')[1:]   # drop 'source'
+
+    # TODO: does not work for nested modules, but should only result in redundant information
+    mod_name = doc_internal_symbol_path.partition('?')[0]
+    if mod_name == l[-1]:
+        l = l[:-1]
+
+    symb_name = doc_internal_symbol_path.rpartition('?')[-1]
+    suffix = '?' + (click.style(symb_name, fg='green') if stylize else symb_name)  # symbol
+    if not include_symbol:
+        suffix = ''
+
+    return (
+            '/'.join(l) + '?' +   # path
+            (click.style(mod_name, fg='cyan') if stylize else mod_name) + # module
+            suffix  # symbol (if requested)
+    )
+
 
 
 @functools.cache
@@ -53,30 +107,38 @@ def mystem(word: str) -> str:
     return ' '.join(nltk.stem.porter.PorterStemmer().stem(w) for w in word.split())
 
 
-def symbol_is_imported(current_document: STeXDocument, symbdoc: STeXDocument, mh: MathHub) -> bool:
-    checked_docs: set[tuple[str, str]] = set()  # (archive, rel_path)
-    todo_list: list[tuple[str, str]] = [
-        (dep.archive, dep.file)
-        for dep in current_document.get_doc_info(mh).flattened_dependencies() if dep.file
+def symbol_is_imported(current_document: STeXDocument, symb_info: 'SymbInfo', mh: MathHub, offset: int) -> bool:
+    checked_docs: set[tuple[str, str, Optional[str]]] = set()  # (archive, rel_path, module)
+    todo_list: list[Dependency] = [
+        dep
+        for dep in current_document.get_doc_info(mh).flattened_dependencies() if dep.file and dep.valid_range[0] <= offset <= dep.valid_range[1]
     ]
-    while todo_list:
-        archive_name, rel_path = todo_list.pop()
-        if (archive_name, rel_path) in checked_docs:
-            continue
-        checked_docs.add((archive_name, rel_path))
-        # dep_doc = mh.getget_stex_doc(archive_name, rel_path)
+
+    def get_doc(archive_name: str, rel_path: str) -> Optional[STeXDocument]:
         repo = mh.get_archive(archive_name)
         if repo is None:
+            return None
+        return repo.get_stex_doc('source/' + rel_path)
+
+    while todo_list:
+        dep = todo_list.pop()
+        if (dep.archive, dep.file, dep.module_name) in checked_docs:
             continue
-        dep_doc = repo.get_stex_doc('source/' + rel_path)
+        checked_docs.add((dep.archive, dep.file, dep.module_name))
+        dep_doc = get_doc(dep.archive, dep.file)
         if dep_doc is None:
-            print('Could not find', archive_name, rel_path)
+            print('Could not find', dep.archive, dep.file)
             continue
-        if dep_doc.path == symbdoc.path:
+        if dep_doc.path == symb_info.document.path and dep.module_name == symb_info.symbol_path_in_doc.partition('?')[0]:
             return True
-        for dep in dep_doc.get_doc_info(mh).flattened_dependencies():
+        for dep_dep in dep_doc.get_doc_info(mh).flattened_dependencies():
+            if dep.module_name:
+                module_range = dep.valid_range
+                if not (module_range[0] <= dep_dep.intro_range[0] <= module_range[1]):
+                    continue
+
             if dep.file and not dep.is_use and not dep.is_lib:
-                todo_list.append((dep.archive, dep.file))
+                todo_list.append(dep)
 
     return False
 
@@ -144,54 +206,76 @@ class IgnoreList:
             self.path.write_text('\n'.join(self.word_list) + '\n')
 
 
+@dataclasses.dataclass
+class SymbInfo:
+    # info for a particular usage if a symbol (e.g. a in a \definiendum)
+    document: STeXDocument
+    symbol_path_in_doc: str
+    declaration_range: tuple[int, int]
+
+    def __post_init__(self):
+        self.symbol_short = self.symbol_path_in_doc.rpartition('?')[-1]
+
+
 def get_verb_info(mh: MathHub, filter_fun: Callable[[str], bool]) \
-        -> tuple[set[str], dict[str, list[tuple[str, STeXDocument]]]]:
-    skipped = 0
+        -> tuple[set[str], dict[str, list[SymbInfo]]]:
     all_words = set()
-    word_to_symb: dict[str, list[tuple[str, STeXDocument]]] = defaultdict(list)
+    word_to_symb: dict[str, list[SymbInfo]] = defaultdict(list)
     for archive in mh.iter_stex_archives():
         if not filter_fun(archive.get_archive_name()):
             continue
         for doc in archive.stex_doc_iter():
             if not doc.path.name.endswith('.en.tex'):
                 continue
-            for symb, verbs in doc.get_doc_info(mh).nldefs.items():
-                for verb in verbs:
-                    if len(verb) < 2:
-                        skipped += 1
-                        continue
-                    verb = mystem(verb)
-                    all_words.add(verb)
-                    word_to_symb[verb].append((symb, doc))
-
+            for module in doc.get_doc_info(mh).iter_modules():
+                for symb in module.symbols:
+                    symb_name = module.name + '?' + symb.name
+                    # if symb_name.partition('/')[0] == doc.get_rel_path().rpartition('/')[-1]:
+                    #     symb_name = symb_name.partition('/')[2]  # drop module name if it coincides with document name
+                    verbs = symb.verbalizations
+                    if not verbs and symb.decl_def:
+                        verbs = [symb.name, *symb.decl_def]   # use symbol name if no other verbalizations are given
+                    already_listed_verbs = set()
+                    for verb, start, stop in verbs:
+                        if len(verb) < 2:
+                            continue
+                        verb = mystem(verb)
+                        if verb in already_listed_verbs:
+                            continue
+                        already_listed_verbs.add(verb)
+                        all_words.add(verb)
+                        word_to_symb[verb].append(SymbInfo(doc, symb_name, symb.decl_def))
     return all_words, word_to_symb
 
 
-def look_for_next_word(all_words: Iterable[str], to_ignore: set[str], text: str) -> Optional[tuple[int, int, int, int]]:
+def look_for_next_word(all_words: Iterable[str], to_ignore: set[str], text: str) -> Optional[tuple[int, int, Optional[int], Optional[int]]]:
     regex_core = words_to_regex([word for word in all_words if word not in to_ignore])
     if not regex_core:
         return None
     regex = re.compile(r'\b' + regex_core + r'\b')
-    import_insert_pos: Optional[int] = None
-    use_insert_pos: Optional[int] = None
+    import_insert_pos: list[int] = []  # stack
+    use_insert_pos: list[int] = []
 
     def _recurse(nodes):
-        nonlocal import_insert_pos, use_insert_pos
-
         for node in nodes:
             if node.nodeType() in {LatexMacroNode, LatexMathNode, LatexCommentNode, LatexSpecialsNode}:
                 if node.nodeType() == LatexMacroNode and node.macroname in TRANSPARENT_MACROS:
                     _recurse(node.nodeargs)
                 continue
             elif node.nodeType() == LatexEnvironmentNode:
+                to_pop = []
                 if node.nodeType() == LatexEnvironmentNode and \
-                        node.environmentname in {'sproblem', 'smodule', 'sdefinition', 'sparagraph', 'document'}:
-                    use_insert_pos = node.nodelist[0].pos
+                        node.environmentname in {'sproblem', 'smodule', 'sdefinition', 'sparagraph', 'document', 'frame'}:
+                    use_insert_pos.append(node.nodelist[0].pos)
+                    to_pop.append(use_insert_pos)
                     if node.environmentname == 'smodule':
                         # imports are generally at a higher level - TODO: Is this the correct heuristic?
-                        import_insert_pos = node.nodelist[0].pos
+                        import_insert_pos.append(node.nodelist[0].pos)
+                        to_pop.append(import_insert_pos)
                 if node.environmentname not in INTRANSPARENT_ENVS:
                     _recurse(node.nodelist)
+                    for l in to_pop:
+                        l.pop()
             elif node.nodeType() == LatexGroupNode:
                 _recurse(node.nodelist)
             else:
@@ -213,7 +297,7 @@ def look_for_next_word(all_words: Iterable[str], to_ignore: set[str], text: str)
         _recurse(walker.get_latex_nodes()[0])
         return None
     except FoundWord as e:
-        return e.start, e.end, import_insert_pos, use_insert_pos
+        return e.start, e.end, import_insert_pos[-1] if import_insert_pos else None, use_insert_pos[-1] if use_insert_pos else None
 
 
 @dataclasses.dataclass
@@ -250,18 +334,21 @@ class Srifier:
             ('i', 'gnore this word forever' + \
              click.style(f' (word list in {self.ignore_list.path})', fg=pale_color())),
         ]
+        _it_i = click.style('i', bold=False, italic=True)
         self.other_commands: list[tuple[str, str]] = [
             ('r', 'eplace this word'),
             ('u', 'ndo the last change to the file'),
             ('X', ' exit this file'),
+            # ('v' + _it_i, f' view the document of the {_it_i}-th symbol suggestion'),
         ]
 
     def get_commmand(self, word: str) -> str:
         options = self.main_commands[:]
-        for i, (symb, doc) in enumerate(self.word_to_symb[mystem(word)]):
+        for i, symb_info in enumerate(self.word_to_symb[mystem(word)]):
+            doc = symb_info.document
             options.append((str(i), (
                     ' ' + doc.archive.get_archive_name() +
-                    ' ' + doc_path_rel_spec(doc, stylize_file_name=True) + '?' + click.style(symb, fg='green') +
+                    ' ' + symbol_path_without_archive(doc, symb_info.symbol_path_in_doc, stylize=True) +
                     '\n        ' + click.style(doc.path, italic=True, fg=pale_color())
             )))
         print_options('Commands:', options)
@@ -274,7 +361,7 @@ class Srifier:
 
     def show_help(self):
         click.clear()
-        print(click.style(f'{"Help":^80}', bg='bright_yellow'))
+        print(click.style(f'{"Help":^{width()}}', bg='bright_yellow'))
         print()
         print_options('Main commands:', self.main_commands)
         print()
@@ -282,8 +369,8 @@ class Srifier:
         print()
         click.pause('Press any key to continue...')
 
-    def get_text_with_import(self, current_document: STeXDocument, symbdoc: STeXDocument, e: EditState) -> str:
-        if symbol_is_imported(current_document, symbdoc, self.mh):
+    def get_text_with_import(self, current_document: STeXDocument, symb_info: SymbInfo, e: EditState) -> str:
+        if symbol_is_imported(current_document, symb_info, self.mh, e.word_start_index):
             return e.text[:e.word_start_index]
 
         if e.import_insert_pos is not None:
@@ -294,13 +381,28 @@ class Srifier:
             command = simple_choice_prompt(['i', 'u'])
         else:
             command = 'u'
-        args = f'[{symbdoc.archive.get_archive_name()}]{{{doc_path_rel_spec(symbdoc)}}}'
+        args = ''
+        if symb_info.document.archive != current_document.archive:
+            args += f'[{symb_info.document.archive.get_archive_name()}]'
+        args += f'{{{symbol_path_without_archive(symb_info.document, symb_info.symbol_path_in_doc, include_symbol=False)}}}'
+        insert_pos: int
+        import_command: str
         if command == 'i':
-            new_text = e.text[:e.import_insert_pos] + f'\n  \\importmodule{args}' + \
-                       e.text[e.import_insert_pos:e.word_start_index]
+            insert_pos = e.import_insert_pos
+            import_command = '\\importmodule'
         else:
             assert e.use_insert_pos is not None, 'No use_insert_pos, which means that I could not find the place for inserting the \\usemodule'
-            new_text = e.text[:e.use_insert_pos] + f'\n  \\usemodule{args}' + e.text[e.use_insert_pos:e.word_start_index]
+            insert_pos = e.use_insert_pos
+            import_command = '\\usemodule'
+        indentation = ''
+        for i in range(insert_pos + 1, e.word_start_index):
+            if e.text[i] == ' ':
+                indentation += ' '
+            else:
+                break
+
+        new_text = e.text[:insert_pos] + f'\n{indentation}{import_command}{args}' + e.text[insert_pos:e.word_start_index]
+
         return new_text
 
     def print_word_in_doc(self, e: EditState):
@@ -322,10 +424,10 @@ class Srifier:
                 end_index += 1
         end_index += 1
 
-        print(click.style(f'{str(e.file):^80}', bg='bright_green'))
-        doc = text[start_index:e.word_start_index]
+        print(click.style(f'{str(e.file):^{width()}}', bg='bright_green'))
+        doc = latex_format(text[start_index:e.word_start_index])
         doc += click.style(e.word, bg='bright_yellow', bold=True)
-        doc += text[e.word_end_index:end_index]
+        doc += latex_format(text[e.word_end_index:end_index])
         lineno_start = text[:start_index].count('\n') + 1
         for i, line in enumerate(doc.split('\n'), lineno_start):
             print(click.style(f'{i:4} ', fg=pale_color()) + line)
@@ -333,7 +435,7 @@ class Srifier:
     def notify_user(self, message: str, type: str):
         assert type in {'error', 'info'}
         print()
-        print(click.style(f'{type.upper():^80}', bg='bright_cyan' if type == 'info' else 'bright_red', bold=True))
+        print(click.style(f'{type.upper():^{width()}}', bg='bright_cyan' if type == 'info' else 'bright_red', bold=True))
         print()
         print(message)
         print()
@@ -390,14 +492,16 @@ class Srifier:
                 edit_state.undoable = True
             elif command == 'h':
                 self.show_help()
+            elif command.startswith('v'):
+                ...
             elif command.isdigit():
                 repo = self.mh.get_archive_from_path(Path(file))
                 current_document = repo.get_stex_doc(str(Path(file).absolute().relative_to(repo.path)))
                 current_document.delete_doc_info_if_outdated()
 
-                symb, symbdoc = self.word_to_symb[mystem(edit_state.word)][int(command)]
-                new_text = self.get_text_with_import(current_document, symbdoc, edit_state)
-                new_text += self.get_sr(symb, edit_state.word, symbdoc)
+                symb_info = self.word_to_symb[mystem(edit_state.word)][int(command)]
+                new_text = self.get_text_with_import(current_document, symb_info, edit_state)
+                new_text += self.get_sr(symb_info, edit_state.word)
                 new_text += edit_state.text[edit_state.word_end_index:]
                 edit_state.new_text = new_text
                 edit_state.undoable = True
@@ -414,29 +518,29 @@ class Srifier:
             with open(file, 'w') as f:
                 f.write(new_content)
 
-    def get_sr(self, symb: str, word: str, symbdoc: STeXDocument) -> str:
+    def get_sr(self, symb: SymbInfo, word: str) -> str:
         # check if symbol name is unique
         _docs_that_introduce_symb = set()
         for _l in self.word_to_symb.values():
-            for _s, _doc in _l:
-                if _s == symb:
-                    _docs_that_introduce_symb.add(_doc)
-        if len(_docs_that_introduce_symb) > 1:
-            prefix = symbdoc.get_rel_path()[:-len(".en.tex")].split('/')[-1] + '?'
-        else:
-            assert len(_docs_that_introduce_symb) == 1
-            prefix = ''
+            for symb_info in _l:
+                if symb_info.symbol_short == symb.symbol_short:
+                    _docs_that_introduce_symb.add(symb_info.document)
 
-        if word == symb:
-            return '\\sn{' + prefix + symb + '}'
-        elif word == symb + 's':
-            return '\\sns{' + prefix + symb + '}'
-        elif word[0] == symb[0].upper() and word[1:] == symb[1:]:
-            return '\\Sn{' + prefix + symb + '}'
-        elif word[0] == symb[0].upper() and word[1:] == symb[1:] + 's':
-            return '\\Sns{' + prefix + symb + '}'
+        symb_path = symb.symbol_path_in_doc
+        symb_name = symb_path.rpartition('?')[-1]
+        if len(_docs_that_introduce_symb) == 1:
+            symb_path = symb_name
+
+        if word == symb_path:
+            return '\\sn{' + symb_path + '}'
+        elif word == symb_path + 's':
+            return '\\sns{' + symb_path + '}'
+        elif word[0] == symb_path[0].upper() and word[1:] == symb_path[1:]:
+            return '\\Sn{' + symb_path + '}'
+        elif word[0] == symb_path[0].upper() and word[1:] == symb_path[1:] + 's':
+            return '\\Sns{' + symb_path + '}'
         else:
-            return '\\sr{' + prefix + symb + '}' + '{' + word + '}'
+            return '\\sr{' + symb_path + '}' + '{' + word + '}'
 
 
 def srify(files: list[str], filter: str, ignore: str):

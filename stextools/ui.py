@@ -1,3 +1,4 @@
+import shutil
 from typing import Optional
 
 import click
@@ -6,11 +7,15 @@ import click
 USE_24_BIT_COLORS: bool = True
 
 
+def width():
+    return shutil.get_terminal_size().columns
+
+
 def print_options(intro: Optional[str], options: list[tuple[str, str]]):
     if intro:
         print(intro)
     for key, description in options:
-        print(' ', click.style(f'[{key}]', bold=True) + description)
+        print(' ', click.style(f'[{key}', bold=True) + click.style(']', bold=True) + description)
 
 
 def color(simple: str, full: tuple[int, int, int]):
