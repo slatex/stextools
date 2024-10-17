@@ -36,10 +36,10 @@ STEX_MACRO_SPECS: list = [
     MacroSpec('definame', '[{'),
     MacroSpec('Definame', '[{'),
     MacroSpec('sn', '[{'),
-    MacroSpec('sns', '{'),
-    MacroSpec('Sn', '{'),
-    MacroSpec('Sns', '{'),
-    MacroSpec('sr', '{{'),
+    MacroSpec('sns', '[{'),
+    MacroSpec('Sn', '[{'),
+    MacroSpec('Sns', '[{'),
+    MacroSpec('sr', '[{{'),
     MacroSpec('objective', '{{'),
     MacroSpec('sref', '[{'),
     MacroSpec('usestructure', '{'),
@@ -50,6 +50,8 @@ STEX_ENV_SPECS: list = [
     std_environment('sdefinition', '['),
     std_environment('sproblem', '['),
     std_environment('sparagraph', '['),
+    std_environment('scb', '['),
+    std_environment('smcb', '['),
 ]
 
 
@@ -57,6 +59,9 @@ STANDARD_MACRO_SPECS: list = [
     MacroSpec('lstinline', args_parser=VerbatimArgsParser(verbatim_arg_type="verb-macro")),
     MacroSpec('lstset', '{'),
     MacroSpec('lstinputlisting', '[{'),
+
+    # less standard
+    MacroSpec('ednote', '{'),
 ]
 
 STANDARD_ENV_SPECS: list = [
