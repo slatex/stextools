@@ -75,6 +75,12 @@ class DocInfo:
         for module in self.modules:
             yield from module.iter_modules()
 
+    def get_module(self, name: str) -> Optional[ModuleInfo]:
+        for module in self.iter_modules():
+            if module.name == name:
+                return module
+        return None
+
 
 @dataclasses.dataclass
 class DependencyProducer:

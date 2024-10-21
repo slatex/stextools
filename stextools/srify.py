@@ -22,7 +22,7 @@ from stextools.cache import Cache
 from stextools.linked_str import string_to_lstr, LinkedStr
 from stextools.macros import STEX_CONTEXT_DB
 from stextools.mathhub import MathHub, make_filter_fun
-from stextools.stexdoc import STeXDocument, Dependency
+from stextools.stexdoc import STeXDocument, Dependency, Symbol
 from stextools.tree_regex import words_to_regex
 from stextools.ui import pale_color, print_options, simple_choice_prompt, width, color
 
@@ -96,7 +96,6 @@ def symbol_path_without_archive(doc: STeXDocument, doc_internal_symbol_path: str
     )
 
 
-
 @functools.cache
 def mystem(word: str) -> str:
     import nltk.stem.porter
@@ -108,11 +107,22 @@ def mystem(word: str) -> str:
 
 
 def symbol_is_imported(current_document: STeXDocument, symb_info: 'SymbInfo', mh: MathHub, offset: int) -> bool:
+    for doc, mod, symb_name in get_imported_symbols(current_document, mh, offset):
+        if doc == symb_info.document and mod == symb_info.symbol_path_in_doc.partition('?')[0] and symb_name == symb_info.symbol_path_in_doc.rpartition('?')[-1]:
+            return True
+    return False
+
+
+@functools.lru_cache(maxsize=512)
+def get_imported_symbols(current_document: STeXDocument, mh: MathHub, offset: int) -> list[tuple[STeXDocument, str, str]]:
+    # returns triples (document, module_path_in_doc, symbol_name)
+    print('CALL')
     checked_docs: set[tuple[str, str, Optional[str]]] = set()  # (archive, rel_path, module)
     todo_list: list[Dependency] = [
         dep
         for dep in current_document.get_doc_info(mh).flattened_dependencies() if dep.file and dep.valid_range[0] <= offset <= dep.valid_range[1]
     ]
+    symbols: list[tuple[STeXDocument, str, str]] = []
 
     def get_doc(archive_name: str, rel_path: str) -> Optional[STeXDocument]:
         repo = mh.get_archive(archive_name)
@@ -129,8 +139,17 @@ def symbol_is_imported(current_document: STeXDocument, symb_info: 'SymbInfo', mh
         if dep_doc is None:
             print('Could not find', dep.archive, dep.file)
             continue
-        if dep_doc.path == symb_info.document.path and dep.module_name == symb_info.symbol_path_in_doc.partition('?')[0]:
-            return True
+
+        if dep.module_name:
+            module = dep_doc.get_doc_info(mh).get_module(dep.module_name)
+            assert module is not None
+            for symb in module.symbols:   # TODO: should we include nested modules?
+                symbols.append((dep_doc, module.name, symb.name))
+        else:
+            for module in dep_doc.get_doc_info(mh).iter_modules():
+                for symb in module.symbols:
+                    symbols.append((dep_doc, module.name, symb.name))
+
         for dep_dep in dep_doc.get_doc_info(mh).flattened_dependencies():
             if dep.module_name:
                 module_range = dep.valid_range
@@ -139,8 +158,7 @@ def symbol_is_imported(current_document: STeXDocument, symb_info: 'SymbInfo', mh
 
             if dep.file and not dep.is_use and not dep.is_lib:
                 todo_list.append(dep)
-
-    return False
+    return symbols
 
 
 def text_and_skipped_words_from_file(edit_state: 'EditState'):
@@ -322,8 +340,9 @@ class EditState:
 
 
 class Srifier:
-    def __init__(self, filter_fun: Callable[[str], bool]):
+    def __init__(self, filter_fun: Callable[[str], bool], disambiguation_policy: str):
         self.ignore_list = IgnoreList()
+        self.disambiguation_policy = disambiguation_policy
         self.mh = Cache.get_mathhub(update_all=True)
         self.all_words, self.word_to_symb = get_verb_info(self.mh, filter_fun)
         if not self.all_words:
@@ -523,7 +542,7 @@ class Srifier:
 
                 symb_info = self.word_to_symb[mystem(edit_state.word)][int(command)]
                 new_text = self.get_text_with_import(current_document, symb_info, edit_state)
-                new_text += self.get_sr(symb_info, edit_state.word)
+                new_text += self.get_sr(symb_info, edit_state.word, current_document, edit_state.word_start_index)
                 new_text += edit_state.text[edit_state.word_end_index:]
                 edit_state.new_text = new_text
                 edit_state.undoable = True
@@ -543,32 +562,40 @@ class Srifier:
             with open(file, 'w') as f:
                 f.write(new_content)
 
-    def get_sr(self, symb: SymbInfo, word: str) -> str:
+    def get_sr(self, symb: SymbInfo, word: str, current_document: STeXDocument, offset: int) -> str:
         # check if symbol name is unique
         _docs_that_introduce_symb = set()
-        for _l in self.word_to_symb.values():
-            for symb_info in _l:
-                if symb_info.symbol_short == symb.symbol_short:
-                    _docs_that_introduce_symb.add(symb_info.document)
+        if self.disambiguation_policy == 'cautious':
+            for _l in self.word_to_symb.values():
+                for symb_info in _l:
+                    if symb_info.symbol_short == symb.symbol_short:
+                        _docs_that_introduce_symb.add(symb_info.document)
+        else:
+            assert self.disambiguation_policy == 'minimal', f'Unknown disambiguation policy {self.disambiguation_policy}'
+            for doc, mod, symb_name in get_imported_symbols(current_document, self.mh, offset):
+                if doc == symb.document and mod == symb.symbol_path_in_doc.partition('?')[0] and symb_name == symb.symbol_path_in_doc.rpartition('?')[-1]:
+                    _docs_that_introduce_symb.add(doc)
 
         symb_path = symb.symbol_path_in_doc
         symb_name = symb_path.rpartition('?')[-1]
         if len(_docs_that_introduce_symb) == 1:
             symb_path = symb_name
 
-        if word == symb_path:
+        if word == symb_name:
             return '\\sn{' + symb_path + '}'
-        elif word == symb_path + 's':
+        elif word == symb_name + 's':
             return '\\sns{' + symb_path + '}'
-        elif word[0] == symb_path[0].upper() and word[1:] == symb_path[1:]:
+        elif word[0] == symb_name[0].upper() and word[1:] == symb_name[1:]:
             return '\\Sn{' + symb_path + '}'
-        elif word[0] == symb_path[0].upper() and word[1:] == symb_path[1:] + 's':
+        elif word[0] == symb_name[0].upper() and word[1:] == symb_name[1:] + 's':
             return '\\Sns{' + symb_path + '}'
+        elif word.startswith(symb_name):
+            return f'\\sn[post={word[len(symb_name):]}]{{' + symb_path + '}'
         else:
             return '\\sr{' + symb_path + '}' + '{' + word + '}'
 
 
-def srify(files: list[str], filter: str, ignore: str):
-    srifier = Srifier(make_filter_fun(filter, ignore))
+def srify(files: list[str], filter: str, ignore: str, disambiguation_policy: str):
+    srifier = Srifier(make_filter_fun(filter, ignore), disambiguation_policy)
     for file in files:
         srifier.process_file(file)
