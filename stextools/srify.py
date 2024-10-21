@@ -116,7 +116,6 @@ def symbol_is_imported(current_document: STeXDocument, symb_info: 'SymbInfo', mh
 @functools.lru_cache(maxsize=512)
 def get_imported_symbols(current_document: STeXDocument, mh: MathHub, offset: int) -> list[tuple[STeXDocument, str, str]]:
     # returns triples (document, module_path_in_doc, symbol_name)
-    print('CALL')
     checked_docs: set[tuple[str, str, Optional[str]]] = set()  # (archive, rel_path, module)
     todo_list: list[Dependency] = [
         dep

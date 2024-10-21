@@ -83,7 +83,7 @@ def translate(path):
               help='Pattern to exclude some archives (e.g. \'Papers/*,smglom/mv\')')
 @click.option('--disambiguation-policy',
               type=click.Choice(['minimal', 'cautious']),
-              default=lambda: get_config().get('stextools.srify', 'disambiguation-policy', fallback='cautious'),
+              default=lambda: get_config().get('stextools.srify', 'disambiguation-policy', fallback='minimal'),
               help='Pattern to exclude some archives (e.g. \'Papers/*,smglom/mv\')')
 def srify(files, filter, ignore, disambiguation_policy):
     from stextools.srify import srify
