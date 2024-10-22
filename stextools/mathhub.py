@@ -173,7 +173,7 @@ class Repository:
         return self._manifest
 
     @functools.lru_cache(2 ** 16)
-    def normalize_tex_file_ref(self, path: str, directory: Literal['source', 'lib'] = 'source') -> Optional[str]:
+    def normalize_tex_file_ref(self, path: str, directory: Literal['source', 'lib'] = 'source', lang: str = '*') -> Optional[str]:
         """ Tries to normalize a file reference (e.g. by appending .tex or .en.tex).
             Returns None if the file does not exist.
             TODO: Currently any language is accepted - should it be restricted to the language of the source document?
@@ -185,7 +185,7 @@ class Repository:
 
         split = path.split('/')
         # try for .[lang].tex (at least that's how I understand the sTeX manual)
-        options = list((self.path / directory / ('/'.join(split[:-1]))).glob(f'{split[-1]}.*.tex'))
+        options = list((self.path / directory / ('/'.join(split[:-1]))).glob(f'{split[-1]}.{lang}.tex'))
         if options:
             return str(options[0].relative_to(self.path / directory).as_posix())
         return None

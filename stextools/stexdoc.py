@@ -94,7 +94,8 @@ class DependencyProducer:
     is_use: bool = False
     target_no_tex: bool = False
 
-    def produce(self, node: LatexMacroNode, from_archive: str, from_subdir: str, mh: MathHub, valid_range: tuple[int, int]) -> Optional[Dependency]:
+    def produce(self, node: LatexMacroNode, from_archive: str, from_subdir: str, mh: MathHub, valid_range: tuple[int, int],
+                lang: str = '*') -> Optional[Dependency]:
         # STEP 1: Determine the target archive
         target_archive: Optional[str] = None
         if self.opt_param_is_archive:
@@ -134,7 +135,7 @@ class DependencyProducer:
             path_options.append(path)
             path_options.append(f'{path}/{module_name}')
             for path_option in path_options:
-                file = archive.normalize_tex_file_ref(path_option, top_dir)
+                file = archive.normalize_tex_file_ref(path_option, top_dir, lang)
                 if file is not None:
                     return Dependency(archive.get_archive_name(), file, module_name=module_name,
                                       is_lib=self.is_lib, is_use=self.is_use, target_no_tex=self.target_no_tex,
@@ -156,7 +157,7 @@ class DependencyProducer:
                     path_options.append(f'{from_subdir}/{main_arg}')
                 path_options.append(main_arg)
                 for path_option in path_options:
-                    file = archive.normalize_tex_file_ref(path_option, top_dir)
+                    file = archive.normalize_tex_file_ref(path_option, top_dir, lang)
                     if file is not None:
                         return Dependency(archive.get_archive_name(), file, module_name=None,
                                           is_lib=self.is_lib, is_use=self.is_use, target_no_tex=self.target_no_tex,
@@ -241,17 +242,41 @@ class STeXDocument:
                         else:
                             doc_info.modules.append(new_module_info)
                         module_info = new_module_info
+
+                        # e.g. "set.de.tex" has something like an import to "set.en.tex",
+                        # which is indicated with `sig=en` as a parameter in the smodule environment
+                        params = OptArgKeyVals.from_first_macro_arg(node.nodeargd)
+                        if params and params.get_val('sig'):
+                            file = self.path
+                            name_parts = file.name.split('.')
+                            if len(name_parts) > 2:
+                                name_parts[-2] = params.get_val('sig').strip()
+                                file = file.with_name('.'.join(name_parts))
+                                if not file.exists():
+                                    file = None
+                            else:
+                                file = None
+
+                            module_info.dependencies.append(
+                                Dependency(self.archive.get_archive_name(), file.as_posix() if file else None, module_name=name, is_use=False,
+                                           valid_range=(node.pos, node.pos + node.len), intro_range=(node.pos, node.pos + node.len))
+                            )
                     process(node.nodelist, (node.pos, node.pos + node.len), module_info)
                 elif node.nodeType() == LatexMacroNode:
                     assert isinstance(node, LatexMacroNode)
                     dp = DEPENDENCY_PRODUCER_BY_MACRONAME.get(node.macroname)
                     if dp:
+                        lang = '*'
+                        _parts =  self.path.name.split('.')
+                        if len(_parts) > 2:
+                            lang = _parts[-2]
                         dep = dp.produce(
                             node,
                             self.archive.get_archive_name(),
                             '/'.join(self.get_rel_path().split('/')[1:]),   # ignore 'source' or 'lib'
                             mh,
-                            parent_range
+                            parent_range,
+                            lang
                         )
                         if dep:
                             if module_info:

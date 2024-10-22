@@ -394,6 +394,40 @@ class Srifier:
         print()
         click.pause('Press any key to continue...')
 
+    def would_not_create_import_cycle(self, current_document: STeXDocument, document_to_be_imported: STeXDocument) -> bool:
+        """ only checks for cycles involving the current document """
+        def get_imported_docs(document: STeXDocument):
+            for dep in document.get_doc_info(self.mh).flattened_dependencies():
+                if dep.file and not dep.is_use:
+                    dep_doc = self.mh.get_archive(dep.archive).get_stex_doc('source/' + dep.file)
+                    if dep_doc:
+                        yield dep_doc
+
+        predecessor = {}
+        todo = [document_to_be_imported]
+        while todo:
+            doc = todo.pop()
+            if doc == current_document:
+                message = f'Importing {document_to_be_imported.path} would create a cycle:\n\n'
+                d = current_document
+                message = ' ' * len('is imported by ') + str(d.path) + '\n'
+                d = predecessor[d]
+                while d != document_to_be_imported:
+                    message += f'is imported by {d.path}\n'
+                    d = predecessor[d]
+                message += f'is imported by {document_to_be_imported.path}'
+                message += '\n\nI will instead use the \\usemodule command.'
+                click.clear()
+                self.notify_user(message, 'error')
+                return False
+
+            for dep_doc in get_imported_docs(doc):
+                if dep_doc not in predecessor:
+                    predecessor[dep_doc] = doc
+                    todo.append(dep_doc)
+
+        return True
+
     def get_text_with_import(self, current_document: STeXDocument, symb_info: SymbInfo, e: EditState) -> str:
         if symbol_is_imported(current_document, symb_info, self.mh, e.word_start_index):
             return e.text[:e.word_start_index]
@@ -421,7 +455,7 @@ class Srifier:
         args += f'{{{symbol_path_without_archive(symb_info.document, symb_info.symbol_path_in_doc, include_symbol=False)}}}'
         insert_pos: int
         import_command: str
-        if command == 'i':
+        if command == 'i' and self.would_not_create_import_cycle(current_document, symb_info.document):
             insert_pos = e.import_insert_pos
             import_command = '\\importmodule'
         else:
