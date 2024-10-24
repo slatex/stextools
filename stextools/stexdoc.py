@@ -246,19 +246,20 @@ class STeXDocument:
                         # e.g. "set.de.tex" has something like an import to "set.en.tex",
                         # which is indicated with `sig=en` as a parameter in the smodule environment
                         params = OptArgKeyVals.from_first_macro_arg(node.nodeargd)
-                        if params and params.get_val('sig'):
-                            file = self.path
+                        if params and (sig_val := params.get_val('sig')):
+                            file: Path = self.path
                             name_parts = file.name.split('.')
+                            file_ok: bool = True
                             if len(name_parts) > 2:
-                                name_parts[-2] = params.get_val('sig').strip()
+                                name_parts[-2] = sig_val
                                 file = file.with_name('.'.join(name_parts))
                                 if not file.exists():
-                                    file = None
+                                    file_ok = False
                             else:
-                                file = None
+                                file_ok = False
 
                             module_info.dependencies.append(
-                                Dependency(self.archive.get_archive_name(), file.as_posix() if file else None, module_name=name, is_use=False,
+                                Dependency(self.archive.get_archive_name(), file.as_posix() if file_ok else None, module_name=name, is_use=False,
                                            valid_range=(node.pos, node.pos + node.len), intro_range=(node.pos, node.pos + node.len))
                             )
                     process(node.nodelist, (node.pos, node.pos + node.len), module_info)

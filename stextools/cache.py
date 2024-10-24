@@ -45,14 +45,14 @@ class Cache:
         if MATHHUB_PICKLE_FILE.exists():
             logger.info('Loading MathHub info from cache...')
             with open(MATHHUB_PICKLE_FILE, 'rb') as fp:
-                cls._mh: MathHub = pickle.load(fp)
+                cls._mh = pickle.load(fp)
                 cls._mh.update()
         else:
             logger.info('No MathHub info found in cache - I will start from scratch.')
             cls._mh = MathHub()
         if update_all:
-            cls._mh.load_all_doc_infos()
-            Cache.store_mathhub(cls._mh)
+            if cls._mh.load_all_doc_infos() > 20:   # only update cache if enough documents have changed
+                Cache.store_mathhub(cls._mh)
         return cls._mh
 
     @classmethod

@@ -26,7 +26,7 @@ def pairwise(iterable):
 
 if not hasattr(itertools, 'pairwise'):
     # only available in python 3.10+
-    itertools.pairwise = pairwise
+    itertools.pairwise = pairwise  # type: ignore
 
 
 @dataclasses.dataclass(frozen=True)

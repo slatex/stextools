@@ -29,7 +29,7 @@ from stextools.ui import pale_color, print_options, simple_choice_prompt, width,
 try:
     import pygments
 except ImportError:
-    pygments = None
+    pygments = None  # type: ignore
     print(click.style(f'{"Warning":^{width()}}', bold=True, bg='bright_yellow'))
     print()
     print('Failed to import `pygments` – syntax highlighting will be unvailable')
@@ -53,9 +53,10 @@ def latex_format(code: str) -> str:
         if ui.USE_24_BIT_COLORS:
             from pygments.formatters import TerminalTrueColorFormatter as TerminalFormatter
         else:
-            from pygments.formatters import TerminalFormatter
+            from pygments.formatters import TerminalFormatter  # type: ignore
 
         # leading and trailing newlines are removed by pygments
+        # TODO: this can be configured with stripnl/stripall
         leading = len(code) - len(code.lstrip('\n'))
         trailing = len(code) - len(code.rstrip('\n'))
         return (
@@ -98,7 +99,7 @@ def symbol_path_without_archive(doc: STeXDocument, doc_internal_symbol_path: str
 
 @functools.cache
 def mystem(word: str) -> str:
-    import nltk.stem.porter
+    import nltk.stem.porter  # type: ignore
     if word.isupper():  # acronym
         return word
     if word and word[-1] == 's' and word[:-1].isupper():  # plural acronym
@@ -133,6 +134,7 @@ def get_imported_symbols(current_document: STeXDocument, mh: MathHub, offset: in
         dep = todo_list.pop()
         if (dep.archive, dep.file, dep.module_name) in checked_docs:
             continue
+        assert dep.file
         checked_docs.add((dep.archive, dep.file, dep.module_name))
         dep_doc = get_doc(dep.archive, dep.file)
         if dep_doc is None:
@@ -151,6 +153,8 @@ def get_imported_symbols(current_document: STeXDocument, mh: MathHub, offset: in
 
         for dep_dep in dep_doc.get_doc_info(mh).flattened_dependencies():
             if dep.module_name:
+                assert dep_dep.intro_range
+                assert dep.valid_range
                 module_range = dep.valid_range
                 if not (module_range[0] <= dep_dep.intro_range[0] <= module_range[1]):
                     continue
@@ -399,18 +403,21 @@ class Srifier:
         def get_imported_docs(document: STeXDocument):
             for dep in document.get_doc_info(self.mh).flattened_dependencies():
                 if dep.file and not dep.is_use:
-                    dep_doc = self.mh.get_archive(dep.archive).get_stex_doc('source/' + dep.file)
+                    archive = self.mh.get_archive(dep.archive)
+                    if archive is None:
+                        continue
+                    dep_doc = archive.get_stex_doc('source/' + dep.file)
                     if dep_doc:
                         yield dep_doc
 
-        predecessor = {}
+        predecessor: dict[STeXDocument, STeXDocument] = {}
         todo = [document_to_be_imported]
         while todo:
             doc = todo.pop()
             if doc == current_document:
                 message = f'Importing {document_to_be_imported.path} would create a cycle:\n\n'
                 d = current_document
-                message = ' ' * len('is imported by ') + str(d.path) + '\n'
+                message += ' ' * len('is imported by ') + str(d.path) + '\n'
                 d = predecessor[d]
                 while d != document_to_be_imported:
                     message += f'is imported by {d.path}\n'
@@ -456,6 +463,7 @@ class Srifier:
         insert_pos: int
         import_command: str
         if command == 'i' and self.would_not_create_import_cycle(current_document, symb_info.document):
+            assert e.import_insert_pos
             insert_pos = e.import_insert_pos
             import_command = '\\importmodule'
         else:
@@ -570,7 +578,9 @@ class Srifier:
                 click.pause('Press any key to continue...')
             elif command.isdigit():
                 repo = self.mh.get_archive_from_path(Path(file))
+                assert repo
                 current_document = repo.get_stex_doc(str(Path(file).absolute().relative_to(repo.path)))
+                assert current_document
                 current_document.delete_doc_info_if_outdated()
 
                 symb_info = self.word_to_symb[mystem(edit_state.word)][int(command)]

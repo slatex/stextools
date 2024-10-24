@@ -29,14 +29,13 @@ class MathHub:
             if repo.is_stex_archive():
                 yield repo
 
-    def get_archive_from_path(self, path: Path) -> Repository:
+    def get_archive_from_path(self, path: Path) -> Optional[Repository]:
         path = path.absolute().resolve()
         while not (path / '.git').is_dir():
             path = path.parent
             if path == Path('/'):
                 raise FileNotFoundError(f'No parent of {path} has a .git directory')
 
-        # Making a new STeXDocument as the existing one is not guaranteed to be up-to-date
         return self.get_archive(path.relative_to(get_mathhub_path()).as_posix())
 
     def update(self):
