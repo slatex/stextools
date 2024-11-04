@@ -5,7 +5,7 @@ import pickle
 from pathlib import Path
 from typing import Optional
 
-from stextools.mathhub import MathHub
+from stextools.core.mathhub import MathHub
 
 
 logger = logging.getLogger(__name__)

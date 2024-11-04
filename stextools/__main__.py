@@ -3,9 +3,9 @@ from pathlib import Path
 
 import click
 
-from stextools import ui
-from stextools.cache import Cache
-from stextools.config import get_config
+from stextools.utils import ui
+from stextools.core.cache import Cache
+from stextools.core.config import get_config
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +23,8 @@ def cli(keep_cache, use_true_color):
     if keep_cache:
         Cache.clear = lambda: None  # type: ignore
     logging.getLogger('pylatexenc.latexwalker').setLevel(logging.WARNING)
+    # TODO: the linker indicates both real sTeX issues and missing features – we should not suppress them in general
+    logging.getLogger('stextools.core.linker').setLevel(logging.FATAL)
     logging.basicConfig(level=logging.INFO)
 
 
@@ -86,7 +88,7 @@ def translate(path):
               default=lambda: get_config().get('stextools.srify', 'disambiguation-policy', fallback='minimal'),
               help='Pattern to exclude some archives (e.g. \'Papers/*,smglom/mv\')')
 def srify(files, filter, ignore, disambiguation_policy):
-    from stextools.srify import srify
+    from stextools.srify_old import srify
     srify(files, filter, ignore, disambiguation_policy)
 
 

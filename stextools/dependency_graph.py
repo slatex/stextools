@@ -5,8 +5,8 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Optional
 
-from stextools.cache import Cache
-from stextools.mathhub import MathHub, make_filter_fun
+from stextools.core.cache import Cache
+from stextools.core.mathhub import MathHub, make_filter_fun
 
 
 @dataclasses.dataclass

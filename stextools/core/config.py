@@ -8,12 +8,6 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 
-@dataclasses.dataclass
-class ConfigParam:
-    name: str
-    default: str
-
-
 @functools.cache
 def get_config() -> configparser.ConfigParser:
     config_path = Path('~/.config/stextools/config.ini').expanduser()
