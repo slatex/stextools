@@ -29,5 +29,11 @@ class Intifier(typing.Generic[_T]):
         """ TODO: should ints be included that were added during the iteration? """
         return range(len(self._int_to_obj))
 
+    def unint_iter(self) -> typing.Iterable[_T]:
+        return iter(self._obj_to_int)
+
+    def items(self) -> typing.Iterable[tuple[_T, int]]:
+        return self._obj_to_int.items()
+
     def __len__(self) -> int:
         return len(self._int_to_obj)

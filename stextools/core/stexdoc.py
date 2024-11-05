@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import dataclasses
-import functools
 import logging
 import re
 import typing
@@ -83,12 +82,13 @@ class Symbol:
 class Verbalization:
     symbol_name: str
     verbalization: str
+    lang: str
     macro_range: tuple[int, int]
     symbol_path_hint: Optional[str] = None  # e.g. for "foo/bar?baz", we have "foo/bar" as hint and "baz" as symbol_name
     is_defining: bool = False   # verbalization is definiendum
 
     @classmethod
-    def from_macro(cls, node: LatexMacroNode) -> Verbalization:
+    def from_macro(cls, node: LatexMacroNode, lang: str) -> Verbalization:
         if node.macroname == 'definiendum':
             symbol = node.nodeargd.argnlist[-2].latex_verbatim()[1:-1]
             verbalization = node.nodeargd.argnlist[-1].latex_verbatim()[1:-1]
@@ -107,6 +107,7 @@ class Verbalization:
         return cls(
             symbol_name=symbol_name,
             verbalization=verbalization,
+            lang=lang,
             symbol_path_hint=symbol_path_hint if symbol_path_hint else None,
             macro_range=(node.pos, node.pos + node.len),
             is_defining=node.macroname in {'definiendum', 'definame', 'Definame'},
@@ -138,6 +139,7 @@ class ModuleInfo:
 class DocInfo:
     # dependencies introduced outside of modules
     last_modified: float
+    lang: str
     dependencies: list[Dependency] = dataclasses.field(default_factory=list)
     modules: list[ModuleInfo] = dataclasses.field(default_factory=list)
     verbalizations: list[Verbalization] = dataclasses.field(default_factory=list)
@@ -303,7 +305,9 @@ class STeXDocument:
         with open(self.path) as fp:
             walker = LatexWalker(fp.read(), latex_context=STEX_CONTEXT_DB)
 
-        doc_info = DocInfo(self.path.stat().st_mtime)
+        name_segments = self.path.name.split('.')
+        doc_info = DocInfo(self.path.stat().st_mtime, 'en' if len(name_segments) < 3 else name_segments[-2])
+        # TODO: update lang in case it is specified in the document (e.g. \documentclass[lang=de]{stex})
 
         def process(nodes, parent_range: tuple[int, int], module_info: Optional[ModuleInfo] = None):
             for node in nodes:
@@ -390,7 +394,7 @@ class STeXDocument:
                             )
 
                     elif node.macroname in {'definiendum', 'definame', 'Definame'}:
-                        doc_info.verbalizations.append(Verbalization.from_macro(node))
+                        doc_info.verbalizations.append(Verbalization.from_macro(node, doc_info.lang))
                 else:
                     raise Exception(f'Unexpected node type: {node.nodeType()}')
 

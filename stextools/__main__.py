@@ -83,13 +83,13 @@ def translate(path):
 @click.option('--ignore',
               default=lambda: get_config().get('stextools.srify', 'ignore', fallback=None),
               help='Pattern to exclude some archives (e.g. \'Papers/*,smglom/mv\')')
-@click.option('--disambiguation-policy',
-              type=click.Choice(['minimal', 'cautious']),
-              default=lambda: get_config().get('stextools.srify', 'disambiguation-policy', fallback='minimal'),
-              help='Pattern to exclude some archives (e.g. \'Papers/*,smglom/mv\')')
-def srify(files, filter, ignore, disambiguation_policy):
-    from stextools.srify_old import srify
-    srify(files, filter, ignore, disambiguation_policy)
+# @click.option('--disambiguation-policy',
+#               type=click.Choice(['minimal', 'cautious']),
+#               default=lambda: get_config().get('stextools.srify', 'disambiguation-policy', fallback='minimal'),
+#               help='Pattern to exclude some archives (e.g. \'Papers/*,smglom/mv\')')
+def srify(files, filter, ignore):
+    from stextools.srify.controller import srify
+    srify(files, filter, ignore)
 
 
 if __name__ == '__main__':
