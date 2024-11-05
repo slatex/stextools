@@ -5,20 +5,13 @@ import click
 
 from stextools.core.cache import Cache
 from stextools.core.linker import Linker
+from stextools.core.simple_api import file_from_path
 from stextools.srify.state import PositionCursor
-from stextools.srify.commands import CommandCollection, QuitProgramCommand
-from stextools.srify.selection import VerbTrie
+from stextools.srify.commands import CommandCollection, QuitProgramCommand, Exit, CommandOutcome, AnnotateCommand
+from stextools.srify.selection import VerbTrie, string_to_stemmed_word_sequence_simplified
 from stextools.srify.state import State, SelectionCursor
 from stextools.utils import ui
 from stextools.utils.ui import get_lines_around, latex_format, pale_color
-
-STANDARD_COMMANDS = CommandCollection(
-    name='srify standard commands',
-    commands=[
-        QuitProgramCommand()
-    ],
-    have_help=True
-)
 
 
 class Controller:
@@ -50,7 +43,32 @@ class Controller:
 
             click.clear()
             self._show_current_selection()
-            STANDARD_COMMANDS.apply(state=self.state)
+            outcomes = self._get_and_run_command()
+
+            for outcome in outcomes:
+                if isinstance(outcome, Exit):
+                    return
+
+    def _get_and_run_command(self) -> list[CommandOutcome]:
+        command_collection = self._get_current_command_collection()
+        return command_collection.apply(state=self.state)
+
+    def _get_current_command_collection(self) -> CommandCollection:
+        annotate_command = AnnotateCommand(
+            symbols=self.get_verb_trie(self.get_current_lang()).find_first_match(
+                string_to_stemmed_word_sequence_simplified(self.state.get_selected_text(), self.get_current_lang())
+            )[2],
+            state=self.state,
+            linker=self.linker,
+        )
+        return CommandCollection(
+            name='srify standard commands',
+            commands=[
+                QuitProgramCommand(),
+                annotate_command,
+            ],
+            have_help=True
+        )
 
     def _show_current_selection(self, with_header: bool = True):
         if with_header:
@@ -72,11 +90,14 @@ class Controller:
     def ensure_cursor_selection(self) -> bool:
         """Returns False if nothing is left to select."""
         if isinstance(self.state.cursor, PositionCursor):
-            selection_cursor = self.get_verb_trie('en').find_next_selection(self.state)
+            selection_cursor = self.get_verb_trie(self.get_current_lang()).find_next_selection(self.state)
             if selection_cursor is None:
                 return False
             self.state.cursor = selection_cursor
         return True
+
+    def get_current_lang(self) -> str:
+        return file_from_path(self.state.get_current_file(), self.linker).lang
 
 
 def srify(files: list[str], filter: str, ignore: str):

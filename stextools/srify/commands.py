@@ -4,8 +4,10 @@ import re
 
 import click
 
+from stextools.core.linker import Linker
+from stextools.core.simple_api import SimpleSymbol
 from stextools.srify.state import State
-from stextools.utils.ui import option_string, standard_header, pale_color
+from stextools.utils.ui import option_string, standard_header, pale_color, color
 
 
 class CommandOutcome:
@@ -62,6 +64,40 @@ class QuitProgramCommand(Command):
         return [Exit()]
 
 
+class AnnotateCommand(Command):
+    """ Has to be re-instantiated for each state! """
+    def __init__(self, symbols: list[SimpleSymbol], state: State, linker: Linker):
+        super().__init__(CommandInfo(
+            pattern_presentation='𝑖',
+            pattern_regex='^[0-9]+$',
+            description_short=' annotate with 𝑖',
+            description_long='Annotates the current selection with option number 𝑖')
+        )
+        self.symbols = symbols
+        self.state = state
+        self.linker = linker
+
+    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
+        assert state == self.state
+        return []
+
+    def standard_display(self, *, state: State) -> str:
+        assert state == self.state
+        lines: list[str] = []
+        for i, symbol in enumerate(self.symbols):
+            symb_path = symbol.path_rel_to_archive.split('?')
+            assert len(symb_path) == 3
+            lines.append(option_string(
+                str(i),
+                ' ' + symbol.declaring_file.archive.name + ' ' +
+                symb_path[0] + '?' +
+                click.style(symb_path[1], bg=color('bright_cyan', (180, 180, 255))) + '?' +
+                click.style(symb_path[2], bg=color('bright_green', (180, 255, 180))) +
+                '\n      ' + click.style(symbol.declaring_file.path, italic=True, fg=pale_color())
+            ))
+        return '\n'.join(lines)
+
+
 class HelpCommand(Command):
     """ Should only be instantiated by CommandCollection. """
     def __init__(self, command_collection: 'CommandCollection'):
@@ -92,7 +128,7 @@ class CommandCollection:
 
     def __post_init__(self):
         if self.have_help:
-            self.commands.append(HelpCommand(self))
+            self.commands = [HelpCommand(self)] + self.commands
 
     def apply(self, *, state: State) -> list[CommandOutcome]:
         self._print_commands(state)

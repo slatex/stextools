@@ -119,7 +119,7 @@ class VerbTrie:
             trie = self.trie
             symbols: list[SimpleSymbol] = []
             while j < len(words) and words[j] in trie:
-                if words[j][0]:   # corresponds to a symbol
+                if trie[words[j]][0]:   # corresponds to a symbol
                     match_end = j + 1
                     symbols = trie[words[j]][0]
                 trie = trie[words[j]][1]

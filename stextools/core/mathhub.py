@@ -42,6 +42,13 @@ class MathHub:
 
         return self.get_archive(path.relative_to(self.root_path).as_posix())
 
+    def get_stex_doc(self, path: Path) -> Optional[STeXDocument]:
+        path = path.absolute().resolve()
+        repo = self.get_archive_from_path(path)
+        if repo is None:
+            return None
+        return repo.get_stex_doc(path.relative_to(repo.path).as_posix())
+
     def update(self):
         """Updates the repo information"""
         logger.info('Scanning archives...')

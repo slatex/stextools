@@ -17,6 +17,13 @@ class Linker:
         * Different things are computed in the same pass to avoid multiple iterations over the same data.
     """
 
+    # intifiers
+    # (conversion to integers makes graph algorithms more efficient)
+    document_ints: Intifier[STeXDocument]
+    module_ints: Intifier[tuple[int, str]]  # (document as int, module name)
+    symbol_ints: Intifier[tuple[int, Symbol]]  # (module as int, symbol)
+    verb_ints: Intifier[tuple[int, Verbalization]]  # (module as int, verbalization)
+
     # data from _compute_dep_graph
     file_import_graph: dict[int, set[int]]
     module_import_graph: dict[int, set[int]]   # module -> set[module]
@@ -24,6 +31,7 @@ class Linker:
     module_to_file: dict[int, int]             # module -> file
     available_module_ranges: dict[int, set[tuple[int, int, int]]]   # file -> set[(module, range_start, range_end)] - from imports, uses and smodule environments
     module_to_symbs: dict[int, set[int]]        # module -> set[symbol]
+    symbol_to_module: dict[int, int]            # symbol -> module
     symbs_by_name: dict[str, set[tuple[int, int]]]   # name -> set[(module, symbol)]
 
     # data from _transitive_imports
@@ -36,11 +44,10 @@ class Linker:
     def __init__(self, mh: MathHub):
         self.mh = mh
 
-        # conversion to integers makes graph algorithms more efficient
-        self.document_ints: Intifier[STeXDocument] = Intifier()
-        self.module_ints: Intifier[tuple[int, str]] = Intifier()               # (document as int, module name)
-        self.symbol_ints: Intifier[tuple[int, Symbol]] = Intifier()            # (module as int, symbol)
-        self.verb_ints: Intifier[tuple[int, Verbalization]] = Intifier()       # (module as int, verbalization)
+        self.document_ints = Intifier()
+        self.module_ints = Intifier()
+        self.symbol_ints = Intifier()
+        self.verb_ints = Intifier()
 
         self._compute_dep_graph()
         self._compute_transitive_imports()
@@ -53,6 +60,7 @@ class Linker:
         self.available_module_ranges = defaultdict(set)
         self.module_to_file = {}
         self.module_to_symbs = defaultdict(set)
+        self.symbol_to_module = {}
         self.symbs_by_name = defaultdict(set)
 
         # local variables are faster
@@ -102,6 +110,7 @@ class Linker:
                     int_symb = self.symbol_ints.intify((int_mod, symb))
                     self.module_to_symbs[int_mod].add(int_symb)
                     self.symbs_by_name[symb.name].add((int_mod, int_symb))
+                    self.symbol_to_module[int_symb] = int_mod
 
     def _get_docs_topsorted(self) -> Iterable[int]:
         full_processed: set[int] = set()
