@@ -240,7 +240,7 @@ def get_verb_info(mh: MathHub, filter_fun: Callable[[str], bool]) \
             if not doc.path.name.endswith('.en.tex'):
                 continue
             for module in doc.get_doc_info(mh).iter_modules():
-                for symb in module.symbols:
+                for symb in module.candidate_symbols:
                     symb_name = module.name + '?' + symb.name
                     verbs = symb.verbalizations
                     # if not verbs and symb.decl_def:

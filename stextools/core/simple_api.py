@@ -42,6 +42,14 @@ class SimpleSymbol:
         module = self._linker.symbol_to_module[self._symbol_int]
         return SimpleModule(module, self._linker)
 
+    def __eq__(self, other) -> bool:
+        return (isinstance(other, SimpleSymbol) and
+                self._symbol_int == other._symbol_int and
+                self._linker is other._linker)
+
+    def __hash__(self) -> int:
+        return hash((self._symbol_int, self._linker))
+
 
 class SimpleModule:
     _module: ModuleInfo
@@ -66,7 +74,6 @@ class SimpleModule:
 
         return f'{file_path}?{module_path}'
 
-
     @property
     def file(self) -> 'SimpleFile':
         return SimpleFile(self._linker.module_to_file[self._module_int], self._linker)
@@ -74,6 +81,19 @@ class SimpleModule:
     @property
     def path_in_doc(self) -> str:
         return self._module.name
+
+    def imports_module(self, module: 'SimpleModule', reflexive: bool) -> bool:
+        if reflexive and module == self:
+            return True
+        return module._module_int in self._linker.transitive_imports[self._module_int]
+
+    def __eq__(self, other) -> bool:
+        return (isinstance(other, SimpleModule) and
+                self._module_int == other._module_int and
+                self._linker is other._linker)
+
+    def __hash__(self) -> int:
+        return hash((self._module_int, self._linker))
 
 
 class SimpleFile:
@@ -104,6 +124,17 @@ class SimpleFile:
 
         return p
 
+    def symbol_is_in_scope_at(self, symbol: SimpleSymbol, offset: int) -> bool:
+        required_module = symbol.declaring_module._module_int
+        for mod, start, end in self._linker.available_module_ranges[self._doc_int]:
+            if start <= offset < end and required_module in self._linker.transitive_imports[mod]:
+                return True
+        return False
+
+    def get_compilation_dependencies(self) -> list['SimpleFile']:
+        for dep_int in self._linker.file_import_graph[self._doc_int]:
+            yield SimpleFile(dep_int, self._linker)
+
     @property
     def archive(self) -> 'SimpleArchive':
         return SimpleArchive(self._stex_doc.archive, self._linker)
@@ -116,6 +147,14 @@ class SimpleFile:
     def lang(self) -> str:
         return self._stex_doc.get_doc_info(self._linker.mh).lang
 
+    def __eq__(self, other) -> bool:
+        return (isinstance(other, SimpleFile) and
+                self._doc_int == other._doc_int and
+                self._linker is other._linker)
+
+    def __hash__(self) -> int:
+        return hash((self._doc_int, self._linker))
+
 
 @dataclasses.dataclass
 class SimpleArchive:
@@ -125,6 +164,14 @@ class SimpleArchive:
     @property
     def name(self) -> str:
         return self._repo.get_archive_name()
+
+    def __eq__(self, other) -> bool:
+        return (isinstance(other, SimpleArchive) and
+                self._repo == other._repo and
+                self._linker is other._linker)
+
+    def __hash__(self) -> int:
+        return hash((self._repo, self._linker))
 
 
 @dataclasses.dataclass
@@ -137,13 +184,19 @@ class SimpleVerbalization:
         return self._verbalization.verbalization
 
 
-def get_symbols(linker: Linker) -> list[SimpleSymbol]:
-    for symbol_int in linker.symbol_ints.int_iter():
-        yield SimpleSymbol(symbol_int, linker)
+def get_symbols(linker: Linker, *, name: Optional[str] = None) -> list[SimpleSymbol]:
+    if name is None:
+        for symbol_int in linker.symbol_ints.int_iter():
+            yield SimpleSymbol(symbol_int, linker)
+    else:
+        for symbol_int in linker.symbs_by_name[name]:
+            yield SimpleSymbol(symbol_int[1], linker)
 
 
-def file_from_path(path: Path, linker: Linker) -> SimpleFile:
+def file_from_path(path: Path, linker: Linker) -> Optional[SimpleFile]:
     doc = linker.mh.get_stex_doc(path)
+    if doc is None:
+        return None
     return SimpleFile(linker.document_ints.intify(doc), linker)
 
 

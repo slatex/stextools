@@ -2,13 +2,18 @@ import abc
 import dataclasses
 from pathlib import Path
 
+from attr.setters import frozen
 
-@dataclasses.dataclass
+from stextools.core.linker import Linker
+from stextools.core.simple_api import file_from_path, SimpleFile
+
+
+@dataclasses.dataclass(frozen=True)
 class Cursor:
     file_index: int
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True)
 class SelectionCursor(Cursor):
     file_index: int
 
@@ -16,7 +21,7 @@ class SelectionCursor(Cursor):
     selection_end: int
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True)
 class PositionCursor(Cursor):
     file_index: int
 
@@ -41,6 +46,12 @@ class State:
 
     def get_current_file(self) -> Path:
         return self.files[self.cursor.file_index]
+
+    def get_current_file_simple_api(self, linker: Linker) -> SimpleFile:
+        file = file_from_path(self.get_current_file(), linker)
+        if file is None:
+            raise RuntimeError(f"File {self.get_current_file()} does not seem to be loaded")
+        return file
 
     def get_current_file_text(self) -> str:
         return self.get_current_file().read_text()

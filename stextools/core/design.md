@@ -23,5 +23,16 @@ Processing all the files with pylatexenc takes a while ⟶ the results are cache
   significant performance issues (possible explanation: garbage collection).
 
 
+## Linker
+The linker links all the data from the `MathHub` object in a highly optimized way.
+If anything changes in the `MathHub` object (typically because a file was modified), a new linker must be created.
+Incremental updates are not possible at the moment.
 
+## Simple API
+The simple API is designed to abstract away from the `MathHub` data structures and the linker,
+both of which have been designed with performance in mind, rather than simplicity or convenience.
 
+It creates simple (and relatively cheap) data structures that are easy to work with.
+Internally, they use the linker to access the data from the `MathHub` object.
+
+As a consequence, simple API objects should be considered ephemeral and not be used after the linker is discarded.
