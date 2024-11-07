@@ -49,9 +49,18 @@ class Linker:
         self.symbol_ints = Intifier()
         self.verb_ints = Intifier()
 
+        import time
+        a = time.time()
         self._compute_dep_graph()
+        b = time.time()
         self._compute_transitive_imports()
+        c = time.time()
         self._link_symbols()
+        d = time.time()
+        # print(f'Compute dep graph: {b - a}')
+        # print(f'Compute transitive imports: {c - b}')
+        # print(f'Link symbols: {d - c}')
+        # print(f'Total: {d - a}')
 
     def _compute_dep_graph(self):
         self.file_import_graph = defaultdict(set)

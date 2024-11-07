@@ -59,3 +59,9 @@ class State:
     def get_selected_text(self) -> str:
         assert isinstance(self.cursor, SelectionCursor)
         return self.get_current_file_text()[self.cursor.selection_start:self.cursor.selection_end]
+
+    def get_current_lang(self, linker: Linker) -> str:
+        lang = file_from_path(self.get_current_file(), linker).lang
+        if lang == '*':
+            return 'unknownlang'
+        return lang

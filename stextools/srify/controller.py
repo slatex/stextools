@@ -7,10 +7,14 @@ import click
 from stextools.core.cache import Cache
 from stextools.core.linker import Linker
 from stextools.core.simple_api import file_from_path
-from stextools.srify.commands import CommandCollection, QuitProgramCommand, Exit, CommandOutcome, AnnotateCommand, \
-    show_current_selection, ImportInsertionOutcome, SubstitutionOutcome, SetNewCursor, SkipOnceCommand, IgnoreCommand, \
-    IgnoreWordOutcome, ExitFileCommand, UndoOutcome, RedoOutcome, UndoCommand, RedoCommand, ViewCommand, View_i_Command
-from stextools.srify.selection import VerbTrie, string_to_stemmed_word_sequence_simplified, IgnoreList
+from stextools.srify.commands import CommandCollection, QuitProgramCommand, Exit, CommandOutcome, \
+    show_current_selection, ImportInsertionOutcome, SubstitutionOutcome, SetNewCursor, \
+    ExitFileCommand, UndoOutcome, RedoOutcome, UndoCommand, RedoCommand, ViewCommand, View_i_Command, TextRewriteOutcome
+from stextools.srify.skip_and_ignore import SkipOnceCommand, IgnoreWordOutcome, IgnoreCommand, IgnoreList, \
+    AddWordToSrSkip, AddStemToSrSkip
+from stextools.srify.annotate_command import AnnotateCommand
+from stextools.srify.selection import VerbTrie
+from stextools.srify.stemming import string_to_stemmed_word_sequence_simplified
 from stextools.srify.state import PositionCursor, Cursor
 from stextools.srify.state import State
 
@@ -127,6 +131,12 @@ class Controller:
                         old_text=text,
                         new_text=text[:outcome.start_pos] + outcome.new_str + text[outcome.end_pos:]
                     )
+                elif isinstance(outcome, TextRewriteOutcome):
+                    modification = FileModification(
+                        file=self.state.get_current_file(),
+                        old_text=self.state.get_current_file_text(),
+                        new_text=outcome.new_text
+                    )
                 elif isinstance(outcome, SetNewCursor):
                     modification = CursorModification(
                         old_cursor=self.state.cursor,
@@ -138,11 +148,13 @@ class Controller:
                     mods = self._modification_history.pop()
                     for mod in reversed(mods):
                         mod.unapply(self.state)
-                    self._modification_future.append(mods)
+                        self.reset_after_modification(mod)
+                        self._modification_future.append(mods)
                 elif isinstance(outcome, RedoOutcome):
                     mods = self._modification_future.pop()
                     for mod in mods:
                         mod.apply(self.state)
+                        self.reset_after_modification(mod)
                     self._modification_history.append(mods)
                 else:
                     raise RuntimeError(f"Unexpected outcome {outcome}")
@@ -150,17 +162,19 @@ class Controller:
                 if modification is not None:
                     modification.apply(self.state)
                     new_modifications.append(modification)
-
-                    if modification.files_to_reparse:
-                        self.reset_linker()
-                        for file in modification.files_to_reparse:
-                            self.mh.get_stex_doc(file).delete_doc_info_if_outdated()
+                    self.reset_after_modification(modification)
 
             if new_modifications:
                 self._modification_history.append(new_modifications)
                 self._modification_future.clear()
                 if len(self._modification_history) > 150:
                     self._modification_history = self._modification_history[-100:]
+
+    def reset_after_modification(self, modification: Modification):
+        if modification.files_to_reparse:
+            self.reset_linker()
+            for file in modification.files_to_reparse:
+                self.mh.get_stex_doc(file).delete_doc_info_if_outdated()
 
     def _get_and_run_command(self) -> list[CommandOutcome]:
         command_collection = self._get_current_command_collection()
@@ -183,6 +197,8 @@ class Controller:
                 ExitFileCommand(),
                 SkipOnceCommand(),
                 IgnoreCommand(self.get_current_lang()),
+                AddWordToSrSkip(),
+                AddStemToSrSkip(self.get_current_lang()),
                 UndoCommand(is_possible=bool(self._modification_history)),
                 RedoCommand(is_possible=bool(self._modification_future)),
                 annotate_command,
@@ -202,10 +218,7 @@ class Controller:
         return True
 
     def get_current_lang(self) -> str:
-        lang = file_from_path(self.state.get_current_file(), self.linker).lang
-        if lang == '*':
-            return 'unknownlang'
-        return lang
+        return self.state.get_current_lang(self.linker)
 
 
 def srify(files: list[str], filter: str, ignore: str):
