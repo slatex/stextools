@@ -2,8 +2,6 @@ import abc
 import dataclasses
 from pathlib import Path
 
-from attr.setters import frozen
-
 from stextools.core.linker import Linker
 from stextools.core.simple_api import file_from_path, SimpleFile
 
