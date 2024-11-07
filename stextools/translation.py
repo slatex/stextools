@@ -18,8 +18,8 @@ import lxml.etree as etree
 from pylatexenc.latexwalker import LatexWalker, LatexNode, LatexCommentNode, LatexSpecialsNode, LatexGroupNode, \
     LatexMathNode, LatexMacroNode, LatexEnvironmentNode, LatexCharsNode
 
-from stextools.macro_arg_utils import OptArgKeyVals
-from stextools.macros import STEX_CONTEXT_DB
+from stextools.utils.macro_arg_utils import OptArgKeyVals
+from stextools.core.macros import STEX_CONTEXT_DB
 
 
 logger = logging.getLogger(__name__)

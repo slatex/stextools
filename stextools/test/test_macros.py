@@ -2,8 +2,8 @@ import unittest
 
 from pylatexenc.latexwalker import LatexWalker, LatexMacroNode
 
-from stextools.macro_arg_utils import OptArgKeyVals
-from stextools.macros import STEX_CONTEXT_DB
+from stextools.utils.macro_arg_utils import OptArgKeyVals
+from stextools.core.macros import STEX_CONTEXT_DB
 
 
 def parse_macro(s: str) -> LatexMacroNode:

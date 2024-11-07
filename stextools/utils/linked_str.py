@@ -254,6 +254,10 @@ class LinkedStr(Generic[_MetaInfoType]):
                           end_refs=new_end_refs)
 
 
-def string_to_lstr(string: str) -> LinkedStr[None]:
-    return LinkedStr(meta_info=None, string=string, start_refs=list(range(len(string))),
-                     end_refs=list(range(1, len(string) + 1)))
+def string_to_lstr(string: str, ref_offset: int = 0) -> LinkedStr[None]:
+    return LinkedStr(
+        meta_info=None,
+        string=string,
+        start_refs=list(range(ref_offset, len(string) + ref_offset)),
+        end_refs=list(range(1 + ref_offset, len(string) + 1 + ref_offset))
+    )

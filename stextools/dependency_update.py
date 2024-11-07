@@ -2,7 +2,7 @@ import logging
 from typing import Literal
 
 from stextools import stexmmtquery
-from stextools.cache import Cache
+from stextools.core.cache import Cache
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +33,9 @@ def dependency_check(mode: Literal['test', 'ask', 'write'] = 'test'):
             dep.archive for doc in archive.stex_doc_iter() for dep in doc.get_doc_info(mh).flattened_dependencies()
         )
         needed_dependencies_server = set(server_dependencies.get(archive.get_archive_name(), []))
+        # TODO: Why are there discrepancies?
+        print('X', needed_dependencies_server - needed_dependencies_my_data)
+        print('Y', needed_dependencies_my_data - needed_dependencies_server)
         needed_dependencies = needed_dependencies_my_data | needed_dependencies_server
         new_dependencies: list[str] = []
         manifest = archive.get_manifest()

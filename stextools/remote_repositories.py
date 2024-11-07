@@ -3,7 +3,7 @@ import subprocess
 import gitlab
 from gitlab.v4.objects import Group
 
-from stextools.mathhub import get_mathhub_path
+from stextools.core.mathhub import get_mathhub_path
 
 URL = 'https://gl.mathhub.info'
 
