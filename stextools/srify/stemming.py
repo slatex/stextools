@@ -1,9 +1,17 @@
 import functools
 import re
 
-import nltk.stem
-
 from stextools.utils.linked_str import LinkedStr
+
+
+@functools.cache
+def get_stem_fun(lang: str):
+    if lang == 'en':
+        import nltk.stem.porter  # type: ignore
+        return nltk.stem.porter.PorterStemmer().stem
+    elif lang == 'de':
+        from nltk.stem import SnowballStemmer
+        return SnowballStemmer('german').stem
 
 
 @functools.cache  # note: caching results in a huge speedup
@@ -11,14 +19,16 @@ def mystem(word: str, lang: str) -> str:
     if word.isupper():  # acronym
         return word
 
+    stem_fun = get_stem_fun(lang)
+
     if lang == 'en':
         import nltk.stem.porter  # type: ignore
         if word and word[-1] == 's' and word[:-1].isupper():  # plural acronym
             return word[:-1]
-        return ' '.join(nltk.stem.porter.PorterStemmer().stem(w) for w in word.split())
+        return ' '.join(stem_fun(w) for w in word.split())
     elif lang == 'de':
-        import nltk.stem.snowball.GermanStemmer  # type: ignore
-        return ' '.join(nltk.stem.snowball.GermanStemmer().stem(w) for w in word.split())
+        from nltk.stem import SnowballStemmer
+        return ' '.join(stem_fun(w) for w in word.split())
     else:
         raise ValueError(f"Unsupported language: {lang}")
 

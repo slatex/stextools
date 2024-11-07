@@ -1,3 +1,4 @@
+import functools
 from typing import Optional
 
 import click
@@ -13,6 +14,13 @@ from stextools.srify.state import State, SelectionCursor, PositionCursor
 from stextools.utils.ui import standard_header, pale_color, option_string, color
 
 
+@functools.cache
+def symbol_to_sorting_key(symbol: SimpleSymbol) -> tuple:
+    primary = len(list(symbol.get_verbalizations()))
+    secondary = symbol.declaring_file.archive.name + ':' + symbol.path_rel_to_archive
+    return primary, secondary
+
+
 class AnnotateCommand(Command):
     """ Has to be re-instantiated for each state! """
     def __init__(self, candidate_symbols: list[SimpleSymbol], state: State, linker: Linker):
@@ -23,6 +31,7 @@ class AnnotateCommand(Command):
             description_long='Annotates the current selection with option number 𝑖')
         )
         self.candidate_symbols = candidate_symbols
+        self.candidate_symbols.sort(key=symbol_to_sorting_key, reverse=True)
         self.state = state
         self.linker = linker
         if not isinstance(self.state.cursor, SelectionCursor):
@@ -215,16 +224,25 @@ class AnnotateCommand(Command):
 
     def standard_display(self, *, state: State) -> str:
         assert state == self.state
+        if not self.candidate_symbols:
+            return click.style('  no candidate symbols found (possible reason: some symbols are filtered out)', italic=True)
+        file = state.get_current_file_simple_api(self.linker)
         lines: list[str] = []
         for i, symbol in enumerate(self.candidate_symbols):
             symb_path = symbol.path_rel_to_archive.split('?')
             assert len(symb_path) == 3
-            lines.append(option_string(
+            in_scope = file.symbol_is_in_scope_at(symbol, self.cursor.selection_start)
+            if in_scope:
+                marker = click.style('✓', bold=True, fg='green')
+            else:
+                marker = click.style('✗', bold=True, fg='red')
+            line = option_string(
                 str(i),
-                ' ' + symbol.declaring_file.archive.name + ' ' +
+                ' ' + marker + ' ' + symbol.declaring_file.archive.name + ' ' +
                 symb_path[0] + '?' +
                 click.style(symb_path[1], bg=color('bright_cyan', (180, 180, 255))) + '?' +
                 click.style(symb_path[2], bg=color('bright_green', (180, 255, 180))) +
                 '\n      ' + click.style(symbol.declaring_file.path, italic=True, fg=pale_color())
-            ))
+            )
+            lines.append(line)
         return '\n'.join(lines)

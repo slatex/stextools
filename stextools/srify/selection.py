@@ -127,7 +127,6 @@ class VerbTrie:
                     skip = False
                     if word_lstrs is not None and original_string is not None:
                         original_word = original_string[word_lstrs[j].get_start_ref()-shift:word_lstrs[j].get_end_ref()-shift]
-                        print(original_word)
                         if IgnoreList.contains(lang=self.lang, word=original_word):
                             skip = True
                         if srskipped is not None and original_word in srskipped.skipped_literal:

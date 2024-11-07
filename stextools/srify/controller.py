@@ -6,6 +6,7 @@ import click
 
 from stextools.core.cache import Cache
 from stextools.core.linker import Linker
+from stextools.core.mathhub import make_filter_fun
 from stextools.core.simple_api import file_from_path
 from stextools.srify.commands import CommandCollection, QuitProgramCommand, Exit, CommandOutcome, \
     show_current_selection, ImportInsertionOutcome, SubstitutionOutcome, SetNewCursor, \
@@ -185,6 +186,8 @@ class Controller:
         candidate_symbols = self.get_verb_trie(self.get_current_lang()).find_first_match(
             string_to_stemmed_word_sequence_simplified(self.state.get_selected_text(), self.get_current_lang())
         )[2]
+        filter_fun = make_filter_fun(self.state.filter_pattern, self.state.ignore_pattern)
+        candidate_symbols = [s for s in candidate_symbols if filter_fun(s.name)]
         annotate_command = AnnotateCommand(
             candidate_symbols=candidate_symbols,
             state=self.state,

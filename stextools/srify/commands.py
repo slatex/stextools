@@ -12,6 +12,10 @@ from stextools.utils.ui import option_string, standard_header, pale_color, get_l
 
 def show_current_selection(state, with_header: bool = True):
     if with_header:
+        status = [
+            f'File {state.cursor.file_index + 1}/{len(state.files)}'.ljust(15)
+        ]
+        print('|' + '|'.join(status) + '|')
         standard_header(str(state.get_current_file()), bg='bright_green')
 
     cursor = state.cursor
