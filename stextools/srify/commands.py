@@ -10,8 +10,10 @@ from pylatexenc.latexwalker import LatexMacroNode, LatexMathNode, LatexSpecialsN
 from stextools.core.linker import Linker
 from stextools.core.macros import STEX_CONTEXT_DB
 from stextools.core.simple_api import SimpleSymbol, get_symbols
-from stextools.srify.state import State, SelectionCursor, Cursor
-from stextools.utils.ui import option_string, standard_header, pale_color, color, get_lines_around, latex_format
+from stextools.srify.selection import IgnoreList
+from stextools.srify.state import State, SelectionCursor, Cursor, PositionCursor
+from stextools.utils.ui import option_string, standard_header, pale_color, color, get_lines_around, latex_format, \
+    standard_header_str
 
 
 def show_current_selection(state, with_header: bool = True):
@@ -41,12 +43,14 @@ class Exit(CommandOutcome):
 
 
 class ImportInsertionOutcome(CommandOutcome):
+    """Note: command is responsible for ensuring that the index is correct *after* the previous file modification outcomes."""
     def __init__(self, inserted_str: str, insert_pos: int):
         self.inserted_str = inserted_str
         self.insert_pos = insert_pos
 
 
 class SubstitutionOutcome(CommandOutcome):
+    """Note: command is responsible for ensuring that the index is correct *after* the previous file modification outcomes."""
     def __init__(self, new_str: str, start_pos: int, end_pos: int):
         self.new_str = new_str
         self.start_pos = start_pos
@@ -143,15 +147,17 @@ class AnnotateCommand(Command):
         import_thing = self.get_import(symbol)
         sr = self.get_sr(symbol)
 
+        offset = 0
         if import_thing:
             outcomes.append(import_thing)
             # TODO: maybe the controller should be responsible for this
-            offset = len(import_thing.inserted_str)
-            outcomes.append(
-                SubstitutionOutcome(sr, self.cursor.selection_start + offset, self.cursor.selection_end + offset)
-            )
-        else:
-            outcomes.append(SubstitutionOutcome(sr, self.cursor.selection_start, self.cursor.selection_end))
+            offset += len(import_thing.inserted_str)
+
+        outcomes.append(
+            SubstitutionOutcome(sr, self.cursor.selection_start + offset, self.cursor.selection_end + offset)
+        )
+        offset += len(sr)
+        outcomes.append(SetNewCursor(PositionCursor(self.cursor.file_index, self.cursor.selection_start + offset)))
 
         return outcomes
 
@@ -284,7 +290,6 @@ class AnnotateCommand(Command):
 
         return use_pos or 0, top_use_pos or 0, import_pos, use_env, top_use_env
 
-
     def get_sr(self, symbol: SimpleSymbol) -> str:
         # check if symbol is uniquely identified by its name
         file = self.state.get_current_file_simple_api(self.linker)
@@ -332,6 +337,155 @@ class AnnotateCommand(Command):
                 '\n      ' + click.style(symbol.declaring_file.path, italic=True, fg=pale_color())
             ))
         return '\n'.join(lines)
+
+
+class SkipOnceCommand(Command):
+    def __init__(self):
+        super().__init__(CommandInfo(
+            pattern_presentation='s',
+            pattern_regex='^s$',
+            description_short='kip once',
+            description_long='Skips to the next possible annotation')
+        )
+
+    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
+        assert isinstance(state.cursor, SelectionCursor)
+        return [SetNewCursor(PositionCursor(state.cursor.file_index, state.cursor.selection_start + 1))]
+
+
+@dataclasses.dataclass
+class IgnoreWordOutcome(CommandOutcome):
+    lang: str
+    word: str
+
+
+class IgnoreCommand(Command):
+    def __init__(self, lang: str):
+        self.lang = lang
+        super().__init__(CommandInfo(
+            show=False,
+            pattern_presentation='i',
+            pattern_regex='^i$',
+            description_short='gnore the selected word forever',
+            description_long=f'''
+The word gets put into the ignore list and will never be proposed for annotation again,
+unless removed from that list.
+You can find the ignore list at {IgnoreList.file_path_string(lang)}.
+'''.strip())
+        )
+
+    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
+        assert isinstance(state.cursor, SelectionCursor)
+        return [
+            IgnoreWordOutcome(lang=self.lang, word=state.get_selected_text()),
+            SetNewCursor(PositionCursor(state.cursor.file_index, state.cursor.selection_start + 1))
+        ]
+
+
+class ExitFileCommand(Command):
+    def __init__(self):
+        super().__init__(CommandInfo(
+            show=False,
+            pattern_presentation='X',
+            pattern_regex='^X$',
+            description_short=' Exit file',
+            description_long='Exits the current file (and continues with the next one)')
+        )
+
+    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
+        return [SetNewCursor(PositionCursor(state.cursor.file_index + 1, 0))]
+
+
+class UndoOutcome(CommandOutcome):
+    ...
+
+
+class UndoCommand(Command):
+    def __init__(self, is_possible: bool):
+        self.is_possible = is_possible
+        super().__init__(CommandInfo(
+            show=False,
+            pattern_presentation='u',
+            pattern_regex='^u$',
+            description_short='ndo' + click.style('' if is_possible else ' (currently nothing to undo)', italic=True),
+            description_long='Undoes the most recent modification')
+        )
+
+    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
+        if self.is_possible:
+            return [UndoOutcome()]
+        print(click.style('Nothing to undo', fg='red'))
+        click.pause()
+        return []
+
+
+class RedoOutcome(CommandOutcome):
+    ...
+
+
+class RedoCommand(Command):
+    def __init__(self, is_possible: bool):
+        self.is_possible = is_possible
+        super().__init__(CommandInfo(
+            show=False,
+            pattern_presentation='uu',
+            pattern_regex='^uu$',
+            description_short=' redo ("undo undo")' + click.style('' if is_possible else ' (currently nothing to redo)', italic=True),
+            description_long='Redoes the most recently undone modification')
+        )
+
+    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
+        if self.is_possible:
+            return [RedoOutcome()]
+        print(click.style('Nothing to redo', fg='red'))
+        click.pause()
+        return []
+
+
+class ViewCommand(Command):
+    def __init__(self):
+        super().__init__(CommandInfo(
+            show=False,
+            pattern_presentation='v',
+            pattern_regex='^v$',
+            description_short='iew file',
+            description_long='Show the current file in the pager')
+        )
+
+    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
+        click.clear()
+        click.echo_via_pager(
+            standard_header_str(str(state.get_current_file()), bg='bright_green')
+            + '\n\n' +
+            latex_format(state.get_current_file_text())
+        )
+        return []
+
+
+class View_i_Command(Command):
+    def __init__(self, candidate_symbols: list[SimpleSymbol]):
+        super().__init__(CommandInfo(
+            show=False,
+            pattern_presentation='v𝑖',
+            pattern_regex='^v[0-9]+$',
+            description_short=' view document for 𝑖',
+            description_long='Displays the document that introduces symbol no. 𝑖')
+        )
+        self.candidate_symbols = candidate_symbols
+
+    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
+        i = int(call[1:])
+        if i >= len(self.candidate_symbols):
+            print(click.style('Invalid symbol number', fg='red'))
+            click.pause()
+            return []
+        symbol = self.candidate_symbols[i]
+        click.echo_via_pager(
+            standard_header_str(str(symbol.declaring_file.path), bg='bright_green')
+            + '\n\n' +
+            latex_format(symbol.declaring_file.path.read_text())
+        )
+        return []
 
 
 class HelpCommand(Command):

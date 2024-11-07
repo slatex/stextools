@@ -30,7 +30,11 @@ def color(simple: str, full: tuple[int, int, int]):
 
 
 def standard_header(title, bg: str = 'bright_green'):
-    print(click.style(f'{title:^{width()}}', bold=True, bg=bg))
+    print(standard_header_str(title, bg))
+
+
+def standard_header_str(title, bg: str = 'bright_green') -> str:
+    return click.style(f'{title:^{width()}}', bold=True, bg=bg)
 
 
 def pale_color():

@@ -1,5 +1,6 @@
 import functools
 import re
+from pathlib import Path
 from typing import Optional
 
 from pylatexenc.latexwalker import LatexWalker, LatexMacroNode, LatexMathNode, LatexCommentNode, LatexSpecialsNode, \
@@ -75,6 +76,60 @@ def string_to_stemmed_word_sequence_simplified(string: str, lang: str) -> list[s
     return words
 
 
+class _IgnoreList:
+    def __init__(self, lang: str):
+        self.lang = lang
+        self.path = Path('~/.config/stextools/srify_ignore.en.txt').expanduser()
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        if not self.path.exists():
+            self.path.write_text('')
+
+        self.word_list: list[str] = []
+        for line in self.path.read_text().splitlines():
+            word = line.strip()
+            if word:
+                self.word_list.append(word)
+        self.word_set: set[str] = set(self.word_list)
+
+    def add(self, word: str):
+        if word not in self.word_set:
+            self.word_list.append(word)
+            self.word_set.add(word)
+            self.path.write_text('\n'.join(self.word_list) + '\n')
+
+    def remove(self, word: str):
+        if word in self.word_set:
+            self.word_list.remove(word)
+            self.word_set.remove(word)
+            self.path.write_text('\n'.join(self.word_list) + '\n')
+
+
+class IgnoreList:
+    _instances: dict[str, _IgnoreList] = {}
+
+    @classmethod
+    def _get(cls, lang: str) -> _IgnoreList:
+        if lang not in cls._instances:
+            cls._instances[lang] = _IgnoreList(lang)
+        return cls._instances[lang]
+
+    @classmethod
+    def file_path_string(cls, lang: str) -> str:
+        return str(cls._get(lang).path.absolute().resolve())
+
+    @classmethod
+    def add_word(cls, *, lang: str, word: str):
+        cls._get(lang).add(word)
+
+    @classmethod
+    def remove_word(cls, *, lang: str, word: str):
+        cls._get(lang).remove(word)
+
+    @classmethod
+    def contains(cls, *, lang: str, word: str) -> bool:
+        return word in cls._get(lang).word_set
+
+
 class VerbTrie:
     def __init__(self, lang: str, linker: Linker):
         self.lang = lang
@@ -87,11 +142,14 @@ class VerbTrie:
 
         for symbol in get_symbols(linker):
             covered_verbs: set[str] = set()
-            for verb in symbol.get_verbalizations(lang):
-                if len(verb.verb_str) < 3:
+            verbalizations = [v.verb_str for v in symbol.get_verbalizations(lang)]
+            if not verbalizations:
+                verbalizations = [symbol.name]
+            for verb in verbalizations:
+                if len(verb) < 3:
                     continue
 
-                words = [str(w) for w in string_to_stemmed_word_sequence_simplified(verb.verb_str, lang)]
+                words = [str(w) for w in string_to_stemmed_word_sequence_simplified(verb, lang)]
                 if repr(words) in covered_verbs:
                     continue
                 covered_verbs.add(repr(words))
@@ -108,7 +166,13 @@ class VerbTrie:
                 else:
                     current[w][0].append(symbol)
 
-    def find_first_match(self, words: list[str]) -> Optional[tuple[int, int, list[SimpleSymbol]]]:
+    def find_first_match(
+            self,
+            words: list[str],
+            # words are only ignored if the next two arguments are provided
+            word_lstrs: Optional[list[LinkedStr]] = None,
+            original_string: Optional[str] = None
+    ) -> Optional[tuple[int, int, list[SimpleSymbol]]]:
         """ Returns (start, end) where start is the earliest match start,
         and end (exclusive) is the latest end for a match from start. """
 
@@ -120,8 +184,12 @@ class VerbTrie:
             symbols: list[SimpleSymbol] = []
             while j < len(words) and words[j] in trie:
                 if trie[words[j]][0]:   # corresponds to a symbol
-                    match_end = j + 1
-                    symbols = trie[words[j]][0]
+                    original_word = None
+                    if word_lstrs is not None and original_string is not None:
+                        original_word = original_string[word_lstrs[j].get_start_ref():word_lstrs[j].get_end_ref()]
+                    if not (original_word and IgnoreList.contains(lang=self.lang, word=original_word)):
+                        match_end = j + 1
+                        symbols = trie[words[j]][0]
                 trie = trie[words[j]][1]
                 j += 1
             if match_end is not None:
@@ -171,11 +239,11 @@ class VerbTrie:
                     words_original = string_to_stemmed_word_sequence(node.chars, self.lang)
                     words_filtered: list[LinkedStr] = []
                     for word in words_original:
-                        if word.get_end_ref() + node.pos < cursor.offset:
+                        if word.get_start_ref() + node.pos < cursor.offset:
                             continue
                         words_filtered.append(word)
 
-                    match = self.find_first_match([str(w) for w in words_filtered])
+                    match = self.find_first_match([str(w) for w in words_filtered], words_filtered, node.chars)
                     if match is not None:
                         raise FoundMatch(
                             node.pos + words_filtered[match[0]].get_start_ref(),
