@@ -1,11 +1,13 @@
 from typing import Optional
 
+import click
 from pylatexenc.latexwalker import LatexWalker, LatexMacroNode, LatexMathNode, LatexCommentNode, LatexSpecialsNode, \
     LatexEnvironmentNode, LatexGroupNode, LatexCharsNode
 
 from stextools.core.linker import Linker
 from stextools.core.macros import STEX_CONTEXT_DB
 from stextools.core.simple_api import get_symbols, SimpleSymbol
+from stextools.srify.commands import Command, CommandInfo, CommandOutcome, SetNewCursor
 from stextools.srify.skip_and_ignore import IgnoreList, SrSkipped
 from stextools.srify.state import PositionCursor
 from stextools.srify.state import SelectionCursor, State
@@ -66,6 +68,68 @@ def get_linked_strings(latex_text: str) -> list[LinkedStr]:
     _recurse(walker.get_latex_nodes()[0])
 
     return result
+
+
+class PreviousWordShouldBeIncluded(Command):
+    def __init__(self, lang: str):
+        self.lang = lang
+        super().__init__(CommandInfo(
+            show=False,
+            pattern_presentation='p',
+            pattern_regex='^p$',
+            description_short='revious token should be included',
+            description_long='Extends the selection to include the previous token.')
+        )
+
+    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
+        assert isinstance(state.cursor, SelectionCursor)
+        for lstr in get_linked_strings(state.get_current_file_text()):
+            if lstr.get_end_ref() >= state.cursor.selection_start:
+                words = string_to_stemmed_word_sequence(lstr, self.lang)
+                i = 0
+                while i < len(words) and words[i].get_end_ref() <= state.cursor.selection_start:
+                    i += 1
+                if i == 0:
+                    print(click.style('Already at beginning of possible selection range.', fg='red'))
+                    click.pause()
+                    return []
+                return [SetNewCursor(SelectionCursor(
+                    state.cursor.file_index,
+                    words[i - 1].get_start_ref(),
+                    state.cursor.selection_end,
+                ))]
+        raise RuntimeError('Somehow I did not find the previous word.')
+
+
+class NextWordShouldBeIncluded(Command):
+    def __init__(self, lang: str):
+        self.lang = lang
+        super().__init__(CommandInfo(
+            show=False,
+            pattern_presentation='n',
+            pattern_regex='^n$',
+            description_short='ext token should be included',
+            description_long='Extends the selection to include the next token.')
+        )
+
+    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
+        assert isinstance(state.cursor, SelectionCursor)
+        for lstr in get_linked_strings(state.get_current_file_text()):
+            if lstr.get_end_ref() >= state.cursor.selection_start:
+                words = string_to_stemmed_word_sequence(lstr, self.lang)
+                i = 0
+                while i < len(words) and words[i].get_start_ref() < state.cursor.selection_end:
+                    i += 1
+                if i == len(words):
+                    print(click.style('Already at end of possible selection range.', fg='red'))
+                    click.pause()
+                    return []
+                return [SetNewCursor(SelectionCursor(
+                    state.cursor.file_index,
+                    state.cursor.selection_start,
+                    words[i].get_end_ref(),
+                ))]
+        raise RuntimeError('Somehow I did not find the next word.')
 
 
 class VerbTrie:

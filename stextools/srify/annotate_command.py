@@ -11,8 +11,7 @@ from stextools.core.simple_api import SimpleSymbol, get_symbols
 from stextools.srify.commands import Command, CommandInfo, CommandOutcome, SubstitutionOutcome, SetNewCursor, \
     ImportInsertionOutcome, ImportCommand, CommandCollection, show_current_selection, StatisticUpdateOutcome
 from stextools.srify.state import State, SelectionCursor, PositionCursor
-from stextools.utils.ui import standard_header, pale_color, option_string, color
-
+from stextools.utils.ui import standard_header, pale_color, option_string, color, latex_format
 
 # This stores the keys to fix the order of the symbols within a session
 # (note: cannot cache by SimpleSymbol object, because it changes when resetting the linker)
@@ -109,7 +108,7 @@ class AnnotateCommand(Command):
                     break
             return indentation
 
-        explain_loc = lambda loc: ' after \\begin{' + loc + '}' if loc else ' at the beginning of the file'
+        explain_loc = lambda loc: ' after ' + latex_format('\\begin{' + loc + '}') if loc else ' at the beginning of the file'
 
         commands = [
             ImportCommand(

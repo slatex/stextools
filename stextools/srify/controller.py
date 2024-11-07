@@ -12,7 +12,7 @@ from stextools.srify.commands import CommandCollection, QuitProgramCommand, Exit
     show_current_selection, ImportInsertionOutcome, SubstitutionOutcome, SetNewCursor, \
     ExitFileCommand, UndoOutcome, RedoOutcome, UndoCommand, RedoCommand, ViewCommand, View_i_Command, \
     TextRewriteOutcome, StatisticUpdateOutcome, ReplaceCommand
-from stextools.srify.selection import VerbTrie
+from stextools.srify.selection import VerbTrie, PreviousWordShouldBeIncluded, NextWordShouldBeIncluded
 from stextools.srify.skip_and_ignore import SkipOnceCommand, IgnoreWordOutcome, IgnoreCommand, IgnoreList, \
     AddWordToSrSkip, AddStemToSrSkip
 from stextools.srify.state import PositionCursor, Cursor
@@ -256,6 +256,8 @@ class Controller:
                 QuitProgramCommand(),
                 ExitFileCommand(),
                 ReplaceCommand(),
+                PreviousWordShouldBeIncluded(self.get_current_lang()),
+                NextWordShouldBeIncluded(self.get_current_lang()),
                 SkipOnceCommand(),
                 IgnoreCommand(self.get_current_lang()),
                 AddWordToSrSkip(),
