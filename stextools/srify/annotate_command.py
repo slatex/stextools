@@ -14,9 +14,18 @@ from stextools.srify.state import State, SelectionCursor, PositionCursor
 from stextools.utils.ui import standard_header, pale_color, option_string, color
 
 
+# This stores the keys to fix the order of the symbols within a session
+# (note: cannot cache by SimpleSymbol object, because it changes when resetting the linker)
+_already_determined: dict[tuple[str, str], tuple] = {}
+
+
 def symbol_to_sorting_key(symbol: SimpleSymbol) -> tuple:
+    k = (symbol.declaring_file.archive.name, symbol.path_rel_to_archive)
+    if k in _already_determined:
+        return _already_determined[k]
     primary = len(list(symbol.get_verbalizations()))
-    secondary = symbol.declaring_file.archive.name + ':' + symbol.path_rel_to_archive
+    secondary = k
+    _already_determined[k] = primary, secondary
     return primary, secondary
 
 

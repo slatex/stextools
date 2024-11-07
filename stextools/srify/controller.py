@@ -11,7 +11,7 @@ from stextools.srify.annotate_command import AnnotateCommand
 from stextools.srify.commands import CommandCollection, QuitProgramCommand, Exit, CommandOutcome, \
     show_current_selection, ImportInsertionOutcome, SubstitutionOutcome, SetNewCursor, \
     ExitFileCommand, UndoOutcome, RedoOutcome, UndoCommand, RedoCommand, ViewCommand, View_i_Command, \
-    TextRewriteOutcome, StatisticUpdateOutcome
+    TextRewriteOutcome, StatisticUpdateOutcome, ReplaceCommand
 from stextools.srify.selection import VerbTrie
 from stextools.srify.skip_and_ignore import SkipOnceCommand, IgnoreWordOutcome, IgnoreCommand, IgnoreList, \
     AddWordToSrSkip, AddStemToSrSkip
@@ -98,13 +98,49 @@ class StatisticModification(Modification):
 
 
 class Controller:
-    def __init__(self, state: State):
+    def __init__(self, state: State, is_new: bool):
         self.state: State = state
         self.mh = Cache.get_mathhub(update_all=True)
         self._linker: Optional[Linker] = None
         self._verb_trie_by_lang: dict[str, VerbTrie] = {}
         self._modification_history: list[list[Modification]] = []
         self._modification_future: list[list[Modification]] = []   # for re-doing
+
+        if is_new:
+            have_inputs = False
+            for file in state.files:
+                stexdoc = self.mh.get_stex_doc(file)
+                for dep in stexdoc.get_doc_info(self.mh).dependencies:
+                    if dep.is_input:
+                        have_inputs = True
+                        break
+                if have_inputs:
+                    break
+            if have_inputs and click.confirm(
+                'The selected files have `\\inputref`s. Should I include them?'
+            ):
+                all_files: list[Path] = []
+                all_files_set: set[Path] = set()
+                todo_list = list(reversed(state.files))
+                while todo_list:
+                    file = todo_list.pop()
+                    path = file.absolute().resolve()
+                    if path in all_files_set:
+                        continue
+                    all_files.append(path)
+                    all_files_set.add(path)
+                    stexdoc = self.mh.get_stex_doc(path)
+                    if stexdoc:
+                        for dep in stexdoc.get_doc_info(self.mh).dependencies:
+                            if dep.is_input and dep.file:
+                                archive = self.mh.get_archive(dep.archive)
+                                if not archive:
+                                    continue
+                                todo_list.append(archive.path / 'source' / dep.file)
+                    else:
+                        print(f"Warning: File {path} is not loaded")
+
+                state.files = all_files
 
     @property
     def linker(self) -> Linker:
@@ -219,6 +255,7 @@ class Controller:
             commands=[
                 QuitProgramCommand(),
                 ExitFileCommand(),
+                ReplaceCommand(),
                 SkipOnceCommand(),
                 IgnoreCommand(self.get_current_lang()),
                 AddWordToSrSkip(),
@@ -248,5 +285,5 @@ class Controller:
 def srify(files: list[str], filter: str, ignore: str):
     state = State(files=[Path(file) for file in files], filter_pattern=filter, ignore_pattern=ignore,
                   cursor=PositionCursor(file_index=0, offset=0))
-    controller = Controller(state)
+    controller = Controller(state, is_new=True)
     controller.run()

@@ -24,6 +24,7 @@ class DependencyPropFlag:  # note: enum.IntFlag is really slow -- maybe this is 
     IS_LIB = 1
     IS_USE = 2
     TARGET_NO_TEX = 4
+    IS_INPUT = 8
 
 
 # NOTE: According to my benchmark, using `slots=True` noticably slows down pickling/unpickling
@@ -52,6 +53,11 @@ class Dependency:
     def target_no_tex(self) -> bool:
         """Dependency is not a TeX file (e.g. graphics, code snippets)"""
         return bool(self.flags & DependencyPropFlag.TARGET_NO_TEX)
+
+    @property
+    def is_input(self) -> bool:
+        """Dependency is being inputted"""
+        return bool(self.flags & DependencyPropFlag.IS_INPUT)
 
     def get_target_stexdoc(self, mh: MathHub) -> Optional['STeXDocument']:
         if self.file is None:
@@ -174,6 +180,7 @@ class DependencyProducer:
     is_lib: bool = False
     is_use: bool = False
     target_no_tex: bool = False
+    is_input: bool = False
 
     def produce(self, node: LatexMacroNode, from_archive: str, from_subdir: str, mh: MathHub,
                 valid_range: tuple[int, int], lang: str = '*') -> Optional[Dependency]:
@@ -184,6 +191,8 @@ class DependencyProducer:
             flag |= DependencyPropFlag.IS_USE
         if self.target_no_tex:
             flag |= DependencyPropFlag.TARGET_NO_TEX
+        if self.is_input:
+            flag |= DependencyPropFlag.IS_INPUT
 
         # STEP 1: Determine the target archive
         target_archive: Optional[str] = None
@@ -257,8 +266,8 @@ DEPENDENCY_PRODUCERS = [
     DependencyProducer('requiremodule', references_module=True, opt_param_is_archive=True, is_use=True),
     DependencyProducer('importmodule', references_module=True, opt_param_is_archive=True),
 
-    DependencyProducer('inputref', opt_param_is_archive=True),
-    DependencyProducer('mhinput', opt_param_is_archive=True),
+    DependencyProducer('inputref', opt_param_is_archive=True, is_input=True),
+    DependencyProducer('mhinput', opt_param_is_archive=True, is_input=True),
 
     DependencyProducer('mhgraphics', archive_in_params=True, target_no_tex=True),
     DependencyProducer('cmhgraphics', archive_in_params=True, target_no_tex=True),
