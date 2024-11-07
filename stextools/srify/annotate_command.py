@@ -14,7 +14,6 @@ from stextools.srify.state import State, SelectionCursor, PositionCursor
 from stextools.utils.ui import standard_header, pale_color, option_string, color
 
 
-@functools.cache
 def symbol_to_sorting_key(symbol: SimpleSymbol) -> tuple:
     primary = len(list(symbol.get_verbalizations()))
     secondary = symbol.declaring_file.archive.name + ':' + symbol.path_rel_to_archive
@@ -166,7 +165,9 @@ class AnnotateCommand(Command):
         def _recurse(nodes):
             nonlocal use_pos, top_use_pos, import_pos, use_env, top_use_env
             for node in nodes:
-                if node.nodeType() in {LatexMacroNode, LatexSpecialsNode}:
+                if node.nodeType() in {LatexSpecialsNode}:
+                    continue
+                elif node.nodeType() in {LatexMacroNode}:
                     _recurse(node.nodeargs)
                 elif node.nodeType() in {LatexMathNode, LatexGroupNode}:
                     _recurse(node.nodelist)
