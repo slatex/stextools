@@ -42,6 +42,8 @@ class State:
 
     cursor: Cursor
 
+    statistic_annotations_added: int = 0
+
     focus_stack: list[Focus] = dataclasses.field(default_factory=list)
 
     def get_current_file(self) -> Path:

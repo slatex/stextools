@@ -9,7 +9,7 @@ from stextools.core.linker import Linker
 from stextools.core.macros import STEX_CONTEXT_DB
 from stextools.core.simple_api import SimpleSymbol, get_symbols
 from stextools.srify.commands import Command, CommandInfo, CommandOutcome, SubstitutionOutcome, SetNewCursor, \
-    ImportInsertionOutcome, ImportCommand, CommandCollection, show_current_selection
+    ImportInsertionOutcome, ImportCommand, CommandCollection, show_current_selection, StatisticUpdateOutcome
 from stextools.srify.state import State, SelectionCursor, PositionCursor
 from stextools.utils.ui import standard_header, pale_color, option_string, color
 
@@ -56,6 +56,7 @@ class AnnotateCommand(Command):
         outcomes.append(
             SubstitutionOutcome(sr, self.cursor.selection_start + offset, self.cursor.selection_end + offset)
         )
+        outcomes.append(StatisticUpdateOutcome('annotation_inc'))
         offset += len(sr)
         outcomes.append(SetNewCursor(PositionCursor(self.cursor.file_index, self.cursor.selection_start + offset)))
 

@@ -1,6 +1,7 @@
 import abc
 import dataclasses
 import re
+from typing import Optional
 
 import click
 
@@ -13,9 +14,10 @@ from stextools.utils.ui import option_string, standard_header, pale_color, get_l
 def show_current_selection(state, with_header: bool = True):
     if with_header:
         status = [
-            f'File {state.cursor.file_index + 1}/{len(state.files)}'.ljust(15)
+            f'File {state.cursor.file_index + 1}/{len(state.files)}'.ljust(15),
+            f'Annotations added: {state.statistic_annotations_added}'.ljust(25)
         ]
-        print('|' + '|'.join(status) + '|')
+        print(' | ' + ' | '.join(status) + ' |')
         standard_header(str(state.get_current_file()), bg='bright_green')
 
     cursor = state.cursor
@@ -38,6 +40,12 @@ class CommandOutcome:
 
 class Exit(CommandOutcome):
     pass
+
+
+class StatisticUpdateOutcome(CommandOutcome):
+    def __init__(self, type_: str, value: Optional = None):
+        self.type_ = type_
+        self.value = value
 
 
 class ImportInsertionOutcome(CommandOutcome):

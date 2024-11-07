@@ -7,17 +7,17 @@ import click
 from stextools.core.cache import Cache
 from stextools.core.linker import Linker
 from stextools.core.mathhub import make_filter_fun
-from stextools.core.simple_api import file_from_path
+from stextools.srify.annotate_command import AnnotateCommand
 from stextools.srify.commands import CommandCollection, QuitProgramCommand, Exit, CommandOutcome, \
     show_current_selection, ImportInsertionOutcome, SubstitutionOutcome, SetNewCursor, \
-    ExitFileCommand, UndoOutcome, RedoOutcome, UndoCommand, RedoCommand, ViewCommand, View_i_Command, TextRewriteOutcome
+    ExitFileCommand, UndoOutcome, RedoOutcome, UndoCommand, RedoCommand, ViewCommand, View_i_Command, \
+    TextRewriteOutcome, StatisticUpdateOutcome
+from stextools.srify.selection import VerbTrie
 from stextools.srify.skip_and_ignore import SkipOnceCommand, IgnoreWordOutcome, IgnoreCommand, IgnoreList, \
     AddWordToSrSkip, AddStemToSrSkip
-from stextools.srify.annotate_command import AnnotateCommand
-from stextools.srify.selection import VerbTrie
-from stextools.srify.stemming import string_to_stemmed_word_sequence_simplified
 from stextools.srify.state import PositionCursor, Cursor
 from stextools.srify.state import State
+from stextools.srify.stemming import string_to_stemmed_word_sequence_simplified
 
 
 class Modification(abc.ABC):
@@ -76,6 +76,25 @@ class IgnoreListAddition(Modification):
 
     def unapply(self, state: State):
         IgnoreList.remove_word(lang=self.lang, word=self.word)
+
+
+class StatisticModification(Modification):
+    def __init__(self, statistic_update_outcome: StatisticUpdateOutcome):
+        self.files_to_reparse = []
+        self.type_ = statistic_update_outcome.type_
+        self.value = statistic_update_outcome.value
+
+    def apply(self, state: State):
+        if self.type_ == 'annotation_inc':
+            state.statistic_annotations_added += 1
+        else:
+            raise RuntimeError(f"Unexpected type {self.type_}")
+
+    def unapply(self, state: State):
+        if self.type_ == 'annotation_inc':
+            state.statistic_annotations_added -= 1
+        else:
+            raise RuntimeError(f"Unexpected type {self.type_}")
 
 
 class Controller:
@@ -143,6 +162,8 @@ class Controller:
                         old_cursor=self.state.cursor,
                         new_cursor=outcome.new_cursor
                     )
+                elif isinstance(outcome, StatisticUpdateOutcome):
+                    modification = StatisticModification(outcome)
                 elif isinstance(outcome, IgnoreWordOutcome):
                     modification = IgnoreListAddition(lang=outcome.lang, word=outcome.word)
                 elif isinstance(outcome, UndoOutcome):
