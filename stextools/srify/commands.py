@@ -193,6 +193,27 @@ class RedoCommand(Command):
         return []
 
 
+class ReplaceCommand(Command):
+    def __init__(self):
+        super().__init__(CommandInfo(
+            show=False,
+            pattern_presentation='r',
+            pattern_regex='^r$',
+            description_short='eplace',
+            description_long='Replace the selected word with a different one.')
+        )
+
+    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
+        assert isinstance(state.cursor, SelectionCursor)
+        new_word = click.prompt('Enter the new word: ', default=state.get_selected_text())
+        return [
+            SubstitutionOutcome(new_word, state.cursor.selection_start, state.cursor.selection_end),
+            SetNewCursor(
+                SelectionCursor(state.cursor.file_index, state.cursor.selection_start, state.cursor.selection_start + len(new_word))
+            )
+        ]
+
+
 class ViewCommand(Command):
     def __init__(self):
         super().__init__(CommandInfo(
