@@ -174,7 +174,7 @@ class AnnotateCommand(Command):
         def _recurse(nodes):
             nonlocal use_pos, top_use_pos, import_pos, use_env, top_use_env
             for node in nodes:
-                if node.nodeType() in {LatexSpecialsNode}:
+                if not node or node.nodeType() in {LatexSpecialsNode}:
                     continue
                 elif node.nodeType() in {LatexMacroNode}:
                     _recurse(node.nodeargs)
