@@ -250,7 +250,7 @@ class Controller:
             string_to_stemmed_word_sequence_simplified(self.state.get_selected_text(), self.get_current_lang())
         )[2]
         filter_fun = make_filter_fun(self.state.filter_pattern, self.state.ignore_pattern)
-        candidate_symbols = [s for s in candidate_symbols if filter_fun(s.name)]
+        candidate_symbols = [s for s in candidate_symbols if filter_fun(s.declaring_file.archive.name)]
         annotate_command = AnnotateCommand(
             candidate_symbols=candidate_symbols,
             state=self.state,
