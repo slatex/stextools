@@ -22,6 +22,8 @@ MACRO_RECURSION_RULES: dict[str, list[int]] = {
     'emph': [0],
     'textbf': [0],
     'textit': [0],
+    'inlinedef': [1],
+    'definiens': [1],
 }
 
 # By default, the content of environment is searched for potential annotations,

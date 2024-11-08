@@ -44,13 +44,21 @@ STEX_MACRO_SPECS: list = [
     MacroSpec('objective', '{{'),
     MacroSpec('sref', '[{'),
     MacroSpec('usestructure', '{'),
+    MacroSpec('slink', '{'),
+    MacroSpec('varseq', '{{{'),
+    MacroSpec('nlex', '{'),
+    MacroSpec('inlinedef', '[{'),
+    MacroSpec('definiens', '[{'),
 ]
 
 STEX_ENV_SPECS: list = [
     std_environment('smodule', '[{'),
     std_environment('sdefinition', '['),
     std_environment('sproblem', '['),
+    std_environment('sexample', '['),
     std_environment('sparagraph', '['),
+    std_environment('assignment', '['),
+    std_environment('nparagraph', '['),
     std_environment('scb', '['),
     std_environment('smcb', '['),
 ]
@@ -67,6 +75,8 @@ STANDARD_MACRO_SPECS: list = [
 
 STANDARD_ENV_SPECS: list = [
     std_environment('lstlisting', '['),
+    std_environment('frame', '['),
+    std_environment('tikzpicture', '['),
 ]
 
 STEX_CONTEXT_DB = get_default_latex_context_db()
