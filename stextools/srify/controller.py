@@ -13,6 +13,7 @@ from stextools.srify.commands import CommandCollection, QuitProgramCommand, Exit
     ExitFileCommand, UndoOutcome, RedoOutcome, UndoCommand, RedoCommand, ViewCommand, View_i_Command, \
     TextRewriteOutcome, StatisticUpdateOutcome, ReplaceCommand
 from stextools.srify.selection import VerbTrie, PreviousWordShouldBeIncluded, NextWordShouldBeIncluded
+from stextools.srify.session_storage import SessionStorage
 from stextools.srify.skip_and_ignore import SkipOnceCommand, IgnoreWordOutcome, IgnoreCommand, IgnoreList, \
     AddWordToSrSkip, AddStemToSrSkip
 from stextools.srify.state import PositionCursor, Cursor
@@ -157,10 +158,11 @@ class Controller:
             self._verb_trie_by_lang[lang] = VerbTrie(lang, self.linker)
         return self._verb_trie_by_lang[lang]
 
-    def run(self):
+    def run(self) -> bool:
+        """Returns True iff there are more files to annotate."""
         while True:
             if not self.ensure_cursor_selection():
-                return   # nothing left to annotate
+                return False  # nothing left to annotate
 
             click.clear()
             show_current_selection(self.state)
@@ -172,7 +174,7 @@ class Controller:
                 modification: Optional[Modification] = None
 
                 if isinstance(outcome, Exit):
-                    return
+                    return True
                 elif isinstance(outcome, ImportInsertionOutcome):
                     text = self.state.get_current_file_text()
                     modification = FileModification(
@@ -285,7 +287,15 @@ class Controller:
 
 
 def srify(files: list[str], filter: str, ignore: str):
-    state = State(files=[Path(file) for file in files], filter_pattern=filter, ignore_pattern=ignore,
-                  cursor=PositionCursor(file_index=0, offset=0))
+    session_storage = SessionStorage()
+    state = session_storage.get_session_dialog()
+    if state is None:
+        state = State(files=[Path(file) for file in files], filter_pattern=filter, ignore_pattern=ignore,
+                      cursor=PositionCursor(file_index=0, offset=0))
     controller = Controller(state, is_new=True)
-    controller.run()
+    unfinished = controller.run()
+    if unfinished:
+        session_storage.store_session_dialog(state)
+    else:
+        session_storage.delete_session_if_loaded()
+
