@@ -191,11 +191,11 @@ class SrSkipped:
             )
             for skip in skips:
                 if len(current_line) + len(skip) > 80 and len(current_line) > 20:
-                    new_lines.append(current_line)
+                    new_lines.append(current_line + '\n')
                     current_line = '% srskip'
                 current_line += skip + ','
             if current_line != '% srskip':
-                new_lines.append(current_line[:-1])
+                new_lines.append(current_line[:-1] + '\n')
 
         for line in self.text.splitlines(keepends=True):
             if line.startswith('% srskip '):

@@ -23,6 +23,7 @@ def symbol_to_sorting_key(symbol: SimpleSymbol) -> tuple:
     if k in _already_determined:
         return _already_determined[k]
     primary = len(list(symbol.get_verbalizations()))
+    print(symbol.name, primary)
     secondary = k
     _already_determined[k] = primary, secondary
     return primary, secondary

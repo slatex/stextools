@@ -21,6 +21,7 @@ STEX_MACRO_SPECS: list = [
 
     # others
     MacroSpec('includeproblem', '[{'),
+    MacroSpec('includeassignment', '[{'),
 
     # from section 1.3 of the stex manual (targets lib/ directory)
     MacroSpec('libinput', '[{'),

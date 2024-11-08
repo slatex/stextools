@@ -11,8 +11,9 @@ from stextools.srify.annotate_command import AnnotateCommand
 from stextools.srify.commands import CommandCollection, QuitProgramCommand, Exit, CommandOutcome, \
     show_current_selection, ImportInsertionOutcome, SubstitutionOutcome, SetNewCursor, \
     ExitFileCommand, UndoOutcome, RedoOutcome, UndoCommand, RedoCommand, ViewCommand, View_i_Command, \
-    TextRewriteOutcome, StatisticUpdateOutcome, ReplaceCommand
+    TextRewriteOutcome, StatisticUpdateOutcome, ReplaceCommand, RescanCommand, RescanOutcome
 from stextools.srify.selection import VerbTrie, PreviousWordShouldBeIncluded, NextWordShouldBeIncluded
+from stextools.srify.session_storage import SessionStorage
 from stextools.srify.skip_and_ignore import SkipOnceCommand, IgnoreWordOutcome, IgnoreCommand, IgnoreList, \
     AddWordToSrSkip, AddStemToSrSkip
 from stextools.srify.state import PositionCursor, Cursor
@@ -110,6 +111,10 @@ class Controller:
             have_inputs = False
             for file in state.files:
                 stexdoc = self.mh.get_stex_doc(file)
+                if not stexdoc:
+                    print(click.style(f'Warning: File {file} is not loaded – skipping it', bg='yellow'))
+                    click.pause()
+                    continue
                 for dep in stexdoc.get_doc_info(self.mh).dependencies:
                     if dep.is_input:
                         have_inputs = True
@@ -117,7 +122,7 @@ class Controller:
                 if have_inputs:
                     break
             if have_inputs and click.confirm(
-                'The selected files have `\\inputref`s. Should I include them?'
+                'The selected files input other files. Should I include those as well?'
             ):
                 all_files: list[Path] = []
                 all_files_set: set[Path] = set()
@@ -157,10 +162,11 @@ class Controller:
             self._verb_trie_by_lang[lang] = VerbTrie(lang, self.linker)
         return self._verb_trie_by_lang[lang]
 
-    def run(self):
+    def run(self) -> bool:
+        """Returns True iff there are more files to annotate."""
         while True:
             if not self.ensure_cursor_selection():
-                return   # nothing left to annotate
+                return False  # nothing left to annotate
 
             click.clear()
             show_current_selection(self.state)
@@ -172,7 +178,7 @@ class Controller:
                 modification: Optional[Modification] = None
 
                 if isinstance(outcome, Exit):
-                    return
+                    return True
                 elif isinstance(outcome, ImportInsertionOutcome):
                     text = self.state.get_current_file_text()
                     modification = FileModification(
@@ -214,6 +220,9 @@ class Controller:
                         mod.apply(self.state)
                         self.reset_after_modification(mod)
                     self._modification_history.append(mods)
+                elif isinstance(outcome, RescanOutcome):
+                    self.reset_linker()
+                    self.mh.update()
                 else:
                     raise RuntimeError(f"Unexpected outcome {outcome}")
 
@@ -244,7 +253,7 @@ class Controller:
             string_to_stemmed_word_sequence_simplified(self.state.get_selected_text(), self.get_current_lang())
         )[2]
         filter_fun = make_filter_fun(self.state.filter_pattern, self.state.ignore_pattern)
-        candidate_symbols = [s for s in candidate_symbols if filter_fun(s.name)]
+        candidate_symbols = [s for s in candidate_symbols if filter_fun(s.declaring_file.archive.name)]
         annotate_command = AnnotateCommand(
             candidate_symbols=candidate_symbols,
             state=self.state,
@@ -264,6 +273,7 @@ class Controller:
                 AddStemToSrSkip(self.get_current_lang()),
                 UndoCommand(is_possible=bool(self._modification_history)),
                 RedoCommand(is_possible=bool(self._modification_future)),
+                RescanCommand(),
                 annotate_command,
                 ViewCommand(),
                 View_i_Command(candidate_symbols=candidate_symbols),
@@ -273,6 +283,8 @@ class Controller:
 
     def ensure_cursor_selection(self) -> bool:
         """Returns False if nothing is left to select."""
+        if self.state.cursor.file_index >= len(self.state.files):
+            return False
         if isinstance(self.state.cursor, PositionCursor):
             selection_cursor = self.get_verb_trie(self.get_current_lang()).find_next_selection(self.state)
             if selection_cursor is None:
@@ -285,7 +297,15 @@ class Controller:
 
 
 def srify(files: list[str], filter: str, ignore: str):
-    state = State(files=[Path(file) for file in files], filter_pattern=filter, ignore_pattern=ignore,
-                  cursor=PositionCursor(file_index=0, offset=0))
+    session_storage = SessionStorage()
+    state = session_storage.get_session_dialog()
+    if state is None:
+        state = State(files=[Path(file) for file in files], filter_pattern=filter, ignore_pattern=ignore,
+                      cursor=PositionCursor(file_index=0, offset=0))
     controller = Controller(state, is_new=True)
-    controller.run()
+    unfinished = controller.run()
+    if unfinished:
+        session_storage.store_session_dialog(state)
+    else:
+        session_storage.delete_session_if_loaded()
+

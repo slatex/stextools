@@ -119,6 +119,24 @@ class QuitProgramCommand(Command):
         return [Exit()]
 
 
+class RescanOutcome(CommandOutcome):
+    pass
+
+
+class RescanCommand(Command):
+    def __init__(self):
+        super().__init__(CommandInfo(
+            show=False,
+            pattern_presentation='R',
+            pattern_regex='^R$',
+            description_short='escan',
+            description_long='Rescans all of MathHub')
+        )
+
+    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
+        return [RescanOutcome()]
+
+
 class ImportCommand(Command):
     def __init__(self, letter: str, description_short: str, description_long: str, outcome: ImportInsertionOutcome):
         super().__init__(CommandInfo(

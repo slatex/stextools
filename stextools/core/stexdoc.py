@@ -94,17 +94,27 @@ class Verbalization:
     is_defining: bool = False   # verbalization is definiendum
 
     @classmethod
-    def from_macro(cls, node: LatexMacroNode, lang: str) -> Verbalization:
-        if node.macroname == 'definiendum':
+    def from_macro(cls, node: LatexMacroNode, lang: str) -> Optional[Verbalization]:
+        prefix = ''
+        postfix = ''
+        if not node.nodeargd:
+            return None
+        if node.macroname in {'sr', 'definiendum'}:
             symbol = node.nodeargd.argnlist[-2].latex_verbatim()[1:-1]
             verbalization = node.nodeargd.argnlist[-1].latex_verbatim()[1:-1]
-        elif node.macroname in {'definame', 'Definame'}:
-            symbol = node.nodeargd.argnlist[-1].latex_verbatim()[1:-1]
-            verbalization = symbol
-            if node.macroname == 'Definame' and verbalization:
-                verbalization = verbalization[0].upper() + verbalization[1:]
         else:
-            raise ValueError(f'Unexpected macroname: {node.macroname}')
+            params = OptArgKeyVals.from_first_macro_arg(node.nodeargd)
+            if params:
+                prefix = params.get_val('pre') or ''
+                postfix = params.get_val('post') or ''
+            symbol = node.nodeargd.argnlist[-1].latex_verbatim()[1:-1]
+            verbalization = symbol.split('?')[-1]
+        if node.macroname in {'Sn', 'Sns', 'Definame'}:
+            verbalization = verbalization[0].upper() + verbalization[1:]
+        if node.macroname in {'sns', 'Sns'}:
+            verbalization += 's'
+
+        verbalization = prefix + verbalization + postfix
 
         symbol = re.sub(r'\s+', ' ', symbol)
         verbalization = re.sub(r'\s+', ' ', verbalization)
@@ -275,8 +285,8 @@ DEPENDENCY_PRODUCERS = [
     DependencyProducer('cmhtikzinput', archive_in_params=True, target_no_tex=True),
     DependencyProducer('lstinputmhlisting', archive_in_params=True, target_no_tex=True),
 
-    DependencyProducer('includeproblem', archive_in_params=True),
-    # DependencyProducer('includeassignment', archive_in_params=True),
+    DependencyProducer('includeproblem', archive_in_params=True, is_input=True),
+    DependencyProducer('includeassignment', archive_in_params=True, is_input=True),
 
     DependencyProducer('libinput', opt_param_is_archive=True, is_lib=True),
     DependencyProducer('addmhbibresource', archive_in_params=True, target_no_tex=True, is_lib=True),
@@ -402,8 +412,13 @@ class STeXDocument:
                                 Symbol(name=symbol, decl_def=(node.pos, node.pos + node.len))
                             )
 
-                    elif node.macroname in {'definiendum', 'definame', 'Definame'}:
-                        doc_info.verbalizations.append(Verbalization.from_macro(node, doc_info.lang))
+                    elif node.macroname in {
+                        'definiendum', 'definame', 'Definame',
+                        'sn', 'sns', 'Sn', 'Sns', 'sr',
+                    }:
+                        verb = Verbalization.from_macro(node, doc_info.lang)
+                        if verb:
+                            doc_info.verbalizations.append(verb)
                 else:
                     raise Exception(f'Unexpected node type: {node.nodeType()}')
 
