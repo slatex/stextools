@@ -111,6 +111,10 @@ class Controller:
             have_inputs = False
             for file in state.files:
                 stexdoc = self.mh.get_stex_doc(file)
+                if not stexdoc:
+                    print(click.style(f'Warning: File {file} is not loaded – skipping it', fg='yellow'))
+                    click.pause()
+                    continue
                 for dep in stexdoc.get_doc_info(self.mh).dependencies:
                     if dep.is_input:
                         have_inputs = True
