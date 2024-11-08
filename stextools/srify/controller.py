@@ -7,6 +7,7 @@ import click
 from stextools.core.cache import Cache
 from stextools.core.linker import Linker
 from stextools.core.mathhub import make_filter_fun
+from stextools.core.stexdoc import Dependency
 from stextools.srify.annotate_command import AnnotateCommand
 from stextools.srify.commands import CommandCollection, QuitProgramCommand, Exit, CommandOutcome, \
     show_current_selection, ImportInsertionOutcome, SubstitutionOutcome, SetNewCursor, \
@@ -108,44 +109,54 @@ class Controller:
         self._modification_future: list[list[Modification]] = []   # for re-doing
 
         if is_new:
-            have_inputs = False
-            for file in state.files:
-                stexdoc = self.mh.get_stex_doc(file)
-                if not stexdoc:
-                    print(click.style(f'Warning: File {file} is not loaded – skipping it', bg='yellow'))
-                    click.pause()
-                    continue
-                for dep in stexdoc.get_doc_info(self.mh).dependencies:
-                    if dep.is_input:
-                        have_inputs = True
-                        break
-                if have_inputs:
-                    break
-            if have_inputs and click.confirm(
-                'The selected files input other files. Should I include those as well?'
-            ):
-                all_files: list[Path] = []
-                all_files_set: set[Path] = set()
-                todo_list = list(reversed(state.files))
-                while todo_list:
-                    file = todo_list.pop()
-                    path = file.absolute().resolve()
-                    if path in all_files_set:
-                        continue
-                    all_files.append(path)
-                    all_files_set.add(path)
-                    stexdoc = self.mh.get_stex_doc(path)
-                    if stexdoc:
-                        for dep in stexdoc.get_doc_info(self.mh).dependencies:
-                            if dep.is_input and dep.file:
-                                archive = self.mh.get_archive(dep.archive)
-                                if not archive:
-                                    continue
-                                todo_list.append(archive.path / 'source' / dep.file)
-                    else:
-                        print(f"Warning: File {path} is not loaded")
+            self.load_includes_dialog()
 
-                state.files = all_files
+    def load_includes_dialog(self):
+        have_inputs = False
+        for file in self.state.files:
+            stexdoc = self.mh.get_stex_doc(file)
+            if not stexdoc:
+                print(click.style(f'Warning: File {file} is not loaded – skipping it', bg='yellow'))
+                click.pause()
+                continue
+            for dep in stexdoc.get_doc_info(self.mh).dependencies:
+                if dep.is_input:
+                    have_inputs = True
+                    break
+            if have_inputs:
+                break
+        if have_inputs and click.confirm(
+            'The selected files input other files. Should I include those as well?'
+        ):
+            all_files: list[Path] = []
+            all_files_set: set[Path] = set()
+            todo_list = list(reversed(self.state.files))
+            while todo_list:
+                file = todo_list.pop()
+                path = file.absolute().resolve()
+                if path in all_files_set:
+                    continue
+                all_files.append(path)
+                all_files_set.add(path)
+                stexdoc = self.mh.get_stex_doc(path)
+                if stexdoc:
+                    dependencies: list[Dependency] = [
+                        dep
+                        for dep in stexdoc.get_doc_info(self.mh).dependencies
+                        if dep.is_input and dep.file
+                    ]
+                    # reverse as todo_list is a stack
+                    dependencies.sort(key=lambda dep: dep.intro_range[0], reverse=True)
+                    for dep in dependencies:
+                        if dep.is_input and dep.file:
+                            archive = self.mh.get_archive(dep.archive)
+                            if not archive:
+                                continue
+                            todo_list.append(archive.path / 'source' / dep.file)
+                else:
+                    print(f"Warning: File {path} is not loaded")
+
+            self.state.files = all_files
 
     @property
     def linker(self) -> Linker:
