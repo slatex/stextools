@@ -112,7 +112,7 @@ class Controller:
             for file in state.files:
                 stexdoc = self.mh.get_stex_doc(file)
                 if not stexdoc:
-                    print(click.style(f'Warning: File {file} is not loaded – skipping it', fg='yellow'))
+                    print(click.style(f'Warning: File {file} is not loaded – skipping it', bg='yellow'))
                     click.pause()
                     continue
                 for dep in stexdoc.get_doc_info(self.mh).dependencies:
@@ -122,7 +122,7 @@ class Controller:
                 if have_inputs:
                     break
             if have_inputs and click.confirm(
-                'The selected files have `\\inputref`s. Should I include them?'
+                'The selected files input other files. Should I include those as well?'
             ):
                 all_files: list[Path] = []
                 all_files_set: set[Path] = set()

@@ -285,8 +285,8 @@ DEPENDENCY_PRODUCERS = [
     DependencyProducer('cmhtikzinput', archive_in_params=True, target_no_tex=True),
     DependencyProducer('lstinputmhlisting', archive_in_params=True, target_no_tex=True),
 
-    DependencyProducer('includeproblem', archive_in_params=True),
-    # DependencyProducer('includeassignment', archive_in_params=True),
+    DependencyProducer('includeproblem', archive_in_params=True, is_input=True),
+    DependencyProducer('includeassignment', archive_in_params=True, is_input=True),
 
     DependencyProducer('libinput', opt_param_is_archive=True, is_lib=True),
     DependencyProducer('addmhbibresource', archive_in_params=True, target_no_tex=True, is_lib=True),
