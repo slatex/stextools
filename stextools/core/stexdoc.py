@@ -110,7 +110,10 @@ class Verbalization:
             symbol = node.nodeargd.argnlist[-1].latex_verbatim()[1:-1]
             verbalization = symbol.split('?')[-1]
         if node.macroname in {'Sn', 'Sns', 'Definame'}:
-            verbalization = verbalization[0].upper() + verbalization[1:]
+            if verbalization:
+                verbalization = verbalization[0].upper() + verbalization[1:]
+            else:
+                return None
         if node.macroname in {'sns', 'Sns'}:
             verbalization += 's'
 
