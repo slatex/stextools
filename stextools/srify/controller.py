@@ -279,6 +279,8 @@ class Controller:
 
     def ensure_cursor_selection(self) -> bool:
         """Returns False if nothing is left to select."""
+        if self.state.cursor.file_index >= len(self.state.files):
+            return False
         if isinstance(self.state.cursor, PositionCursor):
             selection_cursor = self.get_verb_trie(self.get_current_lang()).find_next_selection(self.state)
             if selection_cursor is None:
