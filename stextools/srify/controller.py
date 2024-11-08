@@ -11,7 +11,7 @@ from stextools.srify.annotate_command import AnnotateCommand
 from stextools.srify.commands import CommandCollection, QuitProgramCommand, Exit, CommandOutcome, \
     show_current_selection, ImportInsertionOutcome, SubstitutionOutcome, SetNewCursor, \
     ExitFileCommand, UndoOutcome, RedoOutcome, UndoCommand, RedoCommand, ViewCommand, View_i_Command, \
-    TextRewriteOutcome, StatisticUpdateOutcome, ReplaceCommand
+    TextRewriteOutcome, StatisticUpdateOutcome, ReplaceCommand, RescanCommand, RescanOutcome
 from stextools.srify.selection import VerbTrie, PreviousWordShouldBeIncluded, NextWordShouldBeIncluded
 from stextools.srify.session_storage import SessionStorage
 from stextools.srify.skip_and_ignore import SkipOnceCommand, IgnoreWordOutcome, IgnoreCommand, IgnoreList, \
@@ -220,6 +220,9 @@ class Controller:
                         mod.apply(self.state)
                         self.reset_after_modification(mod)
                     self._modification_history.append(mods)
+                elif isinstance(outcome, RescanOutcome):
+                    self.reset_linker()
+                    self.mh.update()
                 else:
                     raise RuntimeError(f"Unexpected outcome {outcome}")
 
@@ -270,6 +273,7 @@ class Controller:
                 AddStemToSrSkip(self.get_current_lang()),
                 UndoCommand(is_possible=bool(self._modification_history)),
                 RedoCommand(is_possible=bool(self._modification_future)),
+                RescanCommand(),
                 annotate_command,
                 ViewCommand(),
                 View_i_Command(candidate_symbols=candidate_symbols),
