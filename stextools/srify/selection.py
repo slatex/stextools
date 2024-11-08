@@ -40,21 +40,22 @@ def get_linked_strings(latex_text: str) -> list[LinkedStr]:
     result: list[LinkedStr] = []
 
     def _recurse(nodes):
+        print(nodes)
         for node in nodes:
-            if node.nodeType() in {LatexMathNode, LatexCommentNode, LatexSpecialsNode}:
+            if node is None or node.nodeType() in {LatexMathNode, LatexCommentNode, LatexSpecialsNode}:
                 # TODO: recurse into math nodes?
                 continue
             if node.nodeType() == LatexMacroNode:
                 if node.macroname in MACRO_RECURSION_RULES:
                     for arg_idx in MACRO_RECURSION_RULES[node.macroname]:
-                        _recurse(node.nodeargs[arg_idx])
+                        _recurse([node.nodeargs[arg_idx]])
             elif node.nodeType() == LatexEnvironmentNode:
                 if node.envname in ENVIRONMENT_RECURSION_RULES:
                     recurse_content, recurse_args = ENVIRONMENT_RECURSION_RULES[node.envname]
                 else:
                     recurse_content, recurse_args = True, []
                 for arg_idx in recurse_args:
-                    _recurse(node.nodeargs[arg_idx])
+                    _recurse([node.nodeargs[arg_idx]])
                 if recurse_content:
                     _recurse(node.nodelist)
             elif node.nodeType() == LatexGroupNode:
