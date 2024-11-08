@@ -40,7 +40,6 @@ def get_linked_strings(latex_text: str) -> list[LinkedStr]:
     result: list[LinkedStr] = []
 
     def _recurse(nodes):
-        print(nodes)
         for node in nodes:
             if node is None or node.nodeType() in {LatexMathNode, LatexCommentNode, LatexSpecialsNode}:
                 # TODO: recurse into math nodes?
