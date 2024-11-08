@@ -211,38 +211,3 @@ class VerbTrie:
 
         return None
 
-    def find_next_selection(self, state: State) -> Optional[SelectionCursor]:
-        _cursor: PositionCursor = state.cursor  # type: ignore
-        if not isinstance(_cursor, PositionCursor):
-            raise ValueError("Cursor must be a PositionCursor")
-
-        while _cursor.file_index < len(state.files):
-            text = state.files[_cursor.file_index].read_text()
-            srskipped = SrSkipped(text)
-
-            lstrs = get_linked_strings(text)
-            for lstr in lstrs:
-                if lstr.get_end_ref() < _cursor.offset:
-                    continue
-                words_original = string_to_stemmed_word_sequence(lstr, self.lang)
-                words_filtered: list[LinkedStr] = []
-                for word in words_original:
-                    if word.get_start_ref() < _cursor.offset:
-                        continue
-                    words_filtered.append(word)
-
-                match = self.find_first_match(
-                    [str(w) for w in words_filtered],
-                    words_filtered,
-                    str(lstr),
-                    lstr.get_start_ref(),
-                    srskipped,
-                )
-                if match is not None:
-                    return SelectionCursor(
-                        _cursor.file_index,
-                        words_filtered[match[0]].get_start_ref(),
-                        words_filtered[match[1] - 1].get_end_ref(),
-                    )
-            _cursor = PositionCursor(_cursor.file_index + 1, offset=0)
-        return None
