@@ -49,11 +49,11 @@ class SessionChoiceOutcome(CommandOutcome):
 
 
 class PickSessionCommand(Command):
-    instance_count = 0
+    # instance_count = 0
 
     def __init__(self, sessions: list[Session]):
-        PickSessionCommand.instance_count += 1
-        assert PickSessionCommand.instance_count == 1, 'Only one PickSessionCommand instance allowed'
+        # PickSessionCommand.instance_count += 1
+        # assert PickSessionCommand.instance_count == 1, 'Only one PickSessionCommand instance allowed'
         self.sessions = sessions
         super().__init__(CommandInfo(
             pattern_presentation='𝑖',
@@ -63,7 +63,7 @@ class PickSessionCommand(Command):
         )
 
     def standard_display(self, *, state: State) -> str:
-        lines: list[str] = []
+        lines: list[str] = ['Resume an existing session:']
         for i, session in enumerate(self.sessions):
             line = option_string(
                 str(i),
@@ -83,7 +83,7 @@ class DeleteSessionCommand(Command):
             show=True,
             pattern_presentation='d𝑖',
             pattern_regex='^d[0-9]+$',
-            description_short=' delete 𝑖',
+            description_short=' delete session 𝑖',
             description_long='Delete the existing session 𝑖')
         )
 
@@ -98,7 +98,7 @@ class DeleteAllSessionsCommand(Command):
             show=True,
             pattern_presentation='D',
             pattern_regex='^D$',
-            description_short='elete all',
+            description_short='elete all sessions',
             description_long='Delete all existing sessions')
         )
 
@@ -161,9 +161,9 @@ class SessionStorage:
                 name='session management',
                 commands=[
                     ContinueWithoutSession(self.sessions),
-                    PickSessionCommand(self.sessions),
                     DeleteSessionCommand(self.sessions),
                     DeleteAllSessionsCommand(self.sessions),
+                    PickSessionCommand(self.sessions),
                 ],
                 have_help=True,
             ).apply(state=None)    # type: ignore

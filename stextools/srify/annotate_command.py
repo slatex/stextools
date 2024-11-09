@@ -1,4 +1,5 @@
-import functools
+import shutil
+import subprocess
 from typing import Optional
 
 import click
@@ -7,7 +8,8 @@ from pylatexenc.latexwalker import LatexMacroNode, LatexSpecialsNode, LatexMathN
 
 from stextools.core.linker import Linker
 from stextools.core.macros import STEX_CONTEXT_DB
-from stextools.core.simple_api import SimpleSymbol, get_symbols
+from stextools.core.mathhub import make_filter_fun
+from stextools.core.simple_api import SimpleSymbol, get_symbols, SimpleFile
 from stextools.srify.commands import Command, CommandInfo, CommandOutcome, SubstitutionOutcome, SetNewCursor, \
     ImportInsertionOutcome, ImportCommand, CommandCollection, show_current_selection, StatisticUpdateOutcome
 from stextools.srify.state import State, SelectionCursor, PositionCursor
@@ -28,46 +30,13 @@ def symbol_to_sorting_key(symbol: SimpleSymbol) -> tuple:
     return primary, secondary
 
 
-class AnnotateCommand(Command):
-    """ Has to be re-instantiated for each state! """
-    def __init__(self, candidate_symbols: list[SimpleSymbol], state: State, linker: Linker):
-        super().__init__(CommandInfo(
-            pattern_presentation='𝑖',
-            pattern_regex='^[0-9]+$',
-            description_short=' annotate with 𝑖',
-            description_long='Annotates the current selection with option number 𝑖')
-        )
-        self.candidate_symbols = candidate_symbols
-        self.candidate_symbols.sort(key=symbol_to_sorting_key, reverse=True)
+class AnnotateMixin:
+    def __init__(self, state: State, linker: Linker):
         self.state = state
         self.linker = linker
         if not isinstance(self.state.cursor, SelectionCursor):
             raise RuntimeError("AnnotateCommand can only be used with a SelectionCursor")
         self.cursor: SelectionCursor = self.state.cursor
-
-    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
-        assert state == self.state
-        symbol = self.candidate_symbols[int(call)]
-
-        outcomes: list[CommandOutcome] = []
-
-        import_thing = self.get_import(symbol)
-        sr = self.get_sr(symbol)
-
-        offset = 0
-        if import_thing:
-            outcomes.append(import_thing)
-            # TODO: maybe the controller should be responsible for this
-            offset += len(import_thing.inserted_str)
-
-        outcomes.append(
-            SubstitutionOutcome(sr, self.cursor.selection_start + offset, self.cursor.selection_end + offset)
-        )
-        outcomes.append(StatisticUpdateOutcome('annotation_inc'))
-        offset += len(sr)
-        outcomes.append(SetNewCursor(PositionCursor(self.cursor.file_index, self.cursor.selection_start + offset)))
-
-        return outcomes
 
     def get_import(self, symbol: SimpleSymbol) -> Optional[ImportInsertionOutcome]:
         file = self.state.get_current_file_simple_api(self.linker)
@@ -108,12 +77,13 @@ class AnnotateCommand(Command):
                     break
             return indentation
 
-        explain_loc = lambda loc: ' after ' + latex_format('\\begin{' + loc + '}') if loc else ' at the beginning of the file'
+        explain_loc = lambda loc: ' after ' + latex_format(
+            '\\begin{' + loc + '}') if loc else ' at the beginning of the file'
 
         commands = [
             ImportCommand(
                 'u', 'semodule' + explain_loc(import_locations[3]),
-                    'Inserts \\usemodule' + explain_loc(import_locations[3]),
+                     'Inserts \\usemodule' + explain_loc(import_locations[3]),
                 ImportInsertionOutcome(
                     _get_indentation(import_locations[0]) + f'\\usemodule{args}',
                     import_locations[0]
@@ -122,11 +92,11 @@ class AnnotateCommand(Command):
             ImportCommand(
                 't',
                 'op-level usemodule (i.e.' + explain_loc(import_locations[4]) + ')'
-                    if import_locations[4] else
-                    'op-level usemodule (in this case same as [u])',
+                if import_locations[4] else
+                'op-level usemodule (in this case same as [u])',
                 'Inserts \\usemodule at the top of the document (i.e.' + explain_loc(import_locations[4]) + ')'
-                    if import_locations[4] else
-                    'Inserts \\usemodule at the top of the document (in this case same as [u])',
+                if import_locations[4] else
+                'Inserts \\usemodule at the top of the document (in this case same as [u])',
                 ImportInsertionOutcome(
                     _get_indentation(import_locations[1]) + f'\\usemodule{args}',
                     import_locations[1]
@@ -232,27 +202,135 @@ class AnnotateCommand(Command):
         else:
             return '\\sr{' + symb_path + '}' + '{' + word + '}'
 
+    def get_outcome_for_symbol(self, symbol: SimpleSymbol) -> list[CommandOutcome]:
+        outcomes: list[CommandOutcome] = []
+
+        import_thing = self.get_import(symbol)
+        sr = self.get_sr(symbol)
+
+        offset = 0
+        if import_thing:
+            outcomes.append(import_thing)
+            # TODO: maybe the controller should be responsible for this
+            offset += len(import_thing.inserted_str)
+
+        outcomes.append(
+            SubstitutionOutcome(sr, self.cursor.selection_start + offset, self.cursor.selection_end + offset)
+        )
+        outcomes.append(StatisticUpdateOutcome('annotation_inc'))
+        offset += len(sr)
+        outcomes.append(SetNewCursor(PositionCursor(self.cursor.file_index, self.cursor.selection_start + offset)))
+
+        return outcomes
+
+
+
+class AnnotateCommand(Command, AnnotateMixin):
+    """ Has to be re-instantiated for each state! """
+
+    def __init__(self, candidate_symbols: list[SimpleSymbol], state: State, linker: Linker):
+        Command.__init__(self, CommandInfo(
+            pattern_presentation='𝑖',
+            pattern_regex='^[0-9]+$',
+            description_short=' annotate with 𝑖',
+            description_long='Annotates the current selection with option number 𝑖')
+                         )
+        AnnotateMixin.__init__(self, state, linker)
+        self.candidate_symbols = candidate_symbols
+        self.candidate_symbols.sort(key=symbol_to_sorting_key, reverse=True)
+
+    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
+        assert state == self.state
+        symbol = self.candidate_symbols[int(call)]
+        return self.get_outcome_for_symbol(symbol)
+
     def standard_display(self, *, state: State) -> str:
         assert state == self.state
         if not self.candidate_symbols:
-            return click.style('  no candidate symbols found (possible reason: some symbols are filtered out)', italic=True)
-        file = state.get_current_file_simple_api(self.linker)
+            return click.style('  no candidate symbols found (possible reason: some symbols are filtered out)',
+                               italic=True)
+        file: SimpleFile = state.get_current_file_simple_api(self.linker)
         lines: list[str] = []
         for i, symbol in enumerate(self.candidate_symbols):
-            symb_path = symbol.path_rel_to_archive.split('?')
-            assert len(symb_path) == 3
-            in_scope = file.symbol_is_in_scope_at(symbol, self.cursor.selection_start)
-            if in_scope:
-                marker = click.style('✓', bold=True, fg='green')
-            else:
-                marker = click.style('✗', bold=True, fg='red')
             line = option_string(
                 str(i),
-                ' ' + marker + ' ' + symbol.declaring_file.archive.name + ' ' +
-                symb_path[0] + '?' +
-                click.style(symb_path[1], bg=color('bright_cyan', (180, 180, 255))) + '?' +
-                click.style(symb_path[2], bg=color('bright_green', (180, 255, 180))) +
-                '\n      ' + click.style(symbol.declaring_file.path, italic=True, fg=pale_color())
+                ' ' + symbol_display(file, symbol, state)
+                # + '\n      ' + click.style(symbol.declaring_file.path, italic=True, fg=pale_color())
             )
             lines.append(line)
         return '\n'.join(lines)
+
+
+def symbol_display(file: SimpleFile, symbol: SimpleSymbol, state: State, style: bool = True) -> str:
+    assert isinstance(state.cursor, SelectionCursor)
+    symb_path = symbol.path_rel_to_archive.split('?')
+    assert len(symb_path) == 3
+    in_scope = file.symbol_is_in_scope_at(symbol, state.cursor.selection_start)
+    if in_scope:
+        marker = click.style('✓', bold=True, fg='green') if style else '✓'
+    else:
+        marker = click.style('✗', bold=True, fg='red') if style else '✗'
+    return (
+            marker + ' ' + symbol.declaring_file.archive.name + ' ' +
+            symb_path[0] + '?' +
+            (
+                (
+                    click.style(symb_path[1], bg=color('bright_cyan', (180, 180, 255))) + '?' +
+                    click.style(symb_path[2], bg=color('bright_green', (180, 255, 180)))
+                )
+                if style else (symb_path[1] + '?' + symb_path[2])
+            )
+    )
+
+
+class LookupCommand(Command, AnnotateMixin):
+    def __init__(self, linker: Linker, state: State):
+        Command.__init__(self, CommandInfo(
+            show=False,
+            pattern_presentation='l',
+            pattern_regex='^l$',
+            description_short='ookup a symbol',
+            description_long='Look up a symbol for annotation')
+        )
+        AnnotateMixin.__init__(self, state, linker)
+
+    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
+        fzf_path = shutil.which('fzfx')
+        if fzf_path is None:
+            print(click.style('fzf not found', fg='red'))
+            print('Please install fzf to use this feature.')
+            print('You install it via your package manager, e.g.:')
+            print('  sudo apt install fzf')
+            print('  sudo pacman -S fzf')
+            print('  brew install fzf')
+            print('For more information, see https://github.com/junegunn/fzf?tab=readme-ov-file#installation')
+            print()
+            print('You can also place the fzf binary in your PATH.')
+            print('Download: https://github.com/junegunn/fzf/releases')
+            print()
+            click.pause()
+            return []
+
+        file = state.get_current_file_simple_api(self.linker)
+        cursor = state.cursor
+        assert isinstance(cursor, SelectionCursor)
+
+        filter_fun = make_filter_fun(state.filter_pattern, state.ignore_pattern)
+
+        lookup = {}
+        lines = []
+        for symbol in get_symbols(self.linker):
+            if not filter_fun(symbol.declaring_file.archive.name):
+                continue
+            lookup[symbol_display(file, symbol, state, style=False)] = symbol
+            lines.append(symbol_display(file, symbol, state, style=False))
+
+        proc = subprocess.Popen(['fzf', '--ansi'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
+        proc.stdin.write('\n'.join(lines))
+        proc.stdin.close()
+        selected = proc.stdout.read().strip()
+        proc.wait()
+        if not selected:
+            return []
+        symbol = lookup.get(selected)
+        return self.get_outcome_for_symbol(symbol)
