@@ -145,6 +145,8 @@ class AnnotateMixin:
             for node in nodes:
                 if node is None or node.nodeType() in {LatexSpecialsNode}:
                     continue
+                if node.pos > self.cursor.selection_start:
+                    break
                 elif node.nodeType() in {LatexMacroNode}:
                     _recurse(node.nodeargs)
                 elif node.nodeType() in {LatexMathNode, LatexGroupNode}:
