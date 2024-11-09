@@ -7,18 +7,22 @@ import click
 from stextools.core.cache import Cache
 from stextools.core.linker import Linker
 from stextools.core.mathhub import make_filter_fun
+from stextools.core.simple_api import file_from_path
+from stextools.core.stexdoc import Dependency
 from stextools.srify.annotate_command import AnnotateCommand
 from stextools.srify.commands import CommandCollection, QuitProgramCommand, Exit, CommandOutcome, \
     show_current_selection, ImportInsertionOutcome, SubstitutionOutcome, SetNewCursor, \
     ExitFileCommand, UndoOutcome, RedoOutcome, UndoCommand, RedoCommand, ViewCommand, View_i_Command, \
     TextRewriteOutcome, StatisticUpdateOutcome, ReplaceCommand, RescanCommand, RescanOutcome
-from stextools.srify.selection import VerbTrie, PreviousWordShouldBeIncluded, NextWordShouldBeIncluded
+from stextools.srify.selection import VerbTrie, PreviousWordShouldBeIncluded, NextWordShouldBeIncluded, \
+    get_linked_strings
 from stextools.srify.session_storage import SessionStorage
 from stextools.srify.skip_and_ignore import SkipOnceCommand, IgnoreWordOutcome, IgnoreCommand, IgnoreList, \
-    AddWordToSrSkip, AddStemToSrSkip
-from stextools.srify.state import PositionCursor, Cursor
+    AddWordToSrSkip, AddStemToSrSkip, SrSkipped
+from stextools.srify.state import PositionCursor, Cursor, SelectionCursor
 from stextools.srify.state import State
-from stextools.srify.stemming import string_to_stemmed_word_sequence_simplified
+from stextools.srify.stemming import string_to_stemmed_word_sequence_simplified, string_to_stemmed_word_sequence
+from stextools.utils.linked_str import LinkedStr
 
 
 class Modification(abc.ABC):
@@ -108,44 +112,52 @@ class Controller:
         self._modification_future: list[list[Modification]] = []   # for re-doing
 
         if is_new:
-            have_inputs = False
-            for file in state.files:
-                stexdoc = self.mh.get_stex_doc(file)
-                if not stexdoc:
-                    print(click.style(f'Warning: File {file} is not loaded – skipping it', bg='yellow'))
-                    click.pause()
-                    continue
-                for dep in stexdoc.get_doc_info(self.mh).dependencies:
-                    if dep.is_input:
-                        have_inputs = True
-                        break
-                if have_inputs:
+            self.load_includes_dialog()
+
+    def load_includes_dialog(self):
+        have_inputs = False
+        for file in self.state.files:
+            stexdoc = self.mh.get_stex_doc(file)
+            if not stexdoc:
+                continue
+            for dep in stexdoc.get_doc_info(self.mh).dependencies:
+                if dep.is_input:
+                    have_inputs = True
                     break
-            if have_inputs and click.confirm(
-                'The selected files input other files. Should I include those as well?'
-            ):
-                all_files: list[Path] = []
-                all_files_set: set[Path] = set()
-                todo_list = list(reversed(state.files))
-                while todo_list:
-                    file = todo_list.pop()
-                    path = file.absolute().resolve()
-                    if path in all_files_set:
-                        continue
+            if have_inputs:
+                break
+        if have_inputs and click.confirm(
+            'The selected files input other files. Should I include those as well?'
+        ):
+            all_files: list[Path] = []
+            all_files_set: set[Path] = set()
+            todo_list = list(reversed(self.state.files))
+            while todo_list:
+                file = todo_list.pop()
+                path = file.absolute().resolve()
+                if path in all_files_set:
+                    continue
+                stexdoc = self.mh.get_stex_doc(path)
+                if stexdoc:
                     all_files.append(path)
                     all_files_set.add(path)
-                    stexdoc = self.mh.get_stex_doc(path)
-                    if stexdoc:
-                        for dep in stexdoc.get_doc_info(self.mh).dependencies:
-                            if dep.is_input and dep.file:
-                                archive = self.mh.get_archive(dep.archive)
-                                if not archive:
-                                    continue
-                                todo_list.append(archive.path / 'source' / dep.file)
-                    else:
-                        print(f"Warning: File {path} is not loaded")
+                    dependencies: list[Dependency] = [
+                        dep
+                        for dep in stexdoc.get_doc_info(self.mh).dependencies
+                        if dep.is_input and dep.file
+                    ]
+                    # reverse as todo_list is a stack
+                    dependencies.sort(key=lambda dep: dep.intro_range[0], reverse=True)
+                    for dep in dependencies:
+                        if dep.is_input and dep.file:
+                            archive = self.mh.get_archive(dep.archive)
+                            if not archive:
+                                continue
+                            todo_list.append(archive.path / 'source' / dep.file)
+                else:
+                    print(f'File {path} is not loaded')
 
-                state.files = all_files
+            self.state.files = all_files
 
     @property
     def linker(self) -> Linker:
@@ -286,11 +298,62 @@ class Controller:
         if self.state.cursor.file_index >= len(self.state.files):
             return False
         if isinstance(self.state.cursor, PositionCursor):
-            selection_cursor = self.get_verb_trie(self.get_current_lang()).find_next_selection(self.state)
+            # selection_cursor = self.get_verb_trie(self.get_current_lang()).find_next_selection(self.state)
+            selection_cursor = self.find_next_selection()
             if selection_cursor is None:
                 return False
             self.state.cursor = selection_cursor
         return True
+
+    def find_next_selection(self) -> Optional[SelectionCursor]:
+        _cursor: PositionCursor = self.state.cursor  # type: ignore
+        if not isinstance(_cursor, PositionCursor):
+            raise ValueError("Cursor must be a PositionCursor")
+
+        while _cursor.file_index < len(self.state.files):
+            if not self.state.get_current_file().exists():
+                print(click.style(f"File {self.state.get_current_file()} does not exist", fg='red'))
+                click.pause()
+                _cursor = PositionCursor(_cursor.file_index + 1, offset=0)
+                self.state.cursor = _cursor
+                continue
+            if not file_from_path(self.state.get_current_file(), self.linker):
+                print(click.style(f"File {self.state.get_current_file()} is not loaded. Skipping it.", fg='red'))
+                click.pause()
+                _cursor = PositionCursor(_cursor.file_index + 1, offset=0)
+                self.state.cursor = _cursor
+                continue
+
+            text = self.state.files[_cursor.file_index].read_text()
+            srskipped = SrSkipped(text)
+
+            lstrs = get_linked_strings(text)
+            for lstr in lstrs:
+                if lstr.get_end_ref() < _cursor.offset:
+                    continue
+                words_original = string_to_stemmed_word_sequence(lstr, self.get_current_lang())
+                words_filtered: list[LinkedStr] = []
+                for word in words_original:
+                    if word.get_start_ref() < _cursor.offset:
+                        continue
+                    words_filtered.append(word)
+
+                match = self.get_verb_trie(self.get_current_lang()).find_first_match(
+                    [str(w) for w in words_filtered],
+                    words_filtered,
+                    str(lstr),
+                    lstr.get_start_ref(),
+                    srskipped,
+                )
+                if match is not None:
+                    return SelectionCursor(
+                        _cursor.file_index,
+                        words_filtered[match[0]].get_start_ref(),
+                        words_filtered[match[1] - 1].get_end_ref(),
+                    )
+            _cursor = PositionCursor(_cursor.file_index + 1, offset=0)
+            self.state.cursor = _cursor
+        return None
 
     def get_current_lang(self) -> str:
         return self.state.get_current_lang(self.linker)

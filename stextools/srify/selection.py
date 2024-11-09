@@ -22,6 +22,8 @@ MACRO_RECURSION_RULES: dict[str, list[int]] = {
     'emph': [0],
     'textbf': [0],
     'textit': [0],
+    'inlinedef': [1],
+    'definiens': [1],
 }
 
 # By default, the content of environment is searched for potential annotations,
@@ -41,20 +43,20 @@ def get_linked_strings(latex_text: str) -> list[LinkedStr]:
 
     def _recurse(nodes):
         for node in nodes:
-            if node.nodeType() in {LatexMathNode, LatexCommentNode, LatexSpecialsNode}:
+            if node is None or node.nodeType() in {LatexMathNode, LatexCommentNode, LatexSpecialsNode}:
                 # TODO: recurse into math nodes?
                 continue
             if node.nodeType() == LatexMacroNode:
                 if node.macroname in MACRO_RECURSION_RULES:
                     for arg_idx in MACRO_RECURSION_RULES[node.macroname]:
-                        _recurse(node.nodeargs[arg_idx])
+                        _recurse([node.nodeargs[arg_idx]])
             elif node.nodeType() == LatexEnvironmentNode:
                 if node.envname in ENVIRONMENT_RECURSION_RULES:
                     recurse_content, recurse_args = ENVIRONMENT_RECURSION_RULES[node.envname]
                 else:
                     recurse_content, recurse_args = True, []
                 for arg_idx in recurse_args:
-                    _recurse(node.nodeargs[arg_idx])
+                    _recurse([node.nodeargs[arg_idx]])
                 if recurse_content:
                     _recurse(node.nodelist)
             elif node.nodeType() == LatexGroupNode:
@@ -209,38 +211,3 @@ class VerbTrie:
 
         return None
 
-    def find_next_selection(self, state: State) -> Optional[SelectionCursor]:
-        _cursor: PositionCursor = state.cursor  # type: ignore
-        if not isinstance(_cursor, PositionCursor):
-            raise ValueError("Cursor must be a PositionCursor")
-
-        while _cursor.file_index < len(state.files):
-            text = state.files[_cursor.file_index].read_text()
-            srskipped = SrSkipped(text)
-
-            lstrs = get_linked_strings(text)
-            for lstr in lstrs:
-                if lstr.get_end_ref() < _cursor.offset:
-                    continue
-                words_original = string_to_stemmed_word_sequence(lstr, self.lang)
-                words_filtered: list[LinkedStr] = []
-                for word in words_original:
-                    if word.get_start_ref() < _cursor.offset:
-                        continue
-                    words_filtered.append(word)
-
-                match = self.find_first_match(
-                    [str(w) for w in words_filtered],
-                    words_filtered,
-                    str(lstr),
-                    lstr.get_start_ref(),
-                    srskipped,
-                )
-                if match is not None:
-                    return SelectionCursor(
-                        _cursor.file_index,
-                        words_filtered[match[0]].get_start_ref(),
-                        words_filtered[match[1] - 1].get_end_ref(),
-                    )
-            _cursor = PositionCursor(_cursor.file_index + 1, offset=0)
-        return None

@@ -23,7 +23,6 @@ def symbol_to_sorting_key(symbol: SimpleSymbol) -> tuple:
     if k in _already_determined:
         return _already_determined[k]
     primary = len(list(symbol.get_verbalizations()))
-    print(symbol.name, primary)
     secondary = k
     _already_determined[k] = primary, secondary
     return primary, secondary
@@ -174,7 +173,7 @@ class AnnotateCommand(Command):
         def _recurse(nodes):
             nonlocal use_pos, top_use_pos, import_pos, use_env, top_use_env
             for node in nodes:
-                if node.nodeType() in {LatexSpecialsNode}:
+                if node is None or node.nodeType() in {LatexSpecialsNode}:
                     continue
                 elif node.nodeType() in {LatexMacroNode}:
                     _recurse(node.nodeargs)
