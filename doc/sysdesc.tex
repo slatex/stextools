@@ -1,0 +1,57 @@
+\documentclass{llncs}
+\usepackage[show]{ed}
+\usepackage{cleveref}
+\usepackage{wrapfig}
+\usepackage{xspace}
+\usepackage{stex-logo}
+
+\usepackage[style=alphabetic,hyperref=auto,defernumbers=true,backend=bibtex,firstinits=true,maxbibnames=9,maxcitenames=3,isbn=false]{biblatex}
+\addbibresource{kwarcpubs.bib}
+\addbibresource{extpubs.bib}
+\addbibresource{kwarccrossrefs.bib}
+\addbibresource{extcrossrefs.bib}
+
+% I do not want to annotate just yet.
+
+\newcommand\ALeA{\textsf{ALeA}\xspace}
+
+\title{Bulk Semantic Annotation with an Partially Known Knowledge Base}
+\author{Michael Kohlhase, Jan Frederik Schaefer}
+\institute{Computer Science, FAU Erlangen N\"urnberg, Germany}
+\begin{document}
+\maketitle
+\begin{abstract}
+tbw
+\end{abstract}
+
+\section{Introduction}
+Arguably, dealing with large document collections is one of the key factors in the
+knowledge-driven society and economy. There are currently two main contenders for machine
+support in this area. Symbolic/logic-based technologies and subsymbolic,
+machine-learning-based AI, e.g. via LLMs or chatbots; they have complementary strengths
+and challenges: Symbolic technologies offer precision and explainability out of the box,
+but face scalability challenges, because the prerequisite background knowledge has to be
+(manually) formalized. ML-based approaches can be trained on all data of the Internet, but
+face challenges in precision and explanations. Aarne Ranta matches these profiles to the
+notion of \textbf{producer tasks} -- i.e. tasks where precision is key, but limited
+coverage ($10^{3\pm1}$ concepts) is ok; e.g. for multi-language/variant manuals for very
+expensive tool machines -- and \textbf{consumer tasks}, where coverage is key and
+precision secondary; e.g. for consumer-grade machine translation like \textsf{Google
+  translate} in \cite{Ranta:atcp17}.
+
+In this paper, we address tools that help attack the coverage problem in symbolic/semantic
+approaches in practice. The producer task we use as a case study is that of adaptive
+learning assistants for MINT subject, concretely the \ALeA system
+\cite{BerBetChu:lssmkm23}, which uses \sTeX \cite{MueKo:sdstex22,URL:sTeX:github} -- a
+variant of {\LaTeX} that allows to embed semantic annotations -- for a knowledge
+representation and generates learner-adaptive learning objects instrumented with
+learning-support interactions from that. The \ALeA ecosystem 
+
+\section{Conclusion}
+\printbibliography
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% End:
