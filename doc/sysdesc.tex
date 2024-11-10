@@ -14,6 +14,7 @@
 % I do not want to annotate just yet.
 
 \newcommand\ALeA{\textsf{ALeA}\xspace}
+\newcommand\srf{\textsf{srify}\xspace}
 
 \title{Bulk Semantic Annotation with an Partially Known Knowledge Base}
 \author{Michael Kohlhase, Jan Frederik Schaefer}
@@ -27,27 +28,50 @@ tbw
 \section{Introduction}
 Arguably, dealing with large document collections is one of the key factors in the
 knowledge-driven society and economy. There are currently two main contenders for machine
-support in this area. Symbolic/logic-based technologies and subsymbolic,
+support in this area. Symbolic/logic-based technologies and sub-symbolic,
 machine-learning-based AI, e.g. via LLMs or chatbots; they have complementary strengths
 and challenges: Symbolic technologies offer precision and explainability out of the box,
 but face scalability challenges, because the prerequisite background knowledge has to be
 (manually) formalized. ML-based approaches can be trained on all data of the Internet, but
 face challenges in precision and explanations. Aarne Ranta matches these profiles to the
 notion of \textbf{producer tasks} -- i.e. tasks where precision is key, but limited
-coverage ($10^{3\pm1}$ concepts) is ok; e.g. for multi-language/variant manuals for very
+coverage ($10^{3\pm1}$ concepts) is OK; e.g. for multi-language/variant manuals for very
 expensive tool machines -- and \textbf{consumer tasks}, where coverage is key and
 precision secondary; e.g. for consumer-grade machine translation like \textsf{Google
   translate} in \cite{Ranta:atcp17}.
 
 In this paper, we address tools that help attack the coverage problem in symbolic/semantic
 approaches in practice. The producer task we use as a case study is that of adaptive
-learning assistants for MINT subject, concretely the \ALeA system
-\cite{BerBetChu:lssmkm23}, which uses \sTeX \cite{MueKo:sdstex22,URL:sTeX:github} -- a
+learning assistants for MINT subjects, concretely the \ALeA system
+\cite{BerBetChu:lssmkm23}, which uses \sTeX \cite{MueKo:sdstex22,sTeX:github:on} -- a
 variant of {\LaTeX} that allows to embed semantic annotations -- for a knowledge
 representation and generates learner-adaptive learning objects instrumented with
-learning-support interactions from that. The \ALeA ecosystem 
+learning-support interactions from that. The \textbf{\sTeX/\ALeA content commons}
+\ednote{MK@MK: continue to describe the size and distribution, and authorship}
+
+We contend that while education -- especially higher education -- as a whole is a
+wide-coverage task for society education of individual learners in specific domains --
+especially, if we want to tailor the educational offerings to said individual/domain -- is
+a producer task, at least until ML-based methods reach the precision and explainability
+required by the ethics of teaching.
+
+\section{Semantic Authoring in a Content Common}
+
+The main practical problem of annotating presentational {\LaTeX} course materials into
+semantic documents that carry enough information to support meaningful learning support
+services is to reference 
+
+
+\sTeX authoring is already supported by an VSCode IDE plugin \cite{sTeX-IDE:git} that
+analyzes annotations on the fly, displays the underlying reference semantics, reports
+errors and redundancies, and even offers a concept search interface. 
 
 \section{Conclusion}
+
+In this system description we have presented the \srf tool, a command-line tool 
+
+
+
 \printbibliography
 \end{document}
 
@@ -55,3 +79,5 @@ learning-support interactions from that. The \ALeA ecosystem
 %%% mode: latex
 %%% TeX-master: t
 %%% End:
+
+% LocalWords:  tbw Aarne Ranta
