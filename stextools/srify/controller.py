@@ -9,7 +9,7 @@ from stextools.core.linker import Linker
 from stextools.core.mathhub import make_filter_fun
 from stextools.core.simple_api import file_from_path
 from stextools.core.stexdoc import Dependency
-from stextools.srify.annotate_command import AnnotateCommand
+from stextools.srify.annotate_command import AnnotateCommand, LookupCommand
 from stextools.srify.commands import CommandCollection, QuitProgramCommand, Exit, CommandOutcome, \
     show_current_selection, ImportInsertionOutcome, SubstitutionOutcome, SetNewCursor, \
     ExitFileCommand, UndoOutcome, RedoOutcome, UndoCommand, RedoCommand, ViewCommand, View_i_Command, \
@@ -287,6 +287,7 @@ class Controller:
                 RedoCommand(is_possible=bool(self._modification_future)),
                 RescanCommand(),
                 annotate_command,
+                LookupCommand(self.linker, self.state),
                 ViewCommand(),
                 View_i_Command(candidate_symbols=candidate_symbols),
             ],
