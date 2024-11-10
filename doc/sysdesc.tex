@@ -3,7 +3,11 @@
 \usepackage{cleveref}
 \usepackage{wrapfig}
 \usepackage{xspace}
+\usepackage{graphicx}
 \usepackage{stex-logo}
+\usepackage{listings}
+\definecolor{codegray}{rgb}{0.9,0.9,0.9}
+\lstset{basicstyle=\sf,columns=fullflexible,backgroundcolor = \color{codegray}}
 
 \usepackage[style=alphabetic,hyperref=auto,defernumbers=true,backend=bibtex,firstinits=true,maxbibnames=9,maxcitenames=3,isbn=false]{biblatex}
 \addbibresource{kwarcpubs.bib}
@@ -15,6 +19,8 @@
 
 \newcommand\ALeA{\textsf{ALeA}\xspace}
 \newcommand\srf{\textsf{srify}\xspace}
+\def\llangle{\langle\kern-.2em\langle}
+\def\rrangle{\rangle\kern-.2em\rangle}
 
 \title{Bulk Semantic Annotation with an Partially Known Knowledge Base}
 \author{Michael Kohlhase, Jan Frederik Schaefer}
@@ -47,7 +53,10 @@ learning assistants for MINT subjects, concretely the \ALeA system
 variant of {\LaTeX} that allows to embed semantic annotations -- for a knowledge
 representation and generates learner-adaptive learning objects instrumented with
 learning-support interactions from that. The \textbf{\sTeX/\ALeA content commons}
-\ednote{MK@MK: continue to describe the size and distribution, and authorship}
+\ednote{MK@MK: continue to describe the size and distribution, and
+  authorship}\ednote{explain the \textbf{domain model} (the SMGloM) and the
+  \textbf{formulation model} (cf. \cite{BerBetChu:lssmkm23}) in the commons and give their
+  releative sizes.}
 
 We contend that while education -- especially higher education -- as a whole is a
 wide-coverage task for society education of individual learners in specific domains --
@@ -59,8 +68,45 @@ required by the ethics of teaching.
 
 The main practical problem of annotating presentational {\LaTeX} course materials into
 semantic documents that carry enough information to support meaningful learning support
-services is to reference 
+services is to add semantic references to technical terms from the domain jargon. Take for
+instance a learning object like the paragraph in \cref{fig:lo}, where we want to annotate
+the the term ``state space'' with the (semantic) concept of a ``state space of a search
+problem''. The latter can either be defined earlier in the course or in the domain mode
+(or both).
 
+\begin{figure}[ht]\centering
+  \includegraphics[width=8cm]{problem}
+  \caption{An annotated Learning Object from an AI Lecture}\label{fig:lo}
+\end{figure}
+
+Concretely this is about converting the {\LaTeX} string
+\begin{lstlisting}[language={[LaTeX]TeX}]
+\item \blue{Problem:} The state space has local minima, e.g. the board on the
+  right has $h=1$ but every successor has $h>1$. 
+\end{lstlisting}
+into the (partially annotated item:  
+\begin{lstlisting}[language={[LaTeX]TeX},morekeywords={sn,importmodule}]
+\importmodule[smglom/search]{mod?state-space}
+[...]  
+\item \blue{Problem:} The \sn{state space} has local minima, e.g. the
+  board on the right has $h=1$ but every successor has $h>1$. 
+\end{lstlisting}
+Concretely, the author has to remember the module for the term ``state space'' from
+\cref{fig:state-space}, the symbol name \lstinline|state space|, annotate it with the
+\sTeX macro \lstinline|\sn{...}|, and add the module import in the first line (unless it
+is already imported). In this case the symbol name happens to be the same as its English
+verbalization, otherwise we would have to use
+\lstinline[mathescape]|\sr{$\llangle symbol name\rrangle$}{state space}|.
+
+\begin{figure}[ht]\centering
+  \includegraphics[width=12cm]{state-space}
+  \caption{The definition of the term ``state space'' from the domain model}\label{fig:state-space}
+\end{figure}
+
+For this, the author has to be aware that the module from \cref{fig:state-space} exists,
+the symbol name, know the URL and manage reduncancy of the imports. At ca 150.000 words in
+a semester's words of lecture notes and ca. 10-15\% of technical terms a rather daunting
+task.
 
 \sTeX authoring is already supported by an VSCode IDE plugin \cite{sTeX-IDE:git} that
 analyzes annotations on the fly, displays the underlying reference semantics, reports
