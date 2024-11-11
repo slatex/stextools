@@ -75,7 +75,7 @@ problem''. The latter can either be defined earlier in the course or in the doma
 (or both).
 
 \begin{figure}[ht]\centering
-  \includegraphics[width=8cm]{problem}
+  \fbox{\includegraphics[width=8cm]{../img/problem}}
   \caption{An annotated Learning Object from an AI Lecture}\label{fig:lo}
 \end{figure}
 
@@ -99,7 +99,7 @@ verbalization, otherwise we would have to use
 \lstinline[mathescape]|\sr{$\llangle symbol name\rrangle$}{state space}|.
 
 \begin{figure}[ht]\centering
-  \includegraphics[width=12cm]{state-space}
+  \fbox{\includegraphics[width=12cm]{../img/state-space}}
   \caption{The definition of the term ``state space'' from the domain model}\label{fig:state-space}
 \end{figure}
 
@@ -115,7 +115,15 @@ support already annotated terms, so they do not solve the annotation problem abo
 
 \section{The \srf System}
 
+The \srf system is a simple command-line tool that creates a database of
+symbol-verbalization pairs\ednote{explain that first}, analyzes \sTeX source files and
+then steps through all word occurrences in the document that share the stem with a
+verbalization in the database. For each such word, the user is presented with an
+annotation choice and interactions that allow to fine-tune the wordwise annotation
+workflow.
 
+As \srf addresses mostly power-users, the UI of \srf is command-line based, much like the
+early \textsf{ispell} system, see 
 
 \section{Conclusion}
 
