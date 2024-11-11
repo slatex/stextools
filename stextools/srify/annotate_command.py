@@ -6,6 +6,7 @@ import click
 from pylatexenc.latexwalker import LatexMacroNode, LatexSpecialsNode, LatexMathNode, LatexGroupNode, \
     LatexEnvironmentNode, LatexCommentNode, LatexCharsNode, LatexWalker
 
+from stextools.core.config import get_config
 from stextools.core.linker import Linker
 from stextools.core.macros import STEX_CONTEXT_DB
 from stextools.core.mathhub import make_filter_fun
@@ -297,7 +298,8 @@ class LookupCommand(Command, AnnotateMixin):
         AnnotateMixin.__init__(self, state, linker)
 
     def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
-        fzf_path = shutil.which('fzfx')
+        fzf_path = shutil.which('fzf')
+        get_config().get('stextools', 'fzf_path', fallback=None)
         if fzf_path is None:
             print(click.style('fzf not found', fg='red'))
             print('Please install fzf to use this feature.')
