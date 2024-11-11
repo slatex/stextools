@@ -261,9 +261,10 @@ class Controller:
         return command_collection.apply(state=self.state)
 
     def _get_current_command_collection(self) -> CommandCollection:
-        candidate_symbols = self.get_verb_trie(self.get_current_lang()).find_first_match(
+        match_info = self.get_verb_trie(self.get_current_lang()).find_first_match(
             string_to_stemmed_word_sequence_simplified(self.state.get_selected_text(), self.get_current_lang())
-        )[2]
+        )
+        candidate_symbols = match_info[2] if match_info is not None else []
         filter_fun = make_filter_fun(self.state.filter_pattern, self.state.ignore_pattern)
         candidate_symbols = [s for s in candidate_symbols if filter_fun(s.declaring_file.archive.name)]
         annotate_command = AnnotateCommand(
@@ -363,10 +364,12 @@ class Controller:
 def srify(files: list[str], filter: str, ignore: str):
     session_storage = SessionStorage()
     state = session_storage.get_session_dialog()
+    is_new = False
     if state is None:
         state = State(files=[Path(file) for file in files], filter_pattern=filter, ignore_pattern=ignore,
                       cursor=PositionCursor(file_index=0, offset=0))
-    controller = Controller(state, is_new=True)
+        is_new = True
+    controller = Controller(state, is_new=is_new)
     unfinished = controller.run()
     if unfinished:
         session_storage.store_session_dialog(state)
