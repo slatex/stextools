@@ -1,4 +1,4 @@
-# stextools
+# stextools - Lightweight Tools for sTeX Authoring and Management
 
 This package provides tools and a shared infrastructure for working with STeX content.  It
 is still at an early stage of development.

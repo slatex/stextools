@@ -79,12 +79,13 @@ problem''. The latter can either be defined earlier in the course or in the doma
   \caption{An annotated Learning Object from an AI Lecture}\label{fig:lo}
 \end{figure}
 
-Concretely this is about converting the {\LaTeX} string
+Concretely this is about converting the {\LaTeX} string\ednote{add numbers, start with 3
+  so that corresponding lines with the next listing.}
 \begin{lstlisting}[language={[LaTeX]TeX}]
 \item \blue{Problem:} The state space has local minima, e.g. the board on the
   right has $h=1$ but every successor has $h>1$. 
 \end{lstlisting}
-into the (partially annotated item:  
+into the (partially annotated item:
 \begin{lstlisting}[language={[LaTeX]TeX},morekeywords={sn,importmodule}]
 \importmodule[smglom/search]{mod?state-space}
 [...]  
@@ -115,10 +116,10 @@ support already annotated terms, so they do not solve the annotation problem abo
 
 \section{The \srf System}
 
-The \srf system is a simple command-line tool that creates a database of
-symbol-verbalization pairs\ednote{explain that first}, analyzes \sTeX source files and
-then steps through all word occurrences in the document that share the stem with a
-verbalization in the database. For each such word, the user is presented with an
+The \srf system (see \cite{stextools:git} is a simple command-line tool that creates a
+database of symbol-verbalization pairs\ednote{explain that first}, analyzes \sTeX source
+files and then steps through all word occurrences in the document that share the stem with
+a verbalization in the database. For each such word, the user is presented with an
 annotation choice and interactions that allow to fine-tune the wordwise annotation
 workflow.
 
@@ -127,9 +128,21 @@ early \textsf{ispell} system, see
 
 \section{Conclusion}
 
-In this system description we have presented the \srf tool, a command-line tool 
+In this system description we have presented the \srf tool, a command-line tool
+\ednote{continue}
 
+In an earlier attempt to support semantic annotation in IDEs, we tried named-entity
+recognition (NER) for classification of ``likely annotation candidate words''
+\cite{hutterer:msc23}, however this classification was not precise enough in the
+distinction in ``technical terms'' and ordinary english noun phrases and named entities --
+the relevant task for annotation, and so made it impractical, especially, since it could
+not enter the actual annotations and import directives automatically. But maybe using the
+NER-based approach, after the \srf annotation process might change the tradeoffs
+involved. In any case, the overall workflow suggested by the NER-based approach --
+especially after the verbalizations covered by the existing content commons\ednote{better
+  to speak of the domain model here?} -- is geared towards adding to the content commons. 
 
+This is complementary to the \srf approach,
 
 \printbibliography
 \end{document}
