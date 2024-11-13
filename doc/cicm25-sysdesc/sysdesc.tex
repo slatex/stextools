@@ -124,11 +124,39 @@ annotation choice and interactions that allow to fine-tune the wordwise annotati
 workflow.
 
 As \srf addresses mostly power-users, the UI of \srf is command-line based, much like the
-early \textsf{ispell} system, see
+early \textsf{ispell} system, see\ednote{continue}
 
 \section{Practical Evaluation}
 
-The step-through 
+In our experience, the step-through workflow for annotating term references for symbols
+from the domain model is almost an order of magnitude more efficient than writing the
+annotations and imports by hand, even for annotators who are familiar with the domain
+model. For annotators unfamiliar with the domain model, the unassisted annotation task is
+almost infeasible, and the average unfamiliarity naturally grows with the domain
+model. The symbol disambiguation process -- on average a word induces $n$\ednote{MK@FS: we
+  should try to measure this: for every verbalization (i.e. symbol/word pair) we should
+  compute the ratio of those words with the same stem.} choices is still manageable,
+requires considerable concentration and domain knowledge, but little knowledge of the
+domain model flexiformalization.
+
+The command-line interface is simple and responsive and gives all the necessary
+information in a single glance if underlying shell area exceeds ca. $80\times 35$
+characters. It is very much geared towards annotating existing documents with respect to a
+relatively complete -- pre-existing -- domain model. Otherwise we have to skip too many
+terms that should ultimately be annotated and annotation efficiency suffers. This is
+currently the case for all non-English languages in the \sTeX commons. Coverage in German
+is only about half of that of English and we can already see the practical effects. We
+have also experimented with a Slovene introductory math book, and it seems clear that
+apart from having to introduce a Slovene stemmer\ednote{MK@FS: there is one for python at
+  \url{https://repo.ijs.si/pboskoski/slo_stemmer}}, we would need to manually annotate all
+definienda in the book before we can harvest the symbol/verbalization pairs which are a
+prerequisite for annotation.
+
+The current interface is not well-suited for on-the-fly annotation while editing while
+authoring. For that, the underlying information (the symbol/verbalization pairs harvested
+from the domain model) can be integrated into any IDE. In fact we plan to do this for the
+next version of the sTeX plugin for VSCode \cite{sTeX-IDE:git}.
+
 
 \section{Conclusion}
 
