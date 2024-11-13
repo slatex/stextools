@@ -36,3 +36,8 @@ It creates simple (and relatively cheap) data structures that are easy to work w
 Internally, they use the linker to access the data from the `MathHub` object.
 
 As a consequence, simple API objects should be considered ephemeral and not be used after the linker is discarded.
+
+## `mathstructure`s**
+* Math structures were added later on and are therefore a bit of a hack.
+* In the cached data, they are treated as modules (with a special flag and dependencies for `extstructure`s).
+

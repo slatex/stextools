@@ -65,7 +65,13 @@ class AnnotateMixin:
         args = ''
         if symbol.declaring_file.archive != file.archive:
             args += f'[{symbol.declaring_file.archive.name}]'
-        args += f'{{{symbol.declaring_module.path_rel_to_archive}}}'
+        structure_use: Optional[str] = None
+        if cont_module := symbol.declaring_module.get_structures_containing_module():
+            args += f'{{{cont_module.path_rel_to_archive}}}'
+            structure_use = f'\\usestructure{{{symbol.declaring_module.struct_name}}}'
+        else:
+            args += f'{{{symbol.declaring_module.path_rel_to_archive}}}'
+
 
         file_text = self.state.get_current_file_text()
 
@@ -81,12 +87,17 @@ class AnnotateMixin:
         explain_loc = lambda loc: ' after ' + latex_format(
             '\\begin{' + loc + '}') if loc else ' at the beginning of the file'
 
+        def _get_use_struct(pos: int) -> str:
+            if structure_use:
+                return _get_indentation(pos) + structure_use
+            return ''
+
         commands = [
             ImportCommand(
                 'u', 'semodule' + explain_loc(import_locations[3]),
                      'Inserts \\usemodule' + explain_loc(import_locations[3]),
                 ImportInsertionOutcome(
-                    _get_indentation(import_locations[0]) + f'\\usemodule{args}',
+                    _get_indentation(import_locations[0]) + f'\\usemodule{args}' + _get_use_struct(import_locations[0]),
                     import_locations[0]
                 )
             ),
@@ -99,7 +110,7 @@ class AnnotateMixin:
                 if import_locations[4] else
                 'Inserts \\usemodule at the top of the document (in this case same as [u])',
                 ImportInsertionOutcome(
-                    _get_indentation(import_locations[1]) + f'\\usemodule{args}',
+                    _get_indentation(import_locations[1]) + f'\\usemodule{args}' + _get_use_struct(import_locations[1]),
                     import_locations[1]
                 )
             )
@@ -110,7 +121,7 @@ class AnnotateMixin:
                 'i', 'mportmodule',
                 'Inserts \\importmodule',
                 ImportInsertionOutcome(
-                    _get_indentation(import_locations[2]) + f'\\importmodule{args}',
+                    _get_indentation(import_locations[2]) + f'\\importmodule{args}' + _get_use_struct(import_locations[2]),
                     import_locations[2]
                 )
             ))

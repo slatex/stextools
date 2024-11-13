@@ -63,6 +63,19 @@ class SimpleModule:
         self._linker = linker
 
     @property
+    def is_structure(self) -> bool:
+        return self._module.is_structure
+
+    @property
+    def struct_name(self) -> Optional[str]:
+        return self._module.struct_name
+
+    def get_structures_containing_module(self) -> Optional['SimpleModule']:
+        if self._module_int not in self._linker.structure_info:
+            return None
+        return SimpleModule(self._linker.structure_info[self._module_int][1], self._linker)
+
+    @property
     def path_rel_to_archive(self) -> str:
         file_path = self.file.get_relative_path(drop_tex_extension=True, drop_lang_tag=True)
         module_path = self.path_in_doc

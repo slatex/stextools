@@ -25,6 +25,7 @@ class DependencyPropFlag:  # note: enum.IntFlag is really slow -- maybe this is 
     IS_USE = 2
     TARGET_NO_TEX = 4
     IS_INPUT = 8
+    IS_USE_STRUCT = 16
 
 
 # NOTE: According to my benchmark, using `slots=True` noticably slows down pickling/unpickling
@@ -48,6 +49,11 @@ class Dependency:
     def is_use(self) -> bool:
         """Symbols from the dependency are not exported"""
         return bool(self.flags & DependencyPropFlag.IS_USE)
+
+    @property
+    def is_use_struct(self) -> bool:
+        """ \\usestructure """
+        return bool(self.flags & DependencyPropFlag.IS_USE_STRUCT)
 
     @property
     def target_no_tex(self) -> bool:
@@ -138,10 +144,13 @@ class ModuleInfo:
     """Basic information about a document (dependencies, created symbols, verbalizations, etc.)"""
     name: str
     valid_range: tuple[int, int]
+    struct_name: Optional[str] = None
     dependencies: list[Dependency] = dataclasses.field(default_factory=list)
     symbols: list[Symbol] = dataclasses.field(default_factory=list)
     # submodules
     modules: list[ModuleInfo] = dataclasses.field(default_factory=list)
+    is_structure: bool = False
+    struct_deps: Optional[list[str]] = None
 
     def flattened_dependencies(self) -> Iterator[Dependency]:
         yield from self.dependencies
@@ -194,6 +203,7 @@ class DependencyProducer:
     is_use: bool = False
     target_no_tex: bool = False
     is_input: bool = False
+    is_use_struct: bool = False
 
     def produce(self, node: LatexMacroNode, from_archive: str, from_subdir: str, mh: MathHub,
                 valid_range: tuple[int, int], lang: str = '*') -> Optional[Dependency]:
@@ -206,6 +216,8 @@ class DependencyProducer:
             flag |= DependencyPropFlag.TARGET_NO_TEX
         if self.is_input:
             flag |= DependencyPropFlag.IS_INPUT
+        if self.is_use_struct:
+            flag |= DependencyPropFlag.IS_USE_STRUCT
 
         # STEP 1: Determine the target archive
         target_archive: Optional[str] = None
@@ -279,6 +291,8 @@ DEPENDENCY_PRODUCERS = [
     DependencyProducer('requiremodule', references_module=True, opt_param_is_archive=True, is_use=True),
     DependencyProducer('importmodule', references_module=True, opt_param_is_archive=True),
 
+    DependencyProducer('usestructure', references_module=True, is_use_struct=True),
+
     DependencyProducer('inputref', opt_param_is_archive=True, is_input=True),
     DependencyProducer('mhinput', opt_param_is_archive=True, is_input=True),
 
@@ -332,7 +346,9 @@ class STeXDocument:
         # TODO: update lang in case it is specified in the document (e.g. \documentclass[lang=de]{stex})
 
         def process(nodes, parent_range: tuple[int, int], module_info: Optional[ModuleInfo] = None):
+            parent_module_info = module_info
             for node in nodes:
+                module_info = parent_module_info   # reset
                 if node.nodeType() in {LatexCommentNode, LatexCharsNode, LatexMathNode, LatexSpecialsNode}:
                     pass    # TODO: should we do something with math nodes?
                 elif node.nodeType() == LatexGroupNode:
@@ -370,6 +386,27 @@ class STeXDocument:
                                            flags=0,    # was: int(DependencyPropFlag.IS_USE), but I think it should actuall be import...
                                            valid_range=(node.pos, node.pos + node.len), intro_range=(node.pos, node.pos + node.len))
                             )
+                    elif node.environmentname in {'mathstructure', 'extstructure'}:
+                        is_ext = node.environmentname == 'extstructure'
+                        name = node.nodeargd.argnlist[1 if is_ext else 0].latex_verbatim()[1:-1]
+                        if not module_info:
+                            logger.warning(f'{self.path}: structure "{name}" declared outside of a module')
+                            continue
+                        opt_args = node.nodeargd.argnlist[2 if is_ext else 1]
+                        symb_name = opt_args.latex_verbatim()[1:-1].split(',')[0] if opt_args else name
+                        module_info.symbols.append(Symbol(name=symb_name, decl_def=(node.pos, node.pos + node.len)))
+                        new_module_info = ModuleInfo(
+                            name=f'{module_info.name}/{name}-module',
+                            struct_name=name,
+                            valid_range=(node.pos, node.pos + node.len),
+                            is_structure=True,
+                            struct_deps=[
+                                dep.strip() for dep in node.nodeargd.argnlist[3].latex_verbatim()[1:-1].split(',') if dep.strip()
+                            ] if is_ext else [],
+                        )
+                        module_info.modules.append(new_module_info)
+                        module_info = new_module_info
+
                     process(node.nodelist, (node.pos, node.pos + node.len), module_info)
                 elif node.nodeType() == LatexMacroNode:
                     assert isinstance(node, LatexMacroNode)

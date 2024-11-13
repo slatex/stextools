@@ -59,6 +59,8 @@ STEX_ENV_SPECS: list = [
     std_environment('sparagraph', '['),
     std_environment('assignment', '['),
     std_environment('nparagraph', '['),
+    std_environment('mathstructure', '{['),
+    std_environment('extstructure', '*{[{'),
     std_environment('scb', '['),
     std_environment('smcb', '['),
 ]
