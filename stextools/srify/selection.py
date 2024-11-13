@@ -13,6 +13,7 @@ from stextools.srify.state import PositionCursor
 from stextools.srify.state import SelectionCursor, State
 from stextools.srify.stemming import string_to_stemmed_word_sequence, string_to_stemmed_word_sequence_simplified
 from stextools.utils.linked_str import LinkedStr, string_to_lstr
+from stextools.utils.ui import standard_header
 
 # By default, macros are not searched for potential annotations.
 # This is a list of exceptions to this rule.
@@ -49,6 +50,16 @@ def get_linked_strings(latex_text: str) -> list[LinkedStr]:
             if node.nodeType() == LatexMacroNode:
                 if node.macroname in MACRO_RECURSION_RULES:
                     for arg_idx in MACRO_RECURSION_RULES[node.macroname]:
+                        if arg_idx >= len(node.nodeargs):
+                            click.clear()
+                            standard_header('Error', bg='red')
+                            print(f"Macro {node.macroname} does not have argument {arg_idx}")
+                            print('Context:')
+                            print(latex_text[max(node.pos - 100, 0):min(len(latex_text) - 1, node.pos + 300)])
+                            print()
+                            print('Please report this error')
+                            click.pause()
+                            continue
                         _recurse([node.nodeargs[arg_idx]])
             elif node.nodeType() == LatexEnvironmentNode:
                 if node.envname in ENVIRONMENT_RECURSION_RULES:
