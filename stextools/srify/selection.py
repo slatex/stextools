@@ -55,7 +55,7 @@ def get_linked_strings(latex_text: str) -> list[LinkedStr]:
                             standard_header('Error', bg='red')
                             print(f"Macro {node.macroname} does not have argument {arg_idx}")
                             print('Context:')
-                            print(latex_text[max(node.pos - 100, 0):min(len(latex_text) - 1, node.pos + 300]))
+                            print(latex_text[max(node.pos - 100, 0):min(len(latex_text) - 1, node.pos + 300)])
                             print()
                             print('Please report this error')
                             click.pause()
