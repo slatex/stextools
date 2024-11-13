@@ -12,5 +12,3 @@ Cache.clear = lambda: None  # type: ignore
 mh = Cache.get_mathhub(update_all=True)
 
 linker1 = Linker(mh)
-
-
