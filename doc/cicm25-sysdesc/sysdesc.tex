@@ -142,12 +142,15 @@ domain model flexiformalization.
 The command-line interface is simple and responsive and gives all the necessary
 information in a single glance if underlying shell area exceeds ca. $80\times 35$
 characters. It is very much geared towards annotating existing documents with respect to a
-relatively complete -- pre-existing -- domain model. Otherwise we have to skip too many
-terms that should ultimately be annotated and annotation efficiency suffers. This is
-currently the case for all non-English languages in the \sTeX commons. Coverage in German
-is only about half of that of English and we can already see the practical effects. We
-have also experimented with a Slovene introductory math book, and it seems clear that
-apart from having to introduce a Slovene stemmer\ednote{MK@FS: there is one for python at
+relatively complete -- pre-existing -- domain model, and it seems unlikely that a more
+sophisticated UI would add value for this use-case.
+
+For less complete domain models we have to skip too many terms that should ultimately be
+annotated and annotation efficiency suffers. This is currently the case for all
+non-English languages in the \sTeX corpus we work with. Coverage in German is only about
+half of that of English and we can already see the practical effects. We have also
+experimented with a Slovene introductory math book, and it seems clear that apart from
+having to introduce a Slovene stemmer\ednote{MK@FS: there is one for python at
   \url{https://repo.ijs.si/pboskoski/slo_stemmer}}, we would need to manually annotate all
 definienda in the book before we can harvest the symbol/verbalization pairs which are a
 prerequisite for annotation.
