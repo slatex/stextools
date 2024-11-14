@@ -206,7 +206,7 @@ class VerbTrie:
                         original_word = original_string[word_lstrs[j].get_start_ref()-shift:word_lstrs[j].get_end_ref()-shift]
                         if IgnoreList.contains(lang=self.lang, word=original_word):
                             skip = True
-                        if srskipped is not None and original_word in srskipped.skipped_literal:
+                        if srskipped is not None and srskipped.should_skip_literal(original_word):
                             skip = True
                     if srskipped and ' '.join(words_stemmed[match_start:j + 1]) in srskipped.skipped_stems:
                         skip = True

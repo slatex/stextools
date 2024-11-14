@@ -1,5 +1,6 @@
 import dataclasses
 import itertools
+import re
 from pathlib import Path
 
 from stextools.core.linker import Linker
@@ -162,9 +163,13 @@ class SrSkipped:
                 for e in line[len('% srskip '):].split(','):
                     e = e.strip()
                     if e.startswith('s:'):
+                        if e[2:] in self.skipped_stems or not e[2:]:
+                            continue
                         self.skipped_stems_ordered.append(e[2:])
                         self.skipped_stems.add(e[2:])
                     elif e.startswith('l:'):
+                        if e[2:] in self.skipped_literal or not e[2:]:
+                            continue
                         self.skipped_literal_ordered.append(e[2:])
                         self.skipped_literal.add(e[2:])
                     else:   # legacy
@@ -176,8 +181,12 @@ class SrSkipped:
         self.skipped_stems.add(stem)
 
     def add_literal(self, literal: str):
+        literal = re.sub(r'\s+', ' ', literal)
         self.skipped_literal_ordered.append(literal)
         self.skipped_literal.add(literal)
+
+    def should_skip_literal(self, literal: str) -> bool:
+        return re.sub(r'\s+', ' ', literal) in self.skipped_literal
 
     def to_new_text(self) -> str:
         have_added = False
