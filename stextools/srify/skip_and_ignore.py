@@ -173,6 +173,8 @@ class SrSkipped:
                         self.skipped_literal_ordered.append(e[2:])
                         self.skipped_literal.add(e[2:])
                     else:   # legacy
+                        if e in self.skipped_stems or not e:
+                            continue
                         self.skipped_stems_ordered.append(e)
                         self.skipped_stems.add(e)
 
