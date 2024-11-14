@@ -42,6 +42,11 @@ class State:
 
     statistic_annotations_added: int = 0
 
+    skip_literal_by_file: dict[Path, set[str]] = dataclasses.field(default_factory=dict)
+    skip_literal_all_session: dict[str, set[str]] = dataclasses.field(default_factory=dict)  # lang -> set of words
+    skip_stem_by_file: dict[Path, set[str]] = dataclasses.field(default_factory=dict)
+    skip_stem_all_session: dict[str, set[str]] = dataclasses.field(default_factory=dict)  # lang -> set of stems
+
     focus_stack: list[Focus] = dataclasses.field(default_factory=list)
 
     def get_current_file(self) -> Path:

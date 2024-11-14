@@ -13,12 +13,12 @@ from stextools.srify.annotate_command import AnnotateCommand, LookupCommand
 from stextools.srify.commands import CommandCollection, QuitProgramCommand, Exit, CommandOutcome, \
     show_current_selection, ImportInsertionOutcome, SubstitutionOutcome, SetNewCursor, \
     ExitFileCommand, UndoOutcome, RedoOutcome, UndoCommand, RedoCommand, ViewCommand, View_i_Command, \
-    TextRewriteOutcome, StatisticUpdateOutcome, ReplaceCommand, RescanCommand, RescanOutcome
+    TextRewriteOutcome, StatisticUpdateOutcome, ReplaceCommand, RescanCommand, RescanOutcome, StateSkipOutcome
 from stextools.srify.selection import VerbTrie, PreviousWordShouldBeIncluded, NextWordShouldBeIncluded, \
     get_linked_strings
 from stextools.srify.session_storage import SessionStorage
 from stextools.srify.skip_and_ignore import SkipOnceCommand, IgnoreWordOutcome, IgnoreCommand, IgnoreList, \
-    AddWordToSrSkip, AddStemToSrSkip, SrSkipped
+    AddWordToSrSkip, AddStemToSrSkip, SrSkipped, SkipUntilFileEnd
 from stextools.srify.state import PositionCursor, Cursor, SelectionCursor
 from stextools.srify.state import State
 from stextools.srify.stemming import string_to_stemmed_word_sequence_simplified, string_to_stemmed_word_sequence
@@ -100,6 +100,41 @@ class StatisticModification(Modification):
             state.statistic_annotations_added -= 1
         else:
             raise RuntimeError(f"Unexpected type {self.type_}")
+
+
+class StateSkipModification(Modification):
+    def __init__(self, file: Optional[Path], lang: Optional[str], word: str, is_stem: bool):
+        self.files_to_reparse = []
+        self.file = file
+        self.lang = lang
+        self.word = word
+        self.is_stem = is_stem
+
+    def apply(self, state: State):
+        if self.file is None:
+            assert self.lang is not None
+            if self.is_stem:
+                state.skip_stem_all_session.setdefault(self.lang, set()).add(self.word)
+            else:
+                state.skip_literal_all_session.setdefault(self.lang, set()).add(self.word)
+        else:
+            if self.is_stem:
+                state.skip_stem_by_file.setdefault(self.file, set()).add(self.word)
+            else:
+                state.skip_literal_by_file.setdefault(self.file, set()).add(self.word)
+
+    def unapply(self, state: State):
+        if self.file is None:
+            assert self.lang is not None
+            if self.is_stem:
+                state.skip_stem_all_session[self.lang].remove(self.word)
+            else:
+                state.skip_literal_all_session[self.lang].remove(self.word)
+        else:
+            if self.is_stem:
+                state.skip_stem_by_file[self.file].remove(self.word)
+            else:
+                state.skip_literal_by_file[self.file].remove(self.word)
 
 
 class Controller:
@@ -211,6 +246,8 @@ class Controller:
                         old_text=self.state.get_current_file_text(),
                         new_text=outcome.new_text
                     )
+                    if not outcome.requires_reparse:
+                        modification.files_to_reparse = []
                 elif isinstance(outcome, SetNewCursor):
                     modification = CursorModification(
                         old_cursor=self.state.cursor,
@@ -218,6 +255,13 @@ class Controller:
                     )
                 elif isinstance(outcome, StatisticUpdateOutcome):
                     modification = StatisticModification(outcome)
+                elif isinstance(outcome, StateSkipOutcome):
+                    modification = StateSkipModification(
+                        file=None if outcome.session_wide else self.state.get_current_file(),
+                        lang=self.get_current_lang() if outcome.session_wide else None,
+                        word=outcome.word,
+                        is_stem=outcome.is_stem
+                    )
                 elif isinstance(outcome, IgnoreWordOutcome):
                     modification = IgnoreListAddition(lang=outcome.lang, word=outcome.word)
                 elif isinstance(outcome, UndoOutcome):
@@ -281,6 +325,7 @@ class Controller:
                 PreviousWordShouldBeIncluded(self.get_current_lang()),
                 NextWordShouldBeIncluded(self.get_current_lang()),
                 SkipOnceCommand(),
+                SkipUntilFileEnd(),
                 IgnoreCommand(self.get_current_lang()),
                 AddWordToSrSkip(),
                 AddStemToSrSkip(self.get_current_lang()),
@@ -344,6 +389,8 @@ class Controller:
                     [str(w) for w in words_filtered],
                     words_filtered,
                     str(lstr),
+                    self.state,
+                    self.state.files[_cursor.file_index],
                     lstr.get_start_ref(),
                     srskipped,
                 )
@@ -366,8 +413,8 @@ def srify(files: list[str], filter: str, ignore: str):
     state = session_storage.get_session_dialog()
     is_new = False
     if state is None:
-        state = State(files=[Path(file) for file in files], filter_pattern=filter, ignore_pattern=ignore,
-                      cursor=PositionCursor(file_index=0, offset=0))
+        state = State(files=[Path(file).absolute().resolve() for file in files], filter_pattern=filter,
+                      ignore_pattern=ignore, cursor=PositionCursor(file_index=0, offset=0))
         is_new = True
     controller = Controller(state, is_new=is_new)
     unfinished = controller.run()

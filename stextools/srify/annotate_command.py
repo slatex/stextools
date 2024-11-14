@@ -72,7 +72,6 @@ class AnnotateMixin:
         else:
             args += f'{{{symbol.declaring_module.path_rel_to_archive}}}'
 
-
         file_text = self.state.get_current_file_text()
 
         def _get_indentation(pos: int) -> str:
@@ -121,7 +120,8 @@ class AnnotateMixin:
                 'i', 'mportmodule',
                 'Inserts \\importmodule',
                 ImportInsertionOutcome(
-                    _get_indentation(import_locations[2]) + f'\\importmodule{args}' + _get_use_struct(import_locations[2]),
+                    _get_indentation(import_locations[2]) + f'\\importmodule{args}' + _get_use_struct(
+                        import_locations[2]),
                     import_locations[2]
                 )
             ))
@@ -238,7 +238,6 @@ class AnnotateMixin:
         return outcomes
 
 
-
 class AnnotateCommand(Command, AnnotateMixin):
     """ Has to be re-instantiated for each state! """
 
@@ -289,8 +288,8 @@ def symbol_display(file: SimpleFile, symbol: SimpleSymbol, state: State, style: 
             symb_path[0] + '?' +
             (
                 (
-                    click.style(symb_path[1], bg=color('bright_cyan', (180, 180, 255))) + '?' +
-                    click.style(symb_path[2], bg=color('bright_green', (180, 255, 180)))
+                        click.style(symb_path[1], bg=color('bright_cyan', (180, 180, 255))) + '?' +
+                        click.style(symb_path[2], bg=color('bright_green', (180, 255, 180)))
                 )
                 if style else (symb_path[1] + '?' + symb_path[2])
             )
@@ -305,7 +304,7 @@ class LookupCommand(Command, AnnotateMixin):
             pattern_regex='^l$',
             description_short='ookup a symbol',
             description_long='Look up a symbol for annotation')
-        )
+                         )
         AnnotateMixin.__init__(self, state, linker)
 
     def execute(self, *, state: State, call: str) -> list[CommandOutcome]:

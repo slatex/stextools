@@ -4,7 +4,8 @@ import re
 from pathlib import Path
 
 from stextools.core.linker import Linker
-from stextools.srify.commands import Command, CommandInfo, CommandOutcome, SetNewCursor, TextRewriteOutcome
+from stextools.srify.commands import Command, CommandInfo, CommandOutcome, SetNewCursor, TextRewriteOutcome, \
+    StateSkipOutcome
 from stextools.srify.state import State, SelectionCursor, PositionCursor
 from stextools.srify.stemming import string_to_stemmed_word_sequence_simplified
 
@@ -23,6 +24,27 @@ class SkipOnceCommand(Command):
         return [SetNewCursor(PositionCursor(state.cursor.file_index, state.cursor.selection_start + 1))]
 
 
+class SkipUntilFileEnd(Command):
+    def __init__(self):
+        super().__init__(CommandInfo(
+            pattern_presentation='s!',
+            pattern_regex='^s!$',
+            description_short='kip until file end',
+            description_long='Do not propose any occurrences of the selected phrase in this file anymore (until end of session).')
+        )
+
+    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
+        assert isinstance(state.cursor, SelectionCursor)
+        return [
+            StateSkipOutcome(
+                word=state.get_current_file_text()[state.cursor.selection_start:state.cursor.selection_end],
+                is_stem=False,
+                session_wide=False
+            ),
+            SetNewCursor(PositionCursor(state.cursor.file_index, state.cursor.selection_start)),
+        ]
+
+
 class AddWordToSrSkip(Command):
     def __init__(self):
         super().__init__(CommandInfo(
@@ -38,7 +60,7 @@ class AddWordToSrSkip(Command):
         srskipped = SrSkipped(state.files[state.cursor.file_index].read_text())
         srskipped.add_literal(state.get_selected_text())
         return [
-            TextRewriteOutcome(srskipped.to_new_text()),
+            TextRewriteOutcome(srskipped.to_new_text(), requires_reparse=False),
             # note: this is risky (position would change if there are, for weird reasons, early % srskip comments)
             SetNewCursor(PositionCursor(state.cursor.file_index, state.cursor.selection_start + 1))
         ]
@@ -191,7 +213,6 @@ class SrSkipped:
         return re.sub(r'\s+', ' ', literal) in self.skipped_literal
 
     def to_new_text(self) -> str:
-        have_added = False
         new_lines = []
 
         def _add_rskip():
@@ -208,16 +229,18 @@ class SrSkipped:
             if current_line != '% srskip':
                 new_lines.append(current_line[:-1] + '\n')
 
+        # have_added = False
         for line in self.text.splitlines(keepends=True):
             if line.startswith('% srskip '):
-                if have_added:
-                    continue
-                have_added = True
-                _add_rskip()
+                continue    # if we put them in the end, we don't have to re-run the linker
+                # if have_added:
+                #     continue
+                # have_added = True
+                # _add_rskip()
             else:
                 new_lines.append(line)
 
-        if not have_added:
-            _add_rskip()
+        # if not have_added:
+        _add_rskip()
 
         return ''.join(new_lines)

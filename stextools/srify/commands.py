@@ -66,13 +66,21 @@ class SubstitutionOutcome(CommandOutcome):
 
 
 class TextRewriteOutcome(CommandOutcome):
-    def __init__(self, new_text: str):
+    def __init__(self, new_text: str, requires_reparse: bool = True):
         self.new_text = new_text
+        self.requires_reparse = requires_reparse
 
 
 class SetNewCursor(CommandOutcome):
     def __init__(self, new_cursor: Cursor):
         self.new_cursor = new_cursor
+
+
+class StateSkipOutcome(CommandOutcome):
+    def __init__(self, word: str, is_stem: bool, session_wide: bool):
+        self.word = word
+        self.is_stem = is_stem
+        self.session_wide = session_wide
 
 
 @dataclasses.dataclass

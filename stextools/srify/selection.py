@@ -1,3 +1,5 @@
+import re
+from pathlib import Path
 from typing import Optional
 
 import click
@@ -6,7 +8,7 @@ from pylatexenc.latexwalker import LatexWalker, LatexMacroNode, LatexMathNode, L
 
 from stextools.core.linker import Linker
 from stextools.core.macros import STEX_CONTEXT_DB
-from stextools.core.simple_api import get_symbols, SimpleSymbol
+from stextools.core.simple_api import get_symbols, SimpleSymbol, SimpleFile
 from stextools.srify.commands import Command, CommandInfo, CommandOutcome, SetNewCursor
 from stextools.srify.skip_and_ignore import IgnoreList, SrSkipped
 from stextools.srify.state import PositionCursor
@@ -184,9 +186,12 @@ class VerbTrie:
     def find_first_match(
             self,
             words_stemmed: list[str],
-            # words are only ignored if the next two arguments are provided
+            # words are only ignored if the next two arguments are provided (necessary for skipping literal (i.e. unstemmed) words)
             word_lstrs: Optional[list[LinkedStr]] = None,
             original_string: Optional[str] = None,
+            # the temporarily skipped words are only considered if the next two arguments are provided
+            state: Optional[State] = None,
+            file: Optional[Path] = None,
             shift: Optional[int] = None,
             srskipped: Optional[SrSkipped] = None,
     ) -> Optional[tuple[int, int, list[SimpleSymbol]]]:
@@ -204,12 +209,28 @@ class VerbTrie:
                     skip = False
                     if word_lstrs is not None and original_string is not None:
                         original_word = original_string[word_lstrs[j].get_start_ref()-shift:word_lstrs[j].get_end_ref()-shift]
+                        original_word = re.sub(r'\s+', ' ', original_word)
                         if IgnoreList.contains(lang=self.lang, word=original_word):
                             skip = True
                         if srskipped is not None and srskipped.should_skip_literal(original_word):
                             skip = True
-                    if srskipped and ' '.join(words_stemmed[match_start:j + 1]) in srskipped.skipped_stems:
+                        if state is not None:
+                            if file is not None:
+                                if original_word in state.skip_literal_by_file.get(file, set()):
+                                    skip = True
+                            if original_word in state.skip_literal_all_session.get(self.lang, set()):
+                                skip = True
+
+                    stemmed_word = ' '.join(words_stemmed[match_start:j + 1])
+                    if srskipped and stemmed_word in srskipped.skipped_stems:
                         skip = True
+                    if state is not None:
+                        if file is not None:
+                            if stemmed_word in state.skip_stem_by_file.get(file, set()):
+                                skip = True
+                        if stemmed_word in state.skip_stem_all_session.get(self.lang, set()):
+                            skip = True
+
                     if not skip:
                         match_end = j + 1
                         symbols = trie[words_stemmed[j]][0]
