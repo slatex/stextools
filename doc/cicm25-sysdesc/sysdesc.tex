@@ -1,19 +1,21 @@
 \documentclass{llncs}
 \usepackage[show]{ed}
-\usepackage{cleveref}
 \usepackage{wrapfig}
 \usepackage{xspace}
 \usepackage{graphicx}
 \usepackage{stex-logo}
+%\usepackage{lststex} debug that the gray is not solid
 \usepackage{listings}
 \definecolor{codegray}{rgb}{0.9,0.9,0.9}
 \lstset{basicstyle=\sf,columns=fullflexible,backgroundcolor = \color{codegray}}
-
+\lstset{numberstyle=\tiny}
+\lstset{language={[LaTeX]TeX}}
 \usepackage[style=alphabetic,hyperref=auto,defernumbers=true,backend=bibtex,firstinits=true,maxbibnames=9,maxcitenames=3,isbn=false]{biblatex}
 \addbibresource{kwarcpubs.bib}
 \addbibresource{extpubs.bib}
 \addbibresource{kwarccrossrefs.bib}
 \addbibresource{extcrossrefs.bib}
+\usepackage[noabbrev]{cleveref}
 
 % I do not want to annotate just yet.
 
@@ -56,7 +58,7 @@ learning-support interactions from that. The \textbf{\sTeX/\ALeA content commons
 \ednote{MK@MK: continue to describe the size and distribution, and
   authorship}\ednote{explain the \textbf{domain model} (the SMGloM) and the
   \textbf{formulation model} (cf. \cite{BerBetChu:lssmkm23}) in the commons and give their
-  releative sizes.}
+  relative sizes.}
 
 We contend that while education -- especially higher education -- as a whole is a
 wide-coverage task for society education of individual learners in specific domains --
@@ -81,12 +83,14 @@ problem''. The latter can either be defined earlier in the course or in the doma
 
 Concretely this is about converting the {\LaTeX} string\ednote{add numbers, start with 3
   so that corresponding lines with the next listing.}
-\begin{lstlisting}[language={[LaTeX]TeX}]
+\begin{lstlisting}[numbers=left,firstnumber=3,
+caption=The {\LaTeX} sources of \cref{fig:lo},label=lst:los]
 \item \blue{Problem:} The state space has local minima, e.g. the board on the
   right has $h=1$ but every successor has $h>1$. 
 \end{lstlisting}
-into the (partially annotated item:
-\begin{lstlisting}[language={[LaTeX]TeX},morekeywords={sn,importmodule}]
+into the (partially) annotated item:
+\begin{lstlisting}[morekeywords={sn},numbers=left,
+caption=Annotating ``state space'' in \cref{lst:los},label=lst:losa]
 \importmodule[smglom/search]{mod?state-space}
 [...]  
 \item \blue{Problem:} The \sn{state space} has local minima, e.g. the
@@ -99,15 +103,35 @@ is already imported). In this case the symbol name happens to be the same as its
 verbalization, otherwise we would have to use
 \lstinline[mathescape]|\sr{$\llangle symbol name\rrangle$}{state space}|.
 
+The annotation is legitimized by a definition in the domain model module shown in
+\cref{fig:state-space}. The \lstinline|\definame| in line 3 introduces a
+\textbf{verbalization} ``state space'' for the symbol \lstinline|state-space?state space|
+introduced be \lstinline|\symdecl*| declaration in line 3.
+
 \begin{figure}[ht]\centering
   \fbox{\includegraphics[width=12cm]{../img/state-space}}
+\begin{lstlisting}[morekeywords={definame,symdecl},numbers=left]
+\begin{smodule}[title=State Space]{state-space}
+[... some imports ...]
+\symdecl*{state space}
+\begin{sdefinition}
+  [...] we call the \sn{graph} [...] the \definame{state space} of $\Pi$.
+\end{sdefinition}
+\end{smodule}
+\end{lstlisting}
   \caption{The definition of the term ``state space'' from the domain model}\label{fig:state-space}
 \end{figure}
 
-For this, the author has to be aware ``state space'' is a technical term, that the module
-from \cref{fig:state-space} exists, know the symbol name and its URL, and manage
-reduncancy of the imports. At ca 150.000 words in a semester's words of lecture notes and
-ca. 10-15\% of technical terms a rather daunting task.
+
+
+
+For the annotation \lstinline|\sn{state-space}|, the author has to be aware ``state
+space'' is a technical term, that the module from \cref{fig:state-space} exists, know the
+symbol name and its URL, and manage redundancy of the imports -- i.e. only adding the
+\lstinline|\importmodule| directive if it is not already (recursively) implied and
+possibly removing directives that become redundant by the new one. At ca 150.000 words in
+a semester's words of lecture notes and ca. 10-15\% of technical terms a rather daunting
+task.
 
 \sTeX authoring is already supported by an VSCode IDE plugin \cite{sTeX-IDE:git} that
 analyzes annotations on the fly, displays the underlying reference semantics, reports
@@ -117,14 +141,39 @@ support already annotated terms, so they do not solve the annotation problem abo
 \section{The \srf System}
 
 The \srf system (see \cite{stextools:git} is a simple command-line tool that creates a
-database of symbol-verbalization pairs\ednote{explain that first}, analyzes \sTeX source
-files and then steps through all word occurrences in the document that share the stem with
-a verbalization in the database. For each such word, the user is presented with an
-annotation choice and interactions that allow to fine-tune the wordwise annotation
-workflow.
+database of symbol-verbalization pairs, analyzes \sTeX source files and then steps through
+all word occurrences in the document that share the stem with a verbalization in the
+database. For each such word, the user is presented with an annotation choice and
+interactions that allow to fine-tune the wordwise annotation workflow. \Cref{fig:srify}
+shows a typical situation.\ednote{MK: I like the example less and less! We need an example
+  that has at least one homostem (another verbalization that has the same stem; introduce
+  the concept her and use it throughout) so that we can show the choice mechanism, and
+  where the verbalization is different from the symbol name. Having a two-word compound is
+  good though.} 
 
-As \srf addresses mostly power-users, the UI of \srf is command-line based, much like the
-early \textsf{ispell} system, see\ednote{continue}
+\begin{figure}[ht]
+  \fbox{\includegraphics[width=12cm]{../img/srify}}
+  \caption{\srf in Action: Annotating the term ``state space''.}\label{fig:srify}
+\end{figure}
+
+Here the annotator can choose an annotation by typing the corresponding choice
+number. Here, the module \lstinline|state-space| is already imported (see the little green
+check-mark); otherwise \srf would offer the annotator the choice to import it -- if we are
+in a module context -- or to add a \lstinline|\usemodule| directive and where (in the
+local environment or top-level). Alternatively, typing \lstinline|s| skips this word,
+\lstinline|S| skips and adds a comment to always skip this word, and -- if \srf first
+suggests the term `state` \lstinline|n| extends it to the compound ``state space'' by
+including the next word.
+
+\srf is usually called on a set of files -- e.g. in a directory or math archive -- which
+together form a \textbf{session}, which can be interrupted and resumed without having to
+re-do all the \lstinline|s| skips. Alternatively, \srf can be called e.g. on the top-level
+lecture notes; then the session consists of all included files. Other productivity
+features include a focus mode that can be used to propagate a particular choice to the
+rest of the file, session, or the whole \sTeX/\ALeA corpus before resuming regular
+annotation This reduces the cognitive effort from choosing a symbol from a list to
+deciding whether a particular choice is applicable in the current document context. Of
+course the include management still needs to be done locally.
 
 \section{Practical Evaluation}
 
@@ -160,19 +209,19 @@ authoring. For that, the underlying information (the symbol/verbalization pairs 
 from the domain model) can be integrated into any IDE. In fact we plan to do this for the
 next version of the sTeX plugin for VSCode \cite{sTeX-IDE:git}.
 
-
 \section{Conclusion}
 
 In this system description we have presented the \srf tool, a command-line tool
-\ednote{continue}
+\ednote{continue} \srf is open source\ednote{MK@FS: do we have an explicit license yet in
+  the repository.}; the source and documentation are available from \cite{stextools:git}.
 
 In an earlier attempt to support semantic annotation in IDEs, we tried named-entity
 recognition (NER) for classification of ``likely annotation candidate words''
 \cite{hutterer:msc23}, however this classification was not precise enough in the
-distinction in ``technical terms'' and ordinary english noun phrases and named entities --
+distinction in ``technical terms'' and ordinary English noun phrases and named entities --
 the relevant task for annotation, and so made it impractical, especially, since it could
 not enter the actual annotations and import directives automatically. But maybe using the
-NER-based approach, after the \srf annotation process might change the tradeoffs
+NER-based approach, after the \srf annotation process might change the trade-offs
 involved. In any case, the overall workflow suggested by the NER-based approach --
 especially after the verbalizations covered by the existing domain model\ednote{introduce
   in the definition above that the domain model is all definitions, not only in the
@@ -189,4 +238,4 @@ especially after the verbalizations covered by the existing domain model\ednote{
 %%% TeX-master: t
 %%% End:
 
-% LocalWords:  tbw Aarne Ranta
+% LocalWords:  tbw Aarne Ranta homostem pre
