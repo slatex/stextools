@@ -121,7 +121,7 @@ You can find the ignore list at {IgnoreList.file_path_string(lang)}.
 class _IgnoreList:
     def __init__(self, lang: str):
         self.lang = lang
-        self.path = Path('~/.config/stextools/srify_ignore.en.txt').expanduser()
+        self.path = Path(f'~/.config/stextools/srify_ignore.{self.lang}.txt').expanduser()
         self.path.parent.mkdir(parents=True, exist_ok=True)
         if not self.path.exists():
             self.path.write_text('')
