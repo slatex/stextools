@@ -167,9 +167,11 @@ class Repository:
     def _relevant_file_iterate_simplified(self) -> Iterator[Path]:
         base_path = self.path.absolute()
         for p in (base_path / 'source').rglob('*.tex'):
-            yield p
+            if not p.name.startswith('.'):
+                yield p
         for p in (base_path / 'lib').rglob('*.tex'):
-            yield p
+            if not p.name.startswith('.'):
+                yield p
 
     def _ensure_stex_docs_loaded(self):
         if self._stex_documents:

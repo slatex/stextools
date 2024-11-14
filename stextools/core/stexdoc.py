@@ -333,13 +333,22 @@ class STeXDocument:
     def delete_doc_info_if_outdated(self):
         if self._doc_info is None:
             return
-        if self.path.stat().st_mtime > self._doc_info.last_modified:
+        try:
+            if self.path.stat().st_mtime > self._doc_info.last_modified:
+                self._doc_info = None
+        except FileNotFoundError:
             self._doc_info = None
 
     def create_doc_info(self, mh: MathHub):
         """Create the DocInfo object for this document."""
-        with open(self.path) as fp:
-            walker = LatexWalker(fp.read(), latex_context=STEX_CONTEXT_DB)
+        try:
+            with open(self.path) as fp:
+                text = fp.read()
+        except FileNotFoundError:
+            logger.error(f'File not found: {self.path}')
+            text = ''
+
+        walker = LatexWalker(text, latex_context=STEX_CONTEXT_DB)
 
         name_segments = self.path.name.split('.')
         doc_info = DocInfo(self.path.stat().st_mtime, 'en' if len(name_segments) < 3 else name_segments[-2])
