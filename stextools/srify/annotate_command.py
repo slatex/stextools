@@ -211,7 +211,7 @@ class AnnotateMixin:
             return '\\Sn{' + symb_path + '}'
         elif word[0] == symb_name[0].upper() and word[1:] == symb_name[1:] + 's':
             return '\\Sns{' + symb_path + '}'
-        elif word.startswith(symb_name):
+        elif word.startswith(symb_name) and ' ' not in word[len(symb_name):]:
             return f'\\sn[post={word[len(symb_name):]}]{{' + symb_path + '}'
         else:
             return '\\sr{' + symb_path + '}' + '{' + word + '}'
