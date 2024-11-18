@@ -1,4 +1,5 @@
 import dataclasses
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Optional
 
@@ -211,6 +212,11 @@ def file_from_path(path: Path, linker: Linker) -> Optional[SimpleFile]:
     if doc is None:
         return None
     return SimpleFile(linker.document_ints.intify(doc), linker)
+
+
+def get_files(linker: Linker) -> Iterable[SimpleFile]:
+    for doc_int in linker.document_ints.int_iter():
+        yield SimpleFile(doc_int, linker)
 
 
 def get_linker() -> Linker:

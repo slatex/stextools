@@ -1,11 +1,14 @@
 import abc
 import dataclasses
 import re
+from pathlib import Path
 from typing import Optional
 
 import click
 
-from stextools.core.simple_api import SimpleSymbol
+from stextools.core.linker import Linker
+from stextools.core.mathhub import make_filter_fun
+from stextools.core.simple_api import SimpleSymbol, get_files
 from stextools.srify.state import State, SelectionCursor, Cursor, PositionCursor
 from stextools.utils.ui import option_string, standard_header, pale_color, get_lines_around, latex_format, \
     standard_header_str
@@ -81,6 +84,13 @@ class StateSkipOutcome(CommandOutcome):
         self.word = word
         self.is_stem = is_stem
         self.session_wide = session_wide
+
+
+class FocusOutcome(CommandOutcome):
+    def __init__(self, new_files: Optional[list[Path]] = None, new_cursor: Optional[Cursor] = None, select_only_stem: Optional[str] = None):
+        self.new_files = new_files
+        self.new_cursor = new_cursor
+        self.select_only_stem = select_only_stem
 
 
 @dataclasses.dataclass
@@ -308,6 +318,68 @@ class HelpCommand(Command):
         print()
         click.pause()
         return []
+
+
+class StemFocusCommand(Command):
+    def __init__(self):
+        super().__init__(CommandInfo(
+            show=False,
+            pattern_presentation='f',
+            pattern_regex='^f$',
+            description_short='ocus on stem',
+            description_long='Look for other occurrences of the current stem in the current file')
+        )
+
+    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
+        assert isinstance(state.cursor, SelectionCursor)
+        return [
+            # do not want to return to old selection
+            SetNewCursor(PositionCursor(state.cursor.file_index, state.cursor.selection_start)),
+            FocusOutcome([state.get_current_file()], select_only_stem=state.get_selected_text())
+        ]
+
+
+class StemFocusCommandPlus(Command):
+    def __init__(self):
+        super().__init__(CommandInfo(
+            show=False,
+            pattern_presentation='f!',
+            pattern_regex='^f!$',
+            description_short='ocus on stem in all remaining files',
+            description_long='Look for other occurrences of the current stem in the remaining files')
+        )
+
+    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
+        assert isinstance(state.cursor, SelectionCursor)
+        return [
+            SetNewCursor(PositionCursor(state.cursor.file_index, state.cursor.selection_start)),
+            FocusOutcome(select_only_stem=state.get_selected_text())
+        ]
+
+
+class StemFocusCommandPlusPlus(Command):
+    def __init__(self, linker: Linker):
+        self.linker = linker
+        super().__init__(CommandInfo(
+            show=False,
+            pattern_presentation='f!!',
+            pattern_regex='^f!!$',
+            description_short='ocus on stem in all files',
+            description_long='Look for other occurrences of the current stem in all files')
+        )
+
+    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
+        assert isinstance(state.cursor, SelectionCursor)
+        filter_fun = make_filter_fun(state.filter_pattern, state.ignore_pattern)
+        return [
+            SetNewCursor(PositionCursor(state.cursor.file_index, state.cursor.selection_start)),
+            FocusOutcome(
+                new_files=[f.path for f in get_files(self.linker) if filter_fun(f.archive.name)],
+                select_only_stem=state.get_selected_text()
+            )
+        ]
+
+
 
 
 @dataclasses.dataclass

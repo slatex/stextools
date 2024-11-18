@@ -247,6 +247,32 @@ class VerbTrie:
                 else:
                     current[w][0].append(symbol)
 
+    def find_first_match_restricted(
+            self,
+            words_stemmed: list[str],
+            restriction: list[str],
+    ) -> Optional[tuple[int, int, list[SimpleSymbol]]]:
+        """like find_first_match, but only considers matches that correspond to the restriction"""
+        match_start = 0
+        while match_start < len(words_stemmed):
+            is_match = True
+            for j in range(len(restriction)):
+                if match_start + j >= len(words_stemmed) or words_stemmed[match_start + j] != restriction[j]:
+                    is_match = False
+                    break
+            if is_match:
+                found_symbols = True
+                trie = self.trie
+                for r in restriction[:-1]:
+                    if r not in trie:
+                        found_symbols = False
+                        break
+                    trie = trie[r][1]
+                if found_symbols:
+                    return match_start, match_start + len(restriction), trie[restriction[-1]][0]
+            match_start += 1
+        return None
+
     def find_first_match(
             self,
             words_stemmed: list[str],

@@ -27,9 +27,10 @@ class SkipOnceCommand(Command):
 class SkipUntilFileEnd(Command):
     def __init__(self):
         super().__init__(CommandInfo(
+            show=False,
             pattern_presentation='s!',
             pattern_regex='^s!$',
-            description_short='kip until file end',
+            description_short='kip until end of file',
             description_long='Do not propose any occurrences of the selected phrase in this file anymore (until end of session).')
         )
 

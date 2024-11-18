@@ -13,7 +13,8 @@ from stextools.srify.annotate_command import AnnotateCommand, LookupCommand
 from stextools.srify.commands import CommandCollection, QuitProgramCommand, Exit, CommandOutcome, \
     show_current_selection, ImportInsertionOutcome, SubstitutionOutcome, SetNewCursor, \
     ExitFileCommand, UndoOutcome, RedoOutcome, UndoCommand, RedoCommand, ViewCommand, View_i_Command, \
-    TextRewriteOutcome, StatisticUpdateOutcome, ReplaceCommand, RescanCommand, RescanOutcome, StateSkipOutcome
+    TextRewriteOutcome, StatisticUpdateOutcome, ReplaceCommand, RescanCommand, RescanOutcome, StateSkipOutcome, \
+    FocusOutcome, StemFocusCommand, StemFocusCommandPlus, StemFocusCommandPlusPlus
 from stextools.srify.selection import VerbTrie, PreviousWordShouldBeIncluded, NextWordShouldBeIncluded, \
     get_linked_strings, FirstWordShouldntBeIncluded, LastWordShouldntBeIncluded
 from stextools.srify.session_storage import SessionStorage
@@ -83,6 +84,20 @@ class IgnoreListAddition(Modification):
         IgnoreList.remove_word(lang=self.lang, word=self.word)
 
 
+class PushFocusModification(Modification):
+    def __init__(self, new_files: Optional[list[Path]], new_cursor: Optional[Cursor], select_only_stem: Optional[str]):
+        self.files_to_reparse = []
+        self.new_files = new_files
+        self.new_cursor = new_cursor
+        self.select_only_stem = select_only_stem
+
+    def apply(self, state: State):
+        state.push_focus(new_files=self.new_files, new_cursor=self.new_cursor, select_only_stem=self.select_only_stem)
+
+    def unapply(self, state: State):
+        state.pop_focus()
+
+
 class StatisticModification(Modification):
     def __init__(self, statistic_update_outcome: StatisticUpdateOutcome):
         self.files_to_reparse = []
@@ -138,7 +153,7 @@ class StateSkipModification(Modification):
 
 
 class Controller:
-    def __init__(self, state: State, is_new: bool):
+    def __init__(self, state: State, new_files: Optional[list[Path]] = None):
         self.state: State = state
         self.mh = Cache.get_mathhub(update_all=True)
         self._linker: Optional[Linker] = None
@@ -146,12 +161,12 @@ class Controller:
         self._modification_history: list[list[Modification]] = []
         self._modification_future: list[list[Modification]] = []   # for re-doing
 
-        if is_new:
-            self.load_includes_dialog()
+        if new_files:
+            self.load_files_dialog(new_files)
 
-    def load_includes_dialog(self):
+    def load_files_dialog(self, new_files: list[Path]):
         have_inputs = False
-        for file in self.state.files:
+        for file in new_files:
             stexdoc = self.mh.get_stex_doc(file)
             if not stexdoc:
                 continue
@@ -166,7 +181,7 @@ class Controller:
         ):
             all_files: list[Path] = []
             all_files_set: set[Path] = set()
-            todo_list = list(reversed(self.state.files))
+            todo_list = list(reversed(new_files))
             while todo_list:
                 file = todo_list.pop()
                 path = file.absolute().resolve()
@@ -192,7 +207,9 @@ class Controller:
                 else:
                     print(f'File {path} is not loaded')
 
-            self.state.files = all_files
+            self.state.push_focus(new_files=all_files)
+        else:
+            self.state.push_focus(new_files=new_files)
 
     @property
     def linker(self) -> Linker:
@@ -212,8 +229,12 @@ class Controller:
     def run(self) -> bool:
         """Returns True iff there are more files to annotate."""
         while True:
+            if not self.state.focus_stack:
+                return False
+
             if not self.ensure_cursor_selection():
-                return False  # nothing left to annotate
+                self.state.pop_focus()
+                continue
 
             click.clear()
             show_current_selection(self.state)
@@ -255,6 +276,12 @@ class Controller:
                     )
                 elif isinstance(outcome, StatisticUpdateOutcome):
                     modification = StatisticModification(outcome)
+                elif isinstance(outcome, FocusOutcome):
+                    modification = PushFocusModification(
+                        new_files=outcome.new_files,
+                        new_cursor=outcome.new_cursor,
+                        select_only_stem=outcome.select_only_stem
+                    )
                 elif isinstance(outcome, StateSkipOutcome):
                     modification = StateSkipModification(
                         file=None if outcome.session_wide else self.state.get_current_file(),
@@ -305,9 +332,20 @@ class Controller:
         return command_collection.apply(state=self.state)
 
     def _get_current_command_collection(self) -> CommandCollection:
-        match_info = self.get_verb_trie(self.get_current_lang()).find_first_match(
+        vt = self.get_verb_trie(self.get_current_lang())
+        match_info = vt.find_first_match(
             string_to_stemmed_word_sequence_simplified(self.state.get_selected_text(), self.get_current_lang())
         )
+        # sos = self.state.focus_stack[-1].select_only_stem
+        # if sos is None:
+        #     match_info = vt.find_first_match(
+        #         string_to_stemmed_word_sequence_simplified(self.state.get_selected_text(), self.get_current_lang())
+        #     )
+        # else:
+        #     match_info = vt.find_first_match_restricted(
+        #         string_to_stemmed_word_sequence_simplified(self.state.get_selected_text(), self.get_current_lang()),
+        #         string_to_stemmed_word_sequence_simplified(sos, self.get_current_lang()),
+        #     )
         candidate_symbols = match_info[2] if match_info is not None else []
         filter_fun = make_filter_fun(self.state.filter_pattern, self.state.ignore_pattern)
         candidate_symbols = [s for s in candidate_symbols if filter_fun(s.declaring_file.archive.name)]
@@ -333,6 +371,9 @@ class Controller:
                 AddStemToSrSkip(self.get_current_lang()),
                 UndoCommand(is_possible=bool(self._modification_history)),
                 RedoCommand(is_possible=bool(self._modification_future)),
+                StemFocusCommand(),
+                StemFocusCommandPlus(),
+                StemFocusCommandPlusPlus(self.linker),
                 RescanCommand(),
                 annotate_command,
                 LookupCommand(self.linker, self.state),
@@ -387,15 +428,22 @@ class Controller:
                         continue
                     words_filtered.append(word)
 
-                match = self.get_verb_trie(self.get_current_lang()).find_first_match(
-                    [str(w) for w in words_filtered],
-                    words_filtered,
-                    str(lstr),
-                    self.state,
-                    self.state.files[_cursor.file_index],
-                    lstr.get_start_ref(),
-                    srskipped,
-                )
+                sos = self.state.focus_stack[-1].select_only_stem
+                if sos is None:
+                    match = self.get_verb_trie(self.get_current_lang()).find_first_match(
+                        [str(w) for w in words_filtered],
+                        words_filtered,
+                        str(lstr),
+                        self.state,
+                        self.state.files[_cursor.file_index],
+                        lstr.get_start_ref(),
+                        srskipped,
+                    )
+                else:
+                    match = self.get_verb_trie(self.get_current_lang()).find_first_match_restricted(
+                        [str(w) for w in words_filtered],
+                        string_to_stemmed_word_sequence_simplified(sos, self.get_current_lang()),
+                    )
                 if match is not None:
                     return SelectionCursor(
                         _cursor.file_index,
@@ -413,12 +461,12 @@ class Controller:
 def srify(files: list[str], filter: str, ignore: str):
     session_storage = SessionStorage()
     state = session_storage.get_session_dialog()
-    is_new = False
     if state is None:
-        state = State(files=[Path(file).absolute().resolve() for file in files], filter_pattern=filter,
+        state = State(files=[], filter_pattern=filter,
                       ignore_pattern=ignore, cursor=PositionCursor(file_index=0, offset=0))
-        is_new = True
-    controller = Controller(state, is_new=is_new)
+        controller = Controller(state, new_files=[Path(file).absolute().resolve() for file in files])
+    else:
+        controller = Controller(state)
     unfinished = controller.run()
     if unfinished:
         session_storage.store_session_dialog(state)
