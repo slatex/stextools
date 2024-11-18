@@ -49,15 +49,21 @@ class Dependency:
         if archive is None:
             return None
         di = src.get_doc_info(mh)
-        r = archive.resolve_path_ref(self.file_hint, 'lib' if self.is_lib else 'source', di.lang)
-        if r:
+        if self.module_name:
+            if r := archive.resolve_path_ref(self.file_hint + '/' + self.module_name, 'lib' if self.is_lib else 'source', di.lang):
+                return r
+
+        if r := archive.resolve_path_ref(self.file_hint, 'lib' if self.is_lib else 'source', di.lang):
             return r
         if self.file_may_be_relative and src.archive == self.archive:
             # try to resolve relative to the source file
             s = src.get_rel_path().split('/')
             file_hint = '/'.join(s[1:-1]) + '/' + self.file_hint
-            return archive.resolve_path_ref(file_hint, s, di.lang)  # type: ignore
-        return
+            if r := archive.resolve_path_ref(file_hint, s, di.lang):  # type: ignore
+                return r
+            if self.module_name:
+                return archive.resolve_path_ref(self.file_hint + '/' + self.module_name, s, di.lang)  # type: ignore
+        return None
 
     @property
     def is_lib(self) -> bool:
@@ -275,20 +281,9 @@ class DependencyProducer:
                 path = main_arg
                 module_name = main_arg.split('/')[-1]
 
-            path_options: list[str] = []
-            if target_archive is None:      # try relative paths
-                path_options.append(f'{from_subdir}/{path}')
-                path_options.append(f'{from_subdir}/{path}/{module_name}')
-            path_options.append(path)
-            path_options.append(f'{path}/{module_name}')
-            for path_option in path_options:
-                return Dependency(archive.get_archive_name(), path_option,
-                                  module_name=module_name, flags=int(flag), valid_range=valid_range,
-                                  intro_range=intro_range)
-
-            # couldn't determine file, but still make dependency to archive
-            return Dependency(archive.get_archive_name(), file_hint=None, module_name=module_name,
-                              flags=int(flag), valid_range=valid_range, intro_range=intro_range)
+            return Dependency(archive.get_archive_name(), file_hint=path, file_may_be_relative=True,
+                              module_name=module_name, flags=int(flag), valid_range=valid_range,
+                              intro_range=intro_range)
         else:
             if self.target_no_tex:
                 # TODO: determine file (though we don't really care about it, to be honest)
@@ -404,7 +399,10 @@ class STeXDocument:
                                 file_ok = False
 
                             module_info.dependencies.append(
-                                Dependency(self.archive.get_archive_name(), file.relative_to(self.archive.path / 'source').as_posix() if file_ok else None, module_name=name,
+                                Dependency(self.archive.get_archive_name(),
+                                           file_hint=file.relative_to(self.archive.path / 'source').as_posix() if file_ok else None,
+                                           # file.relative_to(self.archive.path / 'source').as_posix() if file_ok else None,
+                                           module_name=name,
                                            flags=0,    # was: int(DependencyPropFlag.IS_USE), but I think it should actuall be import...
                                            valid_range=(node.pos, node.pos + node.len), intro_range=(node.pos, node.pos + node.len))
                             )
