@@ -15,7 +15,7 @@ from stextools.srify.commands import CommandCollection, QuitProgramCommand, Exit
     ExitFileCommand, UndoOutcome, RedoOutcome, UndoCommand, RedoCommand, ViewCommand, View_i_Command, \
     TextRewriteOutcome, StatisticUpdateOutcome, ReplaceCommand, RescanCommand, RescanOutcome, StateSkipOutcome
 from stextools.srify.selection import VerbTrie, PreviousWordShouldBeIncluded, NextWordShouldBeIncluded, \
-    get_linked_strings
+    get_linked_strings, FirstWordShouldntBeIncluded, LastWordShouldntBeIncluded
 from stextools.srify.session_storage import SessionStorage
 from stextools.srify.skip_and_ignore import SkipOnceCommand, IgnoreWordOutcome, IgnoreCommand, IgnoreList, \
     AddWordToSrSkip, AddStemToSrSkip, SrSkipped, SkipUntilFileEnd
@@ -323,7 +323,9 @@ class Controller:
                 ExitFileCommand(),
                 ReplaceCommand(),
                 PreviousWordShouldBeIncluded(self.get_current_lang()),
+                FirstWordShouldntBeIncluded(self.get_current_lang()),
                 NextWordShouldBeIncluded(self.get_current_lang()),
+                LastWordShouldntBeIncluded(self.get_current_lang()),
                 SkipOnceCommand(),
                 SkipUntilFileEnd(),
                 IgnoreCommand(self.get_current_lang()),

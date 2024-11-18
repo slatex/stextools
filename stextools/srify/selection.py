@@ -8,10 +8,9 @@ from pylatexenc.latexwalker import LatexWalker, LatexMacroNode, LatexMathNode, L
 
 from stextools.core.linker import Linker
 from stextools.core.macros import STEX_CONTEXT_DB
-from stextools.core.simple_api import get_symbols, SimpleSymbol, SimpleFile
+from stextools.core.simple_api import get_symbols, SimpleSymbol
 from stextools.srify.commands import Command, CommandInfo, CommandOutcome, SetNewCursor
 from stextools.srify.skip_and_ignore import IgnoreList, SrSkipped
-from stextools.srify.state import PositionCursor
 from stextools.srify.state import SelectionCursor, State
 from stextools.srify.stemming import string_to_stemmed_word_sequence, string_to_stemmed_word_sequence_simplified
 from stextools.utils.linked_str import LinkedStr, string_to_lstr
@@ -117,6 +116,38 @@ class PreviousWordShouldBeIncluded(Command):
         raise RuntimeError('Somehow I did not find the previous word.')
 
 
+class FirstWordShouldntBeIncluded(Command):
+    def __init__(self, lang: str):
+        self.lang = lang
+        super().__init__(CommandInfo(
+            show=False,
+            pattern_presentation='P',
+            pattern_regex='^P$',
+            description_short=' exclude first selected token',
+            description_long='Opposite of [p]. Excludes the first token from the selection.')
+        )
+
+    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
+        assert isinstance(state.cursor, SelectionCursor)
+        for lstr in get_linked_strings(state.get_current_file_text()):
+            if lstr.get_end_ref() >= state.cursor.selection_start:
+                words = string_to_stemmed_word_sequence(lstr, self.lang)
+                i = 0
+                while i < len(words) and words[i].get_end_ref() <= state.cursor.selection_start:
+                    i += 1
+                new_start = words[i + 1].get_start_ref()
+                if new_start >= state.cursor.selection_end:
+                    print(click.style('Selection is getting too small', fg='red'))
+                    click.pause()
+                    return []
+                return [SetNewCursor(SelectionCursor(
+                    state.cursor.file_index,
+                    new_start,
+                    state.cursor.selection_end,
+                ))]
+        raise RuntimeError('I could not find the first word.')
+
+
 class NextWordShouldBeIncluded(Command):
     def __init__(self, lang: str):
         self.lang = lang
@@ -146,6 +177,38 @@ class NextWordShouldBeIncluded(Command):
                     words[i].get_end_ref(),
                 ))]
         raise RuntimeError('Somehow I did not find the next word.')
+
+
+class LastWordShouldntBeIncluded(Command):
+    def __init__(self, lang: str):
+        self.lang = lang
+        super().__init__(CommandInfo(
+            show=False,
+            pattern_presentation='N',
+            pattern_regex='^N$',
+            description_short=' exclude last selected token',
+            description_long='Opposite of [n]. Excludes the last token from the selection.')
+        )
+
+    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
+        assert isinstance(state.cursor, SelectionCursor)
+        for lstr in get_linked_strings(state.get_current_file_text()):
+            if lstr.get_end_ref() >= state.cursor.selection_start:
+                words = string_to_stemmed_word_sequence(lstr, self.lang)
+                i = 0
+                while i < len(words) and words[i].get_start_ref() < state.cursor.selection_end:
+                    i += 1
+                new_end = words[i - 2].get_end_ref()
+                if new_end <= state.cursor.selection_start:
+                    print(click.style('Selection is getting too small', fg='red'))
+                    click.pause()
+                    return []
+                return [SetNewCursor(SelectionCursor(
+                    state.cursor.file_index,
+                    state.cursor.selection_start,
+                    new_end,
+                ))]
+        raise RuntimeError('I could not find the last word.')
 
 
 class VerbTrie:
