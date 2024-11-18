@@ -374,7 +374,11 @@ class StemFocusCommandPlusPlus(Command):
         return [
             SetNewCursor(PositionCursor(state.cursor.file_index, state.cursor.selection_start)),
             FocusOutcome(
-                new_files=[f.path for f in get_files(self.linker) if filter_fun(f.archive.name)],
+                new_files=[
+                    f.path
+                    for f in get_files(self.linker)
+                    if filter_fun(f.archive.name) and f.lang == state.get_current_lang(self.linker)
+                ],
                 select_only_stem=state.get_selected_text()
             )
         ]
