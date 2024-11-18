@@ -55,7 +55,12 @@ class MathHub:
         """Updates the repo information"""
         logger.info('Scanning archives...')
         still_needed: set[str] = set()
+        self.get_stex_doc.cache_clear()
         for repo in _get_mathhub_repos(self.root_path):
+            repo.get_archive_name.cache_clear()
+            repo.resolve_path_ref.cache_clear()
+            repo.is_stex_archive.cache_clear()
+
             if repo.get_archive_name() not in self.archive_lookup:
                 self.archive_lookup[repo.get_archive_name()] = repo
             still_needed.add(repo.get_archive_name())
