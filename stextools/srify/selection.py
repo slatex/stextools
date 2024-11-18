@@ -38,6 +38,7 @@ MACRO_RECURSION_RULES: dict[str, list[int]] = {
 #   - b is a list of indices of the arguments that should be searched
 ENVIRONMENT_RECURSION_RULES: dict[str, tuple[bool, list[int]]] = {
     'lstlisting': (False, []),
+    'tikzpicture': (False, []),
 }
 
 

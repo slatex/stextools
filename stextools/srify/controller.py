@@ -179,16 +179,16 @@ class Controller:
                     dependencies: list[Dependency] = [
                         dep
                         for dep in stexdoc.get_doc_info(self.mh).dependencies
-                        if dep.is_input and dep.file
+                        if dep.is_input
                     ]
                     # reverse as todo_list is a stack
                     dependencies.sort(key=lambda dep: dep.intro_range[0], reverse=True)
                     for dep in dependencies:
-                        if dep.is_input and dep.file:
-                            archive = self.mh.get_archive(dep.archive)
-                            if not archive:
-                                continue
-                            todo_list.append(archive.path / 'source' / dep.file)
+                        if not dep.is_input:
+                            continue
+                        path = dep.get_target_path(self.mh, stexdoc)
+                        if path:
+                            todo_list.append(path)
                 else:
                     print(f'File {path} is not loaded')
 

@@ -4,7 +4,7 @@ from collections.abc import Iterable, Callable
 from typing import Optional, Union
 
 from stextools.core.mathhub import MathHub
-from stextools.core.stexdoc import STeXDocument, Symbol, Verbalization, DocInfo, ModuleInfo
+from stextools.core.stexdoc import STeXDocument, Symbol, Verbalization, DocInfo, ModuleInfo, Dependency
 from stextools.utils.intifier import Intifier
 
 logger = logging.getLogger(__name__)
@@ -121,10 +121,10 @@ class Linker:
 
             doc_info = doc.get_doc_info(mh)
 
-            def process_dep(dep, int_source_mod: Optional[int] = None):
+            def process_dep(dep: Dependency, src_doc: STeXDocument, int_source_mod: Optional[int] = None):
                 if dep.target_no_tex:
                     return
-                dep_doc, dep_mod = dep.get_target(mh)
+                dep_doc, dep_mod = dep.get_target(mh, src_doc)
                 if dep_doc is None:
                     return
                 dep_doc_int = _doc_intify(dep_doc)
@@ -143,7 +143,7 @@ class Linker:
                     # will be processed later in _link_structures as it requires the import graph
                     self.use_math_structs[int_doc].append((dep.module_name, dep.valid_range[0], dep.valid_range[1]))
                 else:
-                    process_dep(dep)
+                    process_dep(dep, doc)
 
             for mod in doc_info.iter_modules():
                 int_mod = self.module_ints.intify((int_doc, mod.name))
@@ -151,7 +151,7 @@ class Linker:
                 self.module_to_file[int_mod] = int_doc
                 _available_module_ranges[int_doc].add((int_mod, mod.valid_range[0], mod.valid_range[1]))
                 for dep in mod.dependencies:
-                    process_dep(dep, int_mod)
+                    process_dep(dep, doc, int_mod)
 
                 for symb in mod.symbols:
                     int_symb = self.symbol_ints.intify((int_mod, symb))

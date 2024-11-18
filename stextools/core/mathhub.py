@@ -33,8 +33,9 @@ class MathHub:
         for repo in self.iter_stex_archives():
             yield from repo.stex_doc_iter()
 
-    def get_archive_from_path(self, path: Path) -> Optional[Repository]:
-        path = path.absolute().resolve()
+    def get_archive_from_path(self, path: Path, is_resolved: bool = False) -> Optional[Repository]:
+        if not is_resolved:
+            path = path.absolute().resolve()
         while not (path / '.git').is_dir():
             path = path.parent
             if path == Path('/'):
@@ -42,9 +43,10 @@ class MathHub:
 
         return self.get_archive(path.relative_to(self.root_path).as_posix())
 
+    @functools.cache
     def get_stex_doc(self, path: Path) -> Optional[STeXDocument]:
         path = path.absolute().resolve()
-        repo = self.get_archive_from_path(path)
+        repo = self.get_archive_from_path(path, is_resolved=True)
         if repo is None:
             return None
         return repo.get_stex_doc(path.relative_to(repo.path).as_posix())
@@ -203,24 +205,45 @@ class Repository:
         return self._manifest
 
     @functools.lru_cache(2 ** 16)
-    def normalize_tex_file_ref(
-            self, path: str, directory: Literal['source', 'lib'] = 'source', lang: str = '*'
-    ) -> Optional[str]:
-        """ Tries to normalize a file reference (e.g. by appending .tex or .en.tex).
+    def resolve_path_ref(self, rel_path: str, directory: Literal['source', 'lib'] = 'source', lang: str = '*') -> Optional[Path]:
+        """ Tries to resolve a file reference (e.g. by appending .tex or .en.tex).
             Returns None if the file does not exist.
             TODO: Currently any language is accepted - should it be restricted to the language of the source document?
         """
-        if (self.path / directory / path).is_file():
-            return path
-        if (self.path / directory / (path + '.tex')).is_file():
-            return path + '.tex'
-
-        split = path.split('/')
+        b = self.path / directory
+        p1 = b / rel_path
+        if p1.is_file():
+            return p1
+        p2 = b / (rel_path + '.tex')
+        if p2.is_file():
+            return p2
         # try for .[lang].tex (at least that's how I understand the sTeX manual)
-        options = list((self.path / directory / ('/'.join(split[:-1]))).glob(f'{split[-1]}.{lang}.tex'))
+        split = rel_path.split('/')
+        options = list((b / ('/'.join(split[:-1]))).glob(f'{split[-1]}.{lang}.tex'))
         if options:
-            return str(options[0].relative_to(self.path / directory).as_posix())
+            return options[0]
         return None
+
+
+    # @functools.lru_cache(2 ** 16)
+    # def normalize_tex_file_ref(
+    #         self, path: str, directory: Literal['source', 'lib'] = 'source', lang: str = '*'
+    # ) -> Optional[str]:
+    #     """ Tries to normalize a file reference (e.g. by appending .tex or .en.tex).
+    #         Returns None if the file does not exist.
+    #         TODO: Currently any language is accepted - should it be restricted to the language of the source document?
+    #     """
+    #     if (self.path / directory / path).is_file():
+    #         return path
+    #     if (self.path / directory / (path + '.tex')).is_file():
+    #         return path + '.tex'
+
+    #     split = path.split('/')
+    #     # try for .[lang].tex (at least that's how I understand the sTeX manual)
+    #     options = list((self.path / directory / ('/'.join(split[:-1]))).glob(f'{split[-1]}.{lang}.tex'))
+    #     if options:
+    #         return str(options[0].relative_to(self.path / directory).as_posix())
+    #     return None
 
     @functools.cache
     def is_stex_archive(self) -> bool:

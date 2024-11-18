@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import dataclasses
+import functools
 import logging
 import re
 import typing
@@ -34,11 +35,29 @@ class DependencyPropFlag:  # note: enum.IntFlag is really slow -- maybe this is 
 class Dependency:
     archive: str
     # should always be set, but could be None if the file cannot be determined (still better than no dependency)
-    file: Optional[str]
+    file_hint: Optional[str]
     module_name: Optional[str]
     flags: int     # DependencyPropFlag
     valid_range: tuple[int, int]  # range of the document where the dependency is valid
     intro_range: Optional[tuple[int, int]] = None  # range of the document where the dependency is introduced
+    file_may_be_relative: bool = False
+
+    def get_target_path(self, mh: MathHub, src: STeXDocument) -> Optional[Path]:
+        if self.file_hint is None:
+            return None
+        archive = mh.get_archive(self.archive)
+        if archive is None:
+            return None
+        di = src.get_doc_info(mh)
+        r = archive.resolve_path_ref(self.file_hint, 'lib' if self.is_lib else 'source', di.lang)
+        if r:
+            return r
+        if self.file_may_be_relative and src.archive == self.archive:
+            # try to resolve relative to the source file
+            s = src.get_rel_path().split('/')
+            file_hint = '/'.join(s[1:-1]) + '/' + self.file_hint
+            return archive.resolve_path_ref(file_hint, s, di.lang)  # type: ignore
+        return
 
     @property
     def is_lib(self) -> bool:
@@ -65,18 +84,23 @@ class Dependency:
         """Dependency is being inputted"""
         return bool(self.flags & DependencyPropFlag.IS_INPUT)
 
-    def get_target_stexdoc(self, mh: MathHub) -> Optional['STeXDocument']:
-        if self.file is None:
+    def get_target_stexdoc(self, mh: MathHub, src: 'STeXDocument') -> Optional['STeXDocument']:
+        path = self.get_target_path(mh, src)
+        if path is None:
             return None
-        archive = mh.get_archive(self.archive)
-        if archive is None:
-            return None
-        return archive.get_stex_doc(
-            ('lib' if self.is_lib else 'source') + '/' + self.file
-        )
+        return mh.get_stex_doc(path)
+        # if self.file is None:
+        #     return None
+        # archive = mh.get_archive(self.archive)
+        # if archive is None:
+        #     return None
+        # return archive.get_stex_doc(
+        #     ('lib' if self.is_lib else 'source') + '/' + self.file
+        # )
 
-    def get_target(self, mh: MathHub) -> tuple[Optional['STeXDocument'], Optional['ModuleInfo']]:
-        doc = self.get_target_stexdoc(mh)
+    @functools.cache
+    def get_target(self, mh: MathHub, src: 'STeXDocument') -> tuple[Optional['STeXDocument'], Optional['ModuleInfo']]:
+        doc = self.get_target_stexdoc(mh, src)
         if doc is None:
             return None, None
         # return doc, doc.get_doc_info(mh).get_module(self.module_name)
@@ -240,7 +264,8 @@ class DependencyProducer:
         intro_range: tuple[int, int] = (node.pos, node.pos + node.len)
 
         if archive is None:    # not locally installed, but we still want to store a dependency
-            return Dependency(archive=target_archive or from_archive, file=None, module_name=None,
+            return Dependency(archive=target_archive or from_archive, file_hint=None,
+                              file_may_be_relative=True, module_name=None,
                               flags=int(flag), valid_range=valid_range, intro_range=intro_range)
 
         if self.references_module:
@@ -257,13 +282,12 @@ class DependencyProducer:
             path_options.append(path)
             path_options.append(f'{path}/{module_name}')
             for path_option in path_options:
-                file = archive.normalize_tex_file_ref(path_option, top_dir, lang)
-                if file is not None:
-                    return Dependency(archive.get_archive_name(), file, module_name=module_name,
-                                      flags=int(flag), valid_range=valid_range, intro_range=intro_range)
+                return Dependency(archive.get_archive_name(), path_option,
+                                  module_name=module_name, flags=int(flag), valid_range=valid_range,
+                                  intro_range=intro_range)
 
             # couldn't determine file, but still make dependency to archive
-            return Dependency(archive.get_archive_name(), None, module_name=module_name,
+            return Dependency(archive.get_archive_name(), file_hint=None, module_name=module_name,
                               flags=int(flag), valid_range=valid_range, intro_range=intro_range)
         else:
             if self.target_no_tex:
@@ -271,19 +295,8 @@ class DependencyProducer:
                 return Dependency(archive.get_archive_name(), None, module_name=None,
                                   flags=int(flag), valid_range=valid_range, intro_range=intro_range)
             else:
-                path_options = []
-                if target_archive is None:  # try relative paths
-                    path_options.append(f'{from_subdir}/{main_arg}')
-                path_options.append(main_arg)
-                for path_option in path_options:
-                    file = archive.normalize_tex_file_ref(path_option, top_dir, lang)
-                    if file is not None:
-                        return Dependency(archive.get_archive_name(), file, module_name=None,
-                                          flags=int(flag), valid_range=valid_range, intro_range=intro_range)
-
-            # couldn't determine file, but still make dependency to archive
-            return Dependency(archive.get_archive_name(), None, module_name=None,
-                              flags=int(flag), valid_range=valid_range, intro_range=intro_range)
+                return Dependency(archive.get_archive_name(), file_hint=main_arg, file_may_be_relative=True,
+                                  module_name=None, flags=int(flag), valid_range=valid_range, intro_range=intro_range)
 
 
 DEPENDENCY_PRODUCERS = [

@@ -73,7 +73,15 @@ class OptArgKeyVals:
 def get_first_macro_arg_opt(node: ParsedMacroArgs) -> Optional[str]:
     """ Returns the optional argument of a macro, if it exists. It has to be the first argument. """
     assert node.argnlist
-    first_arg = node.argnlist[0]
+    if node.argspec[0] == '*':
+        if node.argspec[1] != '[':
+            return None
+        first_arg = node.argnlist[1]
+    elif node.argspec[0] == '[':
+        first_arg = node.argnlist[0]
+    else:
+        return None
+
     if first_arg is None or not isinstance(first_arg, LatexGroupNode):  # is this even possible?
         return None
     if first_arg.delimiters != ('[', ']'):  # is this even possible?
