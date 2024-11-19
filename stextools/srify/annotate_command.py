@@ -1,6 +1,6 @@
 import shutil
 import subprocess
-from typing import Optional
+from typing import Optional, Union
 
 import click
 from pylatexenc.latexwalker import LatexMacroNode, LatexSpecialsNode, LatexMathNode, LatexGroupNode, \
@@ -12,7 +12,8 @@ from stextools.core.macros import STEX_CONTEXT_DB
 from stextools.core.mathhub import make_filter_fun
 from stextools.core.simple_api import SimpleSymbol, get_symbols, SimpleFile
 from stextools.srify.commands import Command, CommandInfo, CommandOutcome, SubstitutionOutcome, SetNewCursor, \
-    ImportInsertionOutcome, ImportCommand, CommandCollection, show_current_selection, StatisticUpdateOutcome
+    ImportInsertionOutcome, ImportCommand, CommandCollection, show_current_selection, StatisticUpdateOutcome, \
+    QuitSubdialogCommand, Exit
 from stextools.srify.state import State, SelectionCursor, PositionCursor
 from stextools.utils.ui import standard_header, pale_color, option_string, color, latex_format
 
@@ -39,7 +40,7 @@ class AnnotateMixin:
             raise RuntimeError("AnnotateCommand can only be used with a SelectionCursor")
         self.cursor: SelectionCursor = self.state.cursor
 
-    def get_import(self, symbol: SimpleSymbol) -> Optional[ImportInsertionOutcome]:
+    def get_import(self, symbol: SimpleSymbol) -> Union[ImportInsertionOutcome, None, Exit]:
         file = self.state.get_current_file_simple_api(self.linker)
         if file.symbol_is_in_scope_at(symbol, self.cursor.selection_start):
             return None
@@ -92,6 +93,7 @@ class AnnotateMixin:
             return ''
 
         commands = [
+            QuitSubdialogCommand(),
             ImportCommand(
                 'u', 'semodule' + explain_loc(import_locations[3]),
                      'Inserts \\usemodule' + explain_loc(import_locations[3]),
@@ -141,7 +143,7 @@ class AnnotateMixin:
             results = cmd_collection.apply(state=self.state)
         assert len(results) == 1
         r = results[0]
-        assert isinstance(r, ImportInsertionOutcome)
+        assert isinstance(r, ImportInsertionOutcome) or isinstance(r, Exit)
         return r
 
     def get_import_locations(self) -> tuple[int, int, Optional[int], Optional[str], Optional[str]]:
@@ -221,6 +223,8 @@ class AnnotateMixin:
         outcomes: list[CommandOutcome] = []
 
         import_thing = self.get_import(symbol)
+        if isinstance(import_thing, Exit):
+            return []
         sr = self.get_sr(symbol)
 
         offset = 0

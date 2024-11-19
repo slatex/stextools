@@ -126,6 +126,20 @@ class Command(abc.ABC):
             return option_string(self.command_info.pattern_presentation, self.command_info.description_short)
 
 
+class QuitSubdialogCommand(Command):
+    def __init__(self):
+        super().__init__(CommandInfo(
+            show=True,
+            pattern_presentation='q',
+            pattern_regex='^q$',
+            description_short='uit subdialog',
+            description_long='Quits current subdialog')
+        )
+
+    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
+        return [Exit()]
+
+
 class QuitProgramCommand(Command):
     def __init__(self):
         super().__init__(CommandInfo(
