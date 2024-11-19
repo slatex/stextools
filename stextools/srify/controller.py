@@ -1,6 +1,6 @@
 import abc
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Any
 
 import click
 
@@ -400,7 +400,15 @@ class Controller:
         if not isinstance(_cursor, PositionCursor):
             raise ValueError("Cursor must be a PositionCursor")
 
+        start_index = _cursor.file_index
+        progress_bar: Optional[Any] = None
+
         while _cursor.file_index < len(self.state.files):
+            if progress_bar is None and _cursor.file_index > start_index + 10:
+                print('It seems to take a while to find the next selection.')
+                progress_bar = click.progressbar(length=len(self.state.files) - start_index - 10, label='documents', item_show_func=lambda s: s).__enter__()
+            if progress_bar is not None:
+                progress_bar.update(1, str(self.state.get_current_file()))
             if not self.state.get_current_file().exists():
                 print(click.style(f"File {self.state.get_current_file()} does not exist", fg='red'))
                 click.pause()
@@ -445,6 +453,8 @@ class Controller:
                         string_to_stemmed_word_sequence_simplified(sos, self.get_current_lang()),
                     )
                 if match is not None:
+                    if progress_bar is not None:
+                        progress_bar.render_finish()
                     return SelectionCursor(
                         _cursor.file_index,
                         words_filtered[match[0]].get_start_ref(),
@@ -452,6 +462,8 @@ class Controller:
                     )
             _cursor = PositionCursor(_cursor.file_index + 1, offset=0)
             self.state.cursor = _cursor
+        if progress_bar is not None:
+            progress_bar.render_finish()
         return None
 
     def get_current_lang(self) -> str:
