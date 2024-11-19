@@ -160,7 +160,8 @@ class AnnotateMixin:
                 if node.pos > self.cursor.selection_start:
                     break
                 elif node.nodeType() in {LatexMacroNode}:
-                    _recurse(node.nodeargd.argnlist)
+                    if node.nodeargd:
+                        _recurse(node.nodeargd.argnlist)
                 elif node.nodeType() in {LatexMathNode, LatexGroupNode}:
                     _recurse(node.nodelist)
                 elif node.nodeType() == LatexEnvironmentNode:
