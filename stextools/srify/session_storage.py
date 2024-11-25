@@ -16,6 +16,17 @@ from stextools.utils.ui import option_string, standard_header_str, standard_head
 PATH = Path('~/.config/stextools/sessions').expanduser()
 
 
+def format_past_timestamp(time: datetime) -> str:
+    """ recent timestamps skip unnecessary information """
+    now = datetime.now()
+    if time.year == now.year:
+        if time.date() == now.date():
+            return time.strftime('%H:%M')
+        return time.strftime('%b %d %H:%M')
+    return time.strftime('%Y-%m-%d %H:%M')
+
+
+
 class Session:
     def __init__(self, identifier: str, metadata: dict):
         self.identifier = identifier
@@ -67,7 +78,7 @@ class PickSessionCommand(Command):
         for i, session in enumerate(self.sessions):
             line = option_string(
                 str(i),
-                '  ' + datetime.fromtimestamp(session.metadata['timestamp']).ctime() + ' – ' + session.metadata['description']
+                '  ' + format_past_timestamp(datetime.fromtimestamp(session.metadata['timestamp'])) + ' – ' + session.metadata['description']
             )
             lines.append(line)
         return '\n'.join(lines)
