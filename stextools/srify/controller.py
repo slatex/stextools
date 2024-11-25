@@ -429,6 +429,8 @@ class Controller:
             for lstr in lstrs:
                 if lstr.get_end_ref() < _cursor.offset:
                     continue
+                if not len(lstr):
+                    continue
                 words_original = string_to_stemmed_word_sequence(lstr, self.get_current_lang())
                 words_filtered: list[LinkedStr] = []
                 for word in words_original:
