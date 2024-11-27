@@ -36,7 +36,7 @@ class Focus:
 
 @dataclasses.dataclass
 class State:
-    """ Editing state for srify. This can be saved to a file and reloaded. """
+    """ Editing state for snify. This can be saved to a file and reloaded. """
     files: list[Path]
 
     filter_pattern: str

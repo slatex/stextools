@@ -8,8 +8,8 @@ from typing import Optional
 
 import click
 
-from stextools.srify.commands import Command, CommandInfo, CommandOutcome, CommandCollection
-from stextools.srify.state import State
+from stextools.snify.commands import Command, CommandInfo, CommandOutcome, CommandCollection
+from stextools.snify.state import State
 from stextools.utils.ui import option_string, standard_header_str, standard_header
 
 # TODO: move this somewhere else?
@@ -24,7 +24,6 @@ def format_past_timestamp(time: datetime) -> str:
             return time.strftime('%H:%M')
         return time.strftime('%b %d %H:%M')
     return time.strftime('%Y-%m-%d %H:%M')
-
 
 
 class Session:
@@ -187,7 +186,7 @@ class SessionStorage:
                         session = self.sessions[outcome.session_number]
                         if session.metadata['srifytimestamp'] < self.srify_timestamp:
                             if not click.confirm(
-                                'This session was created with an older version of srify. '
+                                'This session was created with an older version of snify. '
                                 'Resuming it may lead to unexpected behavior. '
                                 'Are you sure you want to resume it?'
                             ):

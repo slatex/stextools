@@ -9,7 +9,7 @@ import click
 from stextools.core.linker import Linker
 from stextools.core.mathhub import make_filter_fun
 from stextools.core.simple_api import SimpleSymbol, get_files
-from stextools.srify.state import State, SelectionCursor, Cursor, PositionCursor
+from stextools.snify.state import State, SelectionCursor, Cursor, PositionCursor
 from stextools.utils.ui import option_string, standard_header, pale_color, get_lines_around, latex_format, \
     standard_header_str
 

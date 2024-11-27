@@ -10,6 +10,10 @@ from stextools.core.config import get_config
 logger = logging.getLogger(__name__)
 
 
+filter_option = click.option('--filter', default=None,
+                             help='Filter pattern to only include some archives (e.g. \'smglom/*,courses/*\')')
+
+
 @click.group()
 @click.option('--keep-cache', is_flag=True, default=False,
               help='Keep the cache despite changes to the stextools package.'
@@ -39,9 +43,10 @@ def clear_cache():
 @click.option('--mode', default='test',
               type=click.Choice(['test', 'ask', 'write'], case_sensitive=False),
               help='test: only print the changes, ask: ask before writing, write: write the changes without asking')
-def update_dependencies(mode):
+@filter_option
+def update_dependencies(mode, filter):
     from stextools.dependency_update import dependency_check
-    dependency_check(mode)
+    dependency_check(mode, filter)
 
 
 @cli.command(help='Visualize the archive dependency graph (requires networkx and matplotlib).')
@@ -75,22 +80,20 @@ def translate(path):
     print(translate(Path(path)))
 
 
-@cli.command(help='\\sr-ify sTeX documents. (early prototype)')
 @click.argument('files', nargs=-1)
 @click.option('--filter',
-              default=lambda: get_config().get('stextools.srify', 'filter', fallback=None),
-              help='Filter pattern to only show some archives (e.g. \'smglom/*,courses/*\')')
+              default=lambda: get_config().get('stextools.snify', 'filter', fallback=None),
+              help='Filter pattern to only include some archives (e.g. \'smglom/*,courses/*\')')
 @click.option('--ignore',
-              default=lambda: get_config().get('stextools.srify', 'ignore', fallback=None),
+              default=lambda: get_config().get('stextools.snify', 'ignore', fallback=None),
               help='Pattern to exclude some archives (e.g. \'Papers/*,smglom/mv\')')
-# @click.option('--disambiguation-policy',
-#               type=click.Choice(['minimal', 'cautious']),
-#               default=lambda: get_config().get('stextools.srify', 'disambiguation-policy', fallback='minimal'),
-#               help='Pattern to exclude some archives (e.g. \'Papers/*,smglom/mv\')')
-def srify(files, filter, ignore):
-    from stextools.srify.controller import srify
-    srify(files, filter, ignore)
+def snify_actual(files, filter, ignore):
+    from stextools.snify.controller import snify
+    snify(files, filter, ignore)
 
+
+cli.command(name='srify', help='\\sr-ify sTeX documents (deprecated, use snify instead)')(snify_actual)
+cli.command(name='snify', help='\\sn-ify sTeX documents')(snify_actual)
 
 if __name__ == '__main__':
     cli()

@@ -9,10 +9,10 @@ from pylatexenc.latexwalker import LatexWalker, LatexMacroNode, LatexMathNode, L
 from stextools.core.linker import Linker
 from stextools.core.macros import STEX_CONTEXT_DB
 from stextools.core.simple_api import get_symbols, SimpleSymbol
-from stextools.srify.commands import Command, CommandInfo, CommandOutcome, SetNewCursor
-from stextools.srify.skip_and_ignore import IgnoreList, SrSkipped
-from stextools.srify.state import SelectionCursor, State
-from stextools.srify.stemming import string_to_stemmed_word_sequence, string_to_stemmed_word_sequence_simplified
+from stextools.snify.commands import Command, CommandInfo, CommandOutcome, SetNewCursor
+from stextools.snify.skip_and_ignore import IgnoreList, SrSkipped
+from stextools.snify.state import SelectionCursor, State
+from stextools.snify.stemming import string_to_stemmed_word_sequence, string_to_stemmed_word_sequence_simplified
 from stextools.utils.linked_str import LinkedStr, string_to_lstr
 from stextools.utils.ui import standard_header
 

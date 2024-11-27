@@ -9,20 +9,20 @@ from stextools.core.linker import Linker
 from stextools.core.mathhub import make_filter_fun
 from stextools.core.simple_api import file_from_path
 from stextools.core.stexdoc import Dependency
-from stextools.srify.annotate_command import AnnotateCommand, LookupCommand
-from stextools.srify.commands import CommandCollection, QuitProgramCommand, Exit, CommandOutcome, \
+from stextools.snify.annotate_command import AnnotateCommand, LookupCommand
+from stextools.snify.commands import CommandCollection, QuitProgramCommand, Exit, CommandOutcome, \
     show_current_selection, ImportInsertionOutcome, SubstitutionOutcome, SetNewCursor, \
     ExitFileCommand, UndoOutcome, RedoOutcome, UndoCommand, RedoCommand, ViewCommand, View_i_Command, \
     TextRewriteOutcome, StatisticUpdateOutcome, ReplaceCommand, RescanCommand, RescanOutcome, StateSkipOutcome, \
     FocusOutcome, StemFocusCommand, StemFocusCommandPlus, StemFocusCommandPlusPlus
-from stextools.srify.selection import VerbTrie, PreviousWordShouldBeIncluded, NextWordShouldBeIncluded, \
+from stextools.snify.selection import VerbTrie, PreviousWordShouldBeIncluded, NextWordShouldBeIncluded, \
     get_linked_strings, FirstWordShouldntBeIncluded, LastWordShouldntBeIncluded
-from stextools.srify.session_storage import SessionStorage
-from stextools.srify.skip_and_ignore import SkipOnceCommand, IgnoreWordOutcome, IgnoreCommand, IgnoreList, \
+from stextools.snify.session_storage import SessionStorage
+from stextools.snify.skip_and_ignore import SkipOnceCommand, IgnoreWordOutcome, IgnoreCommand, IgnoreList, \
     AddWordToSrSkip, AddStemToSrSkip, SrSkipped, SkipUntilFileEnd
-from stextools.srify.state import PositionCursor, Cursor, SelectionCursor
-from stextools.srify.state import State
-from stextools.srify.stemming import string_to_stemmed_word_sequence_simplified, string_to_stemmed_word_sequence
+from stextools.snify.state import PositionCursor, Cursor, SelectionCursor
+from stextools.snify.state import State
+from stextools.snify.stemming import string_to_stemmed_word_sequence_simplified, string_to_stemmed_word_sequence
 from stextools.utils.linked_str import LinkedStr
 
 
@@ -355,7 +355,7 @@ class Controller:
             linker=self.linker,
         )
         return CommandCollection(
-            name='srify standard commands',
+            name='snify standard commands',
             commands=[
                 QuitProgramCommand(),
                 ExitFileCommand(),
@@ -472,7 +472,7 @@ class Controller:
         return self.state.get_current_lang(self.linker)
 
 
-def srify(files: list[str], filter: str, ignore: str):
+def snify(files: list[str], filter: str, ignore: str):
     session_storage = SessionStorage()
     state = session_storage.get_session_dialog()
     if state is None:

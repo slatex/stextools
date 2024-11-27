@@ -4,10 +4,10 @@ import re
 from pathlib import Path
 
 from stextools.core.linker import Linker
-from stextools.srify.commands import Command, CommandInfo, CommandOutcome, SetNewCursor, TextRewriteOutcome, \
+from stextools.snify.commands import Command, CommandInfo, CommandOutcome, SetNewCursor, TextRewriteOutcome, \
     StateSkipOutcome
-from stextools.srify.state import State, SelectionCursor, PositionCursor
-from stextools.srify.stemming import string_to_stemmed_word_sequence_simplified
+from stextools.snify.state import State, SelectionCursor, PositionCursor
+from stextools.snify.stemming import string_to_stemmed_word_sequence_simplified
 
 
 class SkipOnceCommand(Command):
