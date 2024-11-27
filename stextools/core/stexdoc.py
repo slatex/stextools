@@ -207,7 +207,7 @@ class DocInfo:
         """Iterate over all dependencies in the document, including those in modules."""
         yield from self.dependencies
         for module in self.modules:
-            yield from module.dependencies
+            yield from module.flattened_dependencies()
 
     def iter_modules(self) -> Iterator[ModuleInfo]:
         for module in self.modules:
