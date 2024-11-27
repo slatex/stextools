@@ -89,7 +89,9 @@ class State:
         return self.get_current_file_text()[self.cursor.selection_start:self.cursor.selection_end]
 
     def get_current_lang(self, linker: Linker) -> str:
-        lang = file_from_path(self.get_current_file(), linker).lang
+        file = file_from_path(self.get_current_file(), linker)
+        assert file is not None
+        lang = file.lang
         if lang == '*':
             return 'unknownlang'
         return lang

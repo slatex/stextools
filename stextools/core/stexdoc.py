@@ -107,7 +107,7 @@ class Dependency:
     @functools.cache
     def get_target(self, mh: MathHub, src: 'STeXDocument') -> tuple[Optional['STeXDocument'], Optional['ModuleInfo']]:
         doc = self.get_target_stexdoc(mh, src)
-        if doc is None:
+        if doc is None or self.module_name is None:
             return None, None
         # return doc, doc.get_doc_info(mh).get_module(self.module_name)
         # optimization
@@ -468,6 +468,7 @@ class STeXDocument:
                         if not module_info:
                             logger.warning(f'{self.path}: symbol "{symbol}" declared outside of a module')
                         else:
+                            assert symbol is not None
                             module_info.symbols.append(
                                 Symbol(name=symbol, decl_def=(node.pos, node.pos + node.len))
                             )

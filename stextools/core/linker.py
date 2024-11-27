@@ -1,7 +1,7 @@
 import logging
 from collections import defaultdict
 from collections.abc import Iterable, Callable
-from typing import Optional, Union
+from typing import Optional, Union, Mapping
 
 from stextools.core.mathhub import MathHub
 from stextools.core.stexdoc import STeXDocument, Symbol, Verbalization, DocInfo, ModuleInfo, Dependency
@@ -10,7 +10,7 @@ from stextools.utils.intifier import Intifier
 logger = logging.getLogger(__name__)
 
 
-def top_sort(doc_deps: dict[int, Iterable[int]], error_doc_info: Callable[[int], str]) -> Iterable[int]:
+def top_sort(doc_deps: Mapping[int, Iterable[int]], error_doc_info: Callable[[int], str]) -> Iterable[int]:
     full_processed: set[int] = set()
     already_under_consideration: set[int] = set()
     result: list[int] = []
@@ -141,6 +141,7 @@ class Linker:
             for dep in doc_info.dependencies:
                 if dep.is_use_struct:
                     # will be processed later in _link_structures as it requires the import graph
+                    assert dep.module_name is not None
                     self.use_math_structs[int_doc].append((dep.module_name, dep.valid_range[0], dep.valid_range[1]))
                 else:
                     process_dep(dep, doc)
@@ -160,6 +161,8 @@ class Linker:
                     self.symbol_to_module[int_symb] = int_mod
 
                 if mod.is_structure:
+                    assert mod.struct_name is not None
+                    assert mod.struct_deps is not None
                     self.structures_by_name[mod.struct_name].add(int_mod)
                     int_parent_mod: Optional[int] = None
                     current: Union[DocInfo, ModuleInfo] = doc_info
@@ -188,8 +191,8 @@ class Linker:
     def _compute_transitive_imports(self):
         _module_import_graph = self.module_import_graph
 
-        ti = defaultdict(set)
-        for file in top_sort(self.file_import_graph, lambda doc: self.document_ints.unintify(doc).path):
+        ti: dict[int, set[int]] = defaultdict(set)
+        for file in top_sort(self.file_import_graph, lambda doc: str(self.document_ints.unintify(doc).path)):
             for mod in self.file_to_module[file]:
                 imported = ti[mod]
                 imported.add(mod)
@@ -232,7 +235,7 @@ class Linker:
             for struct_name, start_range, end_range in uses:
                 candidates = self.structures_by_name[struct_name]
                 # Note: we assume that len(candidates) is very small - otherwise this would be inefficient
-                chosen_candidate: Optional[int] = None
+                chosen_candidate = None
                 for candidate in candidates:
                     required_module = self.structure_info[candidate][1]
                     for module, range_start, range_end in self.available_module_ranges[doc_int]:

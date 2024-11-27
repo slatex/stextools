@@ -1,4 +1,5 @@
 import json
+import math
 import pickle
 import uuid
 import time
@@ -113,8 +114,7 @@ class DeleteAllSessionsCommand(Command):
         )
 
     def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
-        for _ in range(len(self.sessions)):
-            return [SessionChoiceOutcome(0, 'delete')]
+        return [SessionChoiceOutcome(0, 'delete') for _ in range(len(self.sessions))]
 
 
 class IgnoreSessions(CommandOutcome):
@@ -144,7 +144,7 @@ class SessionStorage:
         for file in PATH.glob('*.json'):
             self.sessions.append(Session.from_identifier(file.stem))
 
-        last_modified = 0
+        last_modified = -math.inf
         for file in Path(__file__).parent.rglob('**/*.py'):
             last_modified = max(last_modified, file.stat().st_mtime)
         self.srify_timestamp = last_modified

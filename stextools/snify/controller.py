@@ -197,13 +197,13 @@ class Controller:
                         if dep.is_input
                     ]
                     # reverse as todo_list is a stack
-                    dependencies.sort(key=lambda dep: dep.intro_range[0], reverse=True)
+                    dependencies.sort(key=lambda dep: dep.intro_range[0] if dep.intro_range else 0, reverse=True)
                     for dep in dependencies:
                         if not dep.is_input:
                             continue
-                        path = dep.get_target_path(self.mh, stexdoc)
-                        if path:
-                            todo_list.append(path)
+                        target_path = dep.get_target_path(self.mh, stexdoc)
+                        if target_path:
+                            todo_list.append(target_path)
                 else:
                     print(f'File {path} is not loaded')
 
@@ -324,7 +324,9 @@ class Controller:
         if modification.files_to_reparse:
             self.reset_linker()
             for file in modification.files_to_reparse:
-                self.mh.get_stex_doc(file).delete_doc_info_if_outdated()
+                doc = self.mh.get_stex_doc(file)
+                assert doc is not None
+                doc.delete_doc_info_if_outdated()
 
     def _get_and_run_command(self) -> list[CommandOutcome]:
         command_collection = self._get_current_command_collection()

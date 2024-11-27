@@ -1,5 +1,5 @@
 import dataclasses
-from collections.abc import Iterable
+from collections.abc import Iterable, Generator
 from pathlib import Path
 from typing import Optional
 
@@ -19,7 +19,7 @@ class SimpleSymbol:
         self._symbol_int = symbol_int
         self._linker = linker
 
-    def get_verbalizations(self, lang: Optional[str] = None) -> list['SimpleVerbalization']:
+    def get_verbalizations(self, lang: Optional[str] = None) -> Generator['SimpleVerbalization']:
         for verb_int in self._linker.symb_to_verbs[self._symbol_int]:
             verb = self._linker.verb_ints.unintify(verb_int)[1]
             if lang is not None and verb.lang != lang:
@@ -59,7 +59,9 @@ class SimpleModule:
 
     def __init__(self, module_int: int, linker: Linker):
         doc, modstr = linker.module_ints.unintify(module_int)
-        self._module = linker.document_ints.unintify(doc).get_doc_info(linker.mh).get_module(modstr)
+        module = linker.document_ints.unintify(doc).get_doc_info(linker.mh).get_module(modstr)
+        assert module is not None
+        self._module = module
         self._module_int = module_int
         self._linker = linker
 
@@ -145,7 +147,7 @@ class SimpleFile:
                 return True
         return False
 
-    def get_compilation_dependencies(self) -> list['SimpleFile']:
+    def get_compilation_dependencies(self) -> Generator['SimpleFile']:
         for dep_int in self._linker.file_import_graph[self._doc_int]:
             yield SimpleFile(dep_int, self._linker)
 
@@ -198,13 +200,13 @@ class SimpleVerbalization:
         return self._verbalization.verbalization
 
 
-def get_symbols(linker: Linker, *, name: Optional[str] = None) -> list[SimpleSymbol]:
+def get_symbols(linker: Linker, *, name: Optional[str] = None) -> Generator[SimpleSymbol]:
     if name is None:
         for symbol_int in linker.symbol_ints.int_iter():
             yield SimpleSymbol(symbol_int, linker)
     else:
-        for symbol_int in linker.symbs_by_name[name]:
-            yield SimpleSymbol(symbol_int[1], linker)
+        for modsymb in linker.symbs_by_name[name]:
+            yield SimpleSymbol(modsymb[1], linker)
 
 
 def file_from_path(path: Path, linker: Linker) -> Optional[SimpleFile]:

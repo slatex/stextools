@@ -298,6 +298,7 @@ class VerbTrie:
                 if trie[words_stemmed[j]][0]:  # corresponds to a symbol
                     skip = False
                     if word_lstrs is not None and original_string is not None:
+                        assert shift is not None
                         original_word = original_string[word_lstrs[j].get_start_ref()-shift:word_lstrs[j].get_end_ref()-shift]
                         original_word = re.sub(r'\s+', ' ', original_word)
                         if IgnoreList.contains(lang=self.lang, word=original_word):

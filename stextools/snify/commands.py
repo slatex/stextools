@@ -2,7 +2,7 @@ import abc
 import dataclasses
 import re
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Any
 
 import click
 
@@ -48,7 +48,7 @@ class Exit(CommandOutcome):
 
 
 class StatisticUpdateOutcome(CommandOutcome):
-    def __init__(self, type_: str, value: Optional = None):
+    def __init__(self, type_: str, value: Optional[Any] = None):
         self.type_ = type_
         self.value = value
 
@@ -181,7 +181,7 @@ class ImportCommand(Command):
         )
         self.outcome = outcome
 
-    def execute(self, *, state: State, call: str) -> list[ImportInsertionOutcome]:
+    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
         return [self.outcome]
 
 

@@ -118,6 +118,7 @@ class AnnotateMixin:
         ]
 
         if not import_impossible_reason:
+            assert import_locations[2] is not None
             commands.append(ImportCommand(
                 'i', 'mportmodule',
                 'Inserts \\importmodule',
@@ -130,7 +131,7 @@ class AnnotateMixin:
 
         cmd_collection = CommandCollection('Import options', commands, have_help=True)
 
-        results = []
+        results: list[CommandOutcome] = []
         while not results:
             click.clear()
             show_current_selection(self.state)
@@ -345,11 +346,14 @@ class LookupCommand(Command, AnnotateMixin):
             lines.append(symbol_display(file, symbol, state, style=False))
 
         proc = subprocess.Popen(['fzf', '--ansi'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
+        assert proc.stdin is not None
         proc.stdin.write('\n'.join(lines))
         proc.stdin.close()
+        assert proc.stdout is not None
         selected = proc.stdout.read().strip()
         proc.wait()
         if not selected:
             return []
-        symbol = lookup.get(selected)
-        return self.get_outcome_for_symbol(symbol)
+        symbol_ = lookup.get(selected)
+        assert symbol_ is not None
+        return self.get_outcome_for_symbol(symbol_)
