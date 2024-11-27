@@ -18,16 +18,18 @@ and/or skip/refine annotations.
 works well, if the material covered is backed by a well-developed domain model (for the
 respective language). 
 
+Example usages:
+```bash
+python3 -m stextools srify path/to/myfile.tex
+python3 -m stextools srify path/to/smglom/sets/mod/*.en.tex
+```
+
 ### update-dependencies
 This command updates the archive dependencies (in `META-INF/MANIFEST.MF`).
 Example usages:
 ```bash
-# always ask before updating
+# always ask before updating (other modes: test, write)
 python3 -m stextools update-dependencies --mode=ask
-# show what would be updated (but do not update anything)
-python3 -m stextools update-dependencies --mode=test
-# update the dependencies without asking
-python3 -m stextools update-dependencies --mode=write
 # only consider smglom archives
 python3 -m stextools update-dependencies --mode=ask --filter='smglom/*'
 ```
