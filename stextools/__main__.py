@@ -80,6 +80,7 @@ def translate(path):
     print(translate(Path(path)))
 
 
+@cli.command(name='snify', help='\\sn-ify sTeX documents')
 @click.argument('files', nargs=-1)
 @click.option('--filter',
               default=lambda: get_config().get('stextools.snify', 'filter', fallback=None),
@@ -91,9 +92,6 @@ def snify_actual(files, filter, ignore):
     from stextools.snify.controller import snify
     snify(files, filter, ignore)
 
-
-cli.command(name='srify', help='\\sr-ify sTeX documents (deprecated, use snify instead)')(snify_actual)
-cli.command(name='snify', help='\\sn-ify sTeX documents')(snify_actual)
 
 if __name__ == '__main__':
     cli()
