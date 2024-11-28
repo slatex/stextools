@@ -46,6 +46,28 @@ class SkipUntilFileEnd(Command):
         ]
 
 
+class SkipForRestOfSession(Command):
+    def __init__(self):
+        super().__init__(CommandInfo(
+            show=False,
+            pattern_presentation='s!!',
+            pattern_regex='^s!!$',
+            description_short='kip until end of session',
+            description_long='Do not propose any occurrences of the selected phrase anymore (until end of session).')
+        )
+
+    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
+        assert isinstance(state.cursor, SelectionCursor)
+        return [
+            StateSkipOutcome(
+                word=state.get_current_file_text()[state.cursor.selection_start:state.cursor.selection_end],
+                is_stem=False,
+                session_wide=True
+            ),
+            SetNewCursor(PositionCursor(state.cursor.file_index, state.cursor.selection_start)),
+        ]
+
+
 class AddWordToSrSkip(Command):
     def __init__(self):
         super().__init__(CommandInfo(

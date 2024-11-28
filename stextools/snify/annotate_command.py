@@ -364,7 +364,6 @@ class AnnotateCommand(Command, AnnotateMixin):
             line = option_string(
                 str(i),
                 ' ' + symbol_display(file, symbol, state)
-                # + '\n      ' + click.style(symbol.declaring_file.path, italic=True, fg=pale_color())
             )
             lines.append(line)
         return '\n'.join(lines)

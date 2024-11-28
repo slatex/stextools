@@ -19,7 +19,7 @@ from stextools.snify.selection import VerbTrie, PreviousWordShouldBeIncluded, Ne
     get_linked_strings, FirstWordShouldntBeIncluded, LastWordShouldntBeIncluded
 from stextools.snify.session_storage import SessionStorage
 from stextools.snify.skip_and_ignore import SkipOnceCommand, IgnoreWordOutcome, IgnoreCommand, IgnoreList, \
-    AddWordToSrSkip, AddStemToSrSkip, SrSkipped, SkipUntilFileEnd
+    AddWordToSrSkip, AddStemToSrSkip, SrSkipped, SkipUntilFileEnd, SkipForRestOfSession
 from stextools.snify.state import PositionCursor, Cursor, SelectionCursor
 from stextools.snify.state import State
 from stextools.snify.stemming import string_to_stemmed_word_sequence_simplified, string_to_stemmed_word_sequence
@@ -361,6 +361,7 @@ class Controller:
                 LastWordShouldntBeIncluded(self.get_current_lang()),
                 SkipOnceCommand(),
                 SkipUntilFileEnd(),
+                SkipForRestOfSession(),
                 IgnoreCommand(self.get_current_lang()),
                 AddWordToSrSkip(),
                 AddStemToSrSkip(self.get_current_lang()),

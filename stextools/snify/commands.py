@@ -6,6 +6,7 @@ from typing import Optional, Any, Sequence
 
 import click
 
+from stextools.core.config import get_config
 from stextools.core.linker import Linker
 from stextools.core.mathhub import make_filter_fun
 from stextools.core.simple_api import SimpleSymbol, get_files
@@ -14,14 +15,14 @@ from stextools.utils.ui import option_string, standard_header, pale_color, get_l
     standard_header_str
 
 
-def show_current_selection(state, with_header: bool = True):
+def show_current_selection(state: State, with_header: bool = True):
     if with_header:
         status = [
             f'File {state.cursor.file_index + 1}/{len(state.files)}'.ljust(15),
             f'Annotations added: {state.statistic_annotations_added}'.ljust(25)
         ]
         print(' | ' + ' | '.join(status) + ' |')
-        standard_header(str(state.get_current_file()), bg='bright_green')
+        standard_header(str(state.get_current_file().relative_to(Path.cwd())), bg='bright_green')
 
     cursor = state.cursor
     assert isinstance(cursor, SelectionCursor)
@@ -29,7 +30,8 @@ def show_current_selection(state, with_header: bool = True):
     a, b, c, line_no_start = get_lines_around(
         state.get_current_file_text(),
         cursor.selection_start,
-        cursor.selection_end
+        cursor.selection_end,
+        n_lines=int(get_config().get('stextools.snify', 'context-lines', fallback='7'))
     )
     doc = latex_format(a) + (
         '\n'.join(click.style(p, bg='bright_yellow', bold=True) for p in b.split('\n'))
