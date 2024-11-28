@@ -1,6 +1,6 @@
 import abc
 from pathlib import Path
-from typing import Optional, Any
+from typing import Optional, Any, Sequence
 
 import click
 
@@ -11,7 +11,7 @@ from stextools.core.simple_api import file_from_path
 from stextools.core.stexdoc import Dependency
 from stextools.snify.annotate_command import AnnotateCommand, LookupCommand
 from stextools.snify.commands import CommandCollection, QuitProgramCommand, Exit, CommandOutcome, \
-    show_current_selection, ImportInsertionOutcome, SubstitutionOutcome, SetNewCursor, \
+    show_current_selection, SubstitutionOutcome, SetNewCursor, \
     ExitFileCommand, UndoOutcome, RedoOutcome, UndoCommand, RedoCommand, ViewCommand, View_i_Command, \
     TextRewriteOutcome, StatisticUpdateOutcome, ReplaceCommand, RescanCommand, RescanOutcome, StateSkipOutcome, \
     FocusOutcome, StemFocusCommand, StemFocusCommandPlus, StemFocusCommandPlusPlus
@@ -247,13 +247,6 @@ class Controller:
 
                 if isinstance(outcome, Exit):
                     return True
-                elif isinstance(outcome, ImportInsertionOutcome):
-                    text = self.state.get_current_file_text()
-                    modification = FileModification(
-                        file=self.state.get_current_file(),
-                        old_text=text,
-                        new_text=text[:outcome.insert_pos] + outcome.inserted_str + text[outcome.insert_pos:]
-                    )
                 elif isinstance(outcome, SubstitutionOutcome):
                     text = self.state.get_current_file_text()
                     modification = FileModification(
@@ -328,7 +321,7 @@ class Controller:
                 assert doc is not None
                 doc.delete_doc_info_if_outdated()
 
-    def _get_and_run_command(self) -> list[CommandOutcome]:
+    def _get_and_run_command(self) -> Sequence[CommandOutcome]:
         command_collection = self._get_current_command_collection()
         print()
         return command_collection.apply(state=self.state)

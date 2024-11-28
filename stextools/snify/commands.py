@@ -2,7 +2,7 @@ import abc
 import dataclasses
 import re
 from pathlib import Path
-from typing import Optional, Any
+from typing import Optional, Any, Sequence
 
 import click
 
@@ -53,13 +53,6 @@ class StatisticUpdateOutcome(CommandOutcome):
         self.value = value
 
 
-class ImportInsertionOutcome(CommandOutcome):
-    """Note: command is responsible for ensuring that the index is correct *after* the previous file modification outcomes."""
-    def __init__(self, inserted_str: str, insert_pos: int):
-        self.inserted_str = inserted_str
-        self.insert_pos = insert_pos
-
-
 class SubstitutionOutcome(CommandOutcome):
     """Note: command is responsible for ensuring that the index is correct *after* the previous file modification outcomes."""
     def __init__(self, new_str: str, start_pos: int, end_pos: int):
@@ -108,7 +101,7 @@ class Command(abc.ABC):
         self.command_info = command_info
 
     @abc.abstractmethod
-    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
+    def execute(self, *, state: State, call: str) -> Sequence[CommandOutcome]:
         ...
 
     def standard_display(self, *, state: State) -> str:
@@ -136,7 +129,7 @@ class QuitSubdialogCommand(Command):
             description_long='Quits current subdialog')
         )
 
-    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
+    def execute(self, *, state: State, call: str) -> Sequence[CommandOutcome]:
         return [Exit()]
 
 
@@ -149,7 +142,7 @@ class QuitProgramCommand(Command):
             description_long='Quits the program')
         )
 
-    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
+    def execute(self, *, state: State, call: str) -> Sequence[CommandOutcome]:
         return [Exit()]
 
 
@@ -167,12 +160,13 @@ class RescanCommand(Command):
             description_long='Rescans all of MathHub')
         )
 
-    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
+    def execute(self, *, state: State, call: str) -> Sequence[CommandOutcome]:
         return [RescanOutcome()]
 
 
 class ImportCommand(Command):
-    def __init__(self, letter: str, description_short: str, description_long: str, outcome: ImportInsertionOutcome):
+    def __init__(self, letter: str, description_short: str, description_long: str, outcome: SubstitutionOutcome,
+                 redundancies: list[SubstitutionOutcome]):
         super().__init__(CommandInfo(
             pattern_presentation=letter,
             pattern_regex=f'^{letter}$',
@@ -180,9 +174,12 @@ class ImportCommand(Command):
             description_long=description_long)
         )
         self.outcome = outcome
+        self.redundancies = redundancies
 
-    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
-        return [self.outcome]
+    def execute(self, *, state: State, call: str) -> Sequence[CommandOutcome]:
+        cmds: list[SubstitutionOutcome] = self.redundancies + [self.outcome]
+        cmds.sort(key=lambda x: x.start_pos, reverse=True)
+        return cmds
 
 
 class ExitFileCommand(Command):
@@ -195,7 +192,7 @@ class ExitFileCommand(Command):
             description_long='Exits the current file (and continues with the next one)')
         )
 
-    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
+    def execute(self, *, state: State, call: str) -> Sequence[CommandOutcome]:
         return [SetNewCursor(PositionCursor(state.cursor.file_index + 1, 0))]
 
 
@@ -214,7 +211,7 @@ class UndoCommand(Command):
             description_long='Undoes the most recent modification')
         )
 
-    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
+    def execute(self, *, state: State, call: str) -> Sequence[CommandOutcome]:
         if self.is_possible:
             return [UndoOutcome()]
         print(click.style('Nothing to undo', fg='red'))
@@ -237,7 +234,7 @@ class RedoCommand(Command):
             description_long='Redoes the most recently undone modification')
         )
 
-    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
+    def execute(self, *, state: State, call: str) -> Sequence[CommandOutcome]:
         if self.is_possible:
             return [RedoOutcome()]
         print(click.style('Nothing to redo', fg='red'))
@@ -255,7 +252,7 @@ class ReplaceCommand(Command):
             description_long='Replace the selected word with a different one.')
         )
 
-    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
+    def execute(self, *, state: State, call: str) -> Sequence[CommandOutcome]:
         assert isinstance(state.cursor, SelectionCursor)
         new_word = click.prompt('Enter the new word: ', default=state.get_selected_text())
         return [
@@ -276,7 +273,7 @@ class ViewCommand(Command):
             description_long='Show the current file in the pager')
         )
 
-    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
+    def execute(self, *, state: State, call: str) -> Sequence[CommandOutcome]:
         click.clear()
         click.echo_via_pager(
             standard_header_str(str(state.get_current_file()), bg='bright_green')
@@ -297,7 +294,7 @@ class View_i_Command(Command):
         )
         self.candidate_symbols = candidate_symbols
 
-    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
+    def execute(self, *, state: State, call: str) -> Sequence[CommandOutcome]:
         i = int(call[1:])
         if i >= len(self.candidate_symbols):
             print(click.style('Invalid symbol number', fg='red'))
@@ -323,7 +320,7 @@ class HelpCommand(Command):
         )
         self.command_collection = command_collection
 
-    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
+    def execute(self, *, state: State, call: str) -> Sequence[CommandOutcome]:
         click.clear()
         standard_header(f'Help ({self.command_collection.name})')
         print()
@@ -344,7 +341,7 @@ class StemFocusCommand(Command):
             description_long='Look for other occurrences of the current stem in the current file')
         )
 
-    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
+    def execute(self, *, state: State, call: str) -> Sequence[CommandOutcome]:
         assert isinstance(state.cursor, SelectionCursor)
         return [
             # do not want to return to old selection
@@ -363,7 +360,7 @@ class StemFocusCommandPlus(Command):
             description_long='Look for other occurrences of the current stem in the remaining files')
         )
 
-    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
+    def execute(self, *, state: State, call: str) -> Sequence[CommandOutcome]:
         assert isinstance(state.cursor, SelectionCursor)
         return [
             SetNewCursor(PositionCursor(state.cursor.file_index, state.cursor.selection_start)),
@@ -382,7 +379,7 @@ class StemFocusCommandPlusPlus(Command):
             description_long='Look for other occurrences of the current stem in all files')
         )
 
-    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
+    def execute(self, *, state: State, call: str) -> Sequence[CommandOutcome]:
         assert isinstance(state.cursor, SelectionCursor)
         filter_fun = make_filter_fun(state.filter_pattern, state.ignore_pattern)
         return [
@@ -410,7 +407,7 @@ class CommandCollection:
         if self.have_help:
             self.commands = [HelpCommand(self)] + self.commands
 
-    def apply(self, *, state: State) -> list[CommandOutcome]:
+    def apply(self, *, state: State) -> Sequence[CommandOutcome]:
         self._print_commands(state)
         call = input(click.style('>>>', bold=True) + ' ')
         for command in self.commands:

@@ -1,6 +1,7 @@
+import dataclasses
 import shutil
 import subprocess
-from typing import Optional, Union
+from typing import Optional, Union, Any
 
 import click
 from pylatexenc.latexwalker import LatexMacroNode, LatexSpecialsNode, LatexMathNode, LatexGroupNode, \
@@ -10,9 +11,9 @@ from stextools.core.config import get_config
 from stextools.core.linker import Linker
 from stextools.core.macros import STEX_CONTEXT_DB
 from stextools.core.mathhub import make_filter_fun
-from stextools.core.simple_api import SimpleSymbol, get_symbols, SimpleFile
+from stextools.core.simple_api import SimpleSymbol, get_symbols, SimpleFile, SimpleModule
 from stextools.snify.commands import Command, CommandInfo, CommandOutcome, SubstitutionOutcome, SetNewCursor, \
-    ImportInsertionOutcome, ImportCommand, CommandCollection, show_current_selection, StatisticUpdateOutcome, \
+    ImportCommand, CommandCollection, show_current_selection, StatisticUpdateOutcome, \
     QuitSubdialogCommand, Exit
 from stextools.snify.state import State, SelectionCursor, PositionCursor
 from stextools.utils.ui import standard_header, pale_color, option_string, color, latex_format
@@ -32,6 +33,54 @@ def symbol_to_sorting_key(symbol: SimpleSymbol) -> tuple:
     return primary, secondary
 
 
+@dataclasses.dataclass
+class ImportPositions:
+    use_pos: int
+    top_use_pos: int
+    import_pos: Optional[int]
+    use_env: Optional[str]
+    top_use_env: Optional[str]
+    # scopes
+    top_use_scope: tuple[int, int]
+    use_scope: tuple[int, int]
+    import_scope: Optional[tuple[int, int]]
+
+
+def get_redundant_import_removals(
+        file: SimpleFile, text: str, imported_module: SimpleModule, import_scope: tuple[int, int], is_use: bool,
+) -> list[SubstitutionOutcome]:
+    # TODO: do this in simple_api (requires extending the API)
+    linker = file._linker
+    result: list[SubstitutionOutcome] = []
+    for dep in file._stex_doc.get_doc_info(linker.mh).dependencies:
+        if dep.is_input or dep.is_use_struct or dep.is_lib or dep.intro_range is None:
+            continue
+        if is_use and not dep.is_use:
+            continue
+        target_doc, target_mod = dep.get_target(linker.mh, file._stex_doc)
+        if target_doc is None or target_mod is None:
+            continue
+        target_mod_int = linker.module_ints.intify((linker.document_ints.intify(target_doc), target_mod.name))
+        if target_mod_int not in linker.transitive_imports[imported_module._module_int]:
+            continue
+        if not (import_scope[0] <= dep.scope[0] and dep.scope[1] <= import_scope[1]):
+            continue
+
+        intro_str = text[dep.intro_range[0]:dep.intro_range[1]]
+        if not (intro_str.startswith('\\usemodule') or intro_str.startswith('\\importmodule')):
+            continue
+
+        # if we got here, dep is redundant
+        from_, to = dep.intro_range
+        while from_ > 0 and text[from_ - 1] in {' ', '\t'}:
+            from_ -= 1
+        while to < len(text) and text[to].isspace():
+            to += 1
+        result.append(SubstitutionOutcome('', from_, to))
+
+    return result
+
+
 class AnnotateMixin:
     def __init__(self, state: State, linker: Linker):
         self.state = state
@@ -40,14 +89,15 @@ class AnnotateMixin:
             raise RuntimeError("AnnotateCommand can only be used with a SelectionCursor")
         self.cursor: SelectionCursor = self.state.cursor
 
-    def get_import(self, symbol: SimpleSymbol) -> Union[ImportInsertionOutcome, None, Exit]:
+    def get_import(self, symbol: SimpleSymbol) -> Union[list[SubstitutionOutcome], None, Exit]:
         file = self.state.get_current_file_simple_api(self.linker)
         if file.symbol_is_in_scope_at(symbol, self.cursor.selection_start):
             return None
+        text = file.path.read_text()
 
         import_locations = self.get_import_locations()
         import_impossible_reason: Optional[str] = None
-        if import_locations[2] is None:
+        if import_locations.import_pos is None:
             import_impossible_reason = 'not in an smodule'
         else:
             # check for cycle (by checking if the file is in the transitive compilation dependencies)
@@ -67,11 +117,13 @@ class AnnotateMixin:
         if symbol.declaring_file.archive != file.archive:
             args += f'[{symbol.declaring_file.archive.name}]'
         structure_use: Optional[str] = None
+        needed_module: SimpleModule
         if cont_module := symbol.declaring_module.get_structures_containing_module():
-            args += f'{{{cont_module.path_rel_to_archive}}}'
+            needed_module = cont_module
             structure_use = f'\\usestructure{{{symbol.declaring_module.struct_name}}}'
         else:
-            args += f'{{{symbol.declaring_module.path_rel_to_archive}}}'
+            needed_module = symbol.declaring_module
+        args += f'{{{needed_module.path_rel_to_archive}}}'
 
         file_text = self.state.get_current_file_text()
 
@@ -92,40 +144,52 @@ class AnnotateMixin:
                 return _get_indentation(pos) + structure_use
             return ''
 
+        # return use_pos or 0, top_use_pos or 0, import_pos, use_env, top_use_env
+
         commands = [
             QuitSubdialogCommand(),
             ImportCommand(
-                'u', 'semodule' + explain_loc(import_locations[3]),
-                     'Inserts \\usemodule' + explain_loc(import_locations[3]),
-                ImportInsertionOutcome(
-                    _get_indentation(import_locations[0]) + f'\\usemodule{args}' + _get_use_struct(import_locations[0]),
-                    import_locations[0]
+                'u', 'semodule' + explain_loc(import_locations.use_env),
+                     'Inserts \\usemodule' + explain_loc(import_locations.use_env),
+                SubstitutionOutcome(
+                    _get_indentation(import_locations.use_pos) + f'\\usemodule{args}' + _get_use_struct(import_locations.use_pos),
+                    import_locations.use_pos, import_locations.use_pos
+                ),
+                redundancies=get_redundant_import_removals(
+                    file, text, needed_module, import_locations.use_scope, is_use=True
                 )
             ),
             ImportCommand(
                 't',
-                'op-level usemodule (i.e.' + explain_loc(import_locations[4]) + ')'
-                if import_locations[4] else
+                'op-level usemodule (i.e.' + explain_loc(import_locations.top_use_env) + ')'
+                if import_locations.top_use_env else
                 'op-level usemodule (in this case same as [u])',
-                'Inserts \\usemodule at the top of the document (i.e.' + explain_loc(import_locations[4]) + ')'
-                if import_locations[4] else
+                'Inserts \\usemodule at the top of the document (i.e.' + explain_loc(import_locations.top_use_env) + ')'
+                if import_locations.top_use_env else
                 'Inserts \\usemodule at the top of the document (in this case same as [u])',
-                ImportInsertionOutcome(
-                    _get_indentation(import_locations[1]) + f'\\usemodule{args}' + _get_use_struct(import_locations[1]),
-                    import_locations[1]
+                SubstitutionOutcome(
+                    _get_indentation(import_locations.top_use_pos) + f'\\usemodule{args}' + _get_use_struct(import_locations.top_use_pos),
+                    import_locations.top_use_pos, import_locations.top_use_pos
+                ),
+                redundancies=get_redundant_import_removals(
+                    file, text, needed_module, import_locations.top_use_scope, is_use=True
                 )
             )
         ]
 
         if not import_impossible_reason:
-            assert import_locations[2] is not None
+            assert import_locations.import_pos is not None
+            assert import_locations.import_scope is not None
             commands.append(ImportCommand(
                 'i', 'mportmodule',
                 'Inserts \\importmodule',
-                ImportInsertionOutcome(
-                    _get_indentation(import_locations[2]) + f'\\importmodule{args}' + _get_use_struct(
-                        import_locations[2]),
-                    import_locations[2]
+                SubstitutionOutcome(
+                    _get_indentation(import_locations.import_pos) + f'\\importmodule{args}' + _get_use_struct(
+                        import_locations.import_pos),
+                    import_locations.import_pos, import_locations.import_pos
+                ),
+                redundancies=get_redundant_import_removals(
+                    file, text, needed_module, import_locations.import_scope, is_use=False
                 )
             ))
 
@@ -141,13 +205,14 @@ class AnnotateMixin:
             if import_impossible_reason:
                 print(f'\\importmodule is impossible: {import_impossible_reason}')
             print()
-            results = cmd_collection.apply(state=self.state)
-        assert len(results) == 1
-        r = results[0]
-        assert isinstance(r, ImportInsertionOutcome) or isinstance(r, Exit)
-        return r
+            results = list(cmd_collection.apply(state=self.state))
+        if len(results) == 1 and isinstance(results[0], Exit):
+            return Exit()
+        else:
+            assert all(isinstance(r, SubstitutionOutcome) for r in results)
+            return results   # type: ignore   # TODO: type guard
 
-    def get_import_locations(self) -> tuple[int, int, Optional[int], Optional[str], Optional[str]]:
+    def get_import_locations(self) -> ImportPositions:  # tuple[int, int, Optional[int], Optional[str], Optional[str]]:
         use_pos: Optional[int] = None
         top_use_pos: Optional[int] = None
         import_pos: Optional[int] = None
@@ -155,8 +220,12 @@ class AnnotateMixin:
         use_env: Optional[str] = None
         top_use_env: Optional[str] = None
 
+        top_use_scope: Optional[tuple[int, int]] = None
+        use_scope: Optional[tuple[int, int]] = None
+        import_scope: Optional[Optional[tuple[int, int]]] = None
+
         def _recurse(nodes):
-            nonlocal use_pos, top_use_pos, import_pos, use_env, top_use_env
+            nonlocal use_pos, top_use_pos, import_pos, use_env, top_use_env, top_use_scope, use_scope, import_scope
             for node in nodes:
                 if node is None or node.nodeType() in {LatexSpecialsNode}:
                     continue
@@ -173,20 +242,34 @@ class AnnotateMixin:
                     }:
                         use_pos = node.nodelist[0].pos
                         use_env = node.environmentname
+                        use_scope = (node.pos, node.pos + node.len)
                     if node.environmentname == 'smodule':
                         import_pos = node.nodelist[0].pos
+                        import_scope = (node.pos, node.endpos)
                     if top_use_pos is None:
                         top_use_pos = node.nodelist[0].pos
                         top_use_env = node.environmentname
+                        top_use_scope = (node.pos, node.pos + node.len)
                     _recurse(node.nodelist)
                 elif node.nodeType() in {LatexCommentNode, LatexCharsNode}:
                     pass
                 else:
                     raise RuntimeError(f"Unexpected node type: {node.nodeType()}")
 
-        _recurse(LatexWalker(self.state.get_current_file_text(), latex_context=STEX_CONTEXT_DB).get_latex_nodes()[0])
+        text = self.state.get_current_file_text()
+        _recurse(LatexWalker(text, latex_context=STEX_CONTEXT_DB).get_latex_nodes()[0])
 
-        return use_pos or 0, top_use_pos or 0, import_pos, use_env, top_use_env
+        # return use_pos or 0, top_use_pos or 0, import_pos, use_env, top_use_env
+        return ImportPositions(
+            use_pos=use_pos or 0,
+            top_use_pos=top_use_pos or 0,
+            import_pos=import_pos,
+            use_env=use_env,
+            top_use_env=top_use_env,
+            top_use_scope=(0, len(text)) if top_use_scope is None else top_use_scope,
+            use_scope=(0, len(text)) if use_scope is None else use_scope,
+            import_scope=import_scope,
+        )
 
     def get_sr(self, symbol: SimpleSymbol) -> str:
         # check if symbol is uniquely identified by its name
@@ -221,24 +304,31 @@ class AnnotateMixin:
             return '\\sr{' + symb_path + '}' + '{' + word + '}'
 
     def get_outcome_for_symbol(self, symbol: SimpleSymbol) -> list[CommandOutcome]:
-        outcomes: list[CommandOutcome] = []
+        outcomes: list[Any] = []
 
         import_thing = self.get_import(symbol)
         if isinstance(import_thing, Exit):
             return []
         sr = self.get_sr(symbol)
 
-        offset = 0
         if import_thing:
-            outcomes.append(import_thing)
-            # TODO: maybe the controller should be responsible for this
-            offset += len(import_thing.inserted_str)
+            outcomes.extend(import_thing)
 
         outcomes.append(
-            SubstitutionOutcome(sr, self.cursor.selection_start + offset, self.cursor.selection_end + offset)
+            SubstitutionOutcome(sr, self.cursor.selection_start, self.cursor.selection_end)
         )
+
+        # at this point, we only have substitutions
+        # -> sort them and update the offsets
+        # TODO: maybe the controller should be responsible for this
+        offset = 0
+        outcomes.sort(key=lambda o: o.start_pos)
+        for o in outcomes:
+            o.start_pos += offset
+            o.end_pos += offset
+            offset += len(o.new_str) - (o.end_pos - o.start_pos)
+
         outcomes.append(StatisticUpdateOutcome('annotation_inc'))
-        offset += len(sr)
         outcomes.append(SetNewCursor(PositionCursor(self.cursor.file_index, self.cursor.selection_start + offset)))
 
         return outcomes
