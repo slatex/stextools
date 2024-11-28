@@ -1,5 +1,4 @@
 import configparser
-import dataclasses
 import functools
 import logging
 from pathlib import Path

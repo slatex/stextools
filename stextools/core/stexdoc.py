@@ -38,7 +38,7 @@ class Dependency:
     file_hint: Optional[str]
     module_name: Optional[str]
     flags: int     # DependencyPropFlag
-    valid_range: tuple[int, int]  # range of the document where the dependency is valid
+    scope: tuple[int, int]  # range of the document where the dependency is valid
     intro_range: Optional[tuple[int, int]] = None  # range of the document where the dependency is introduced
     file_may_be_relative: bool = False
 
@@ -236,7 +236,7 @@ class DependencyProducer:
     is_use_struct: bool = False
 
     def produce(self, node: LatexMacroNode, from_archive: str, from_subdir: str, mh: MathHub,
-                valid_range: tuple[int, int], lang: str = '*') -> Optional[Dependency]:
+                scope: tuple[int, int], lang: str = '*') -> Optional[Dependency]:
         flag = 0   # DependencyPropFlag(0)
         if self.is_lib:
             flag |= DependencyPropFlag.IS_LIB
@@ -272,7 +272,7 @@ class DependencyProducer:
         if archive is None:    # not locally installed, but we still want to store a dependency
             return Dependency(archive=target_archive or from_archive, file_hint=None,
                               file_may_be_relative=True, module_name=None,
-                              flags=int(flag), valid_range=valid_range, intro_range=intro_range)
+                              flags=int(flag), scope=scope, intro_range=intro_range)
 
         if self.references_module:
             if '?' in main_arg:
@@ -282,16 +282,16 @@ class DependencyProducer:
                 module_name = main_arg.split('/')[-1]
 
             return Dependency(archive.get_archive_name(), file_hint=path, file_may_be_relative=True,
-                              module_name=module_name, flags=int(flag), valid_range=valid_range,
+                              module_name=module_name, flags=int(flag), scope=scope,
                               intro_range=intro_range)
         else:
             if self.target_no_tex:
                 # TODO: determine file (though we don't really care about it, to be honest)
                 return Dependency(archive.get_archive_name(), None, module_name=None,
-                                  flags=int(flag), valid_range=valid_range, intro_range=intro_range)
+                                  flags=int(flag), scope=scope, intro_range=intro_range)
             else:
                 return Dependency(archive.get_archive_name(), file_hint=main_arg, file_may_be_relative=True,
-                                  module_name=None, flags=int(flag), valid_range=valid_range, intro_range=intro_range)
+                                  module_name=None, flags=int(flag), scope=scope, intro_range=intro_range)
 
 
 DEPENDENCY_PRODUCERS = [
@@ -403,8 +403,8 @@ class STeXDocument:
                                            file_hint=file.relative_to(self.archive.path / 'source').as_posix() if file_ok else None,
                                            # file.relative_to(self.archive.path / 'source').as_posix() if file_ok else None,
                                            module_name=name,
-                                           flags=0,    # was: int(DependencyPropFlag.IS_USE), but I think it should actuall be import...
-                                           valid_range=(node.pos, node.pos + node.len), intro_range=(node.pos, node.pos + node.len))
+                                           flags=0,  # was: int(DependencyPropFlag.IS_USE), but I think it should actuall be import...
+                                           scope=(node.pos, node.pos + node.len), intro_range=(node.pos, node.pos + node.len))
                             )
                     elif node.environmentname in {'mathstructure', 'extstructure'}:
                         is_ext = node.environmentname == 'extstructure'

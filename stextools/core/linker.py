@@ -130,19 +130,19 @@ class Linker:
                 dep_doc_int = _doc_intify(dep_doc)
                 if dep.is_use and dep_mod is not None:
                     _available_module_ranges[int_doc].add((_mod_intify((dep_doc_int, dep_mod.name)),
-                                                                dep.valid_range[0], dep.valid_range[1]))
+                                                           dep.scope[0], dep.scope[1]))
                 else:
                     _file_import_graph[int_doc].add(dep_doc_int)
                     if int_source_mod is not None and dep_mod is not None:
                         mod_int = _mod_intify((dep_doc_int, dep_mod.name))
                         _module_import_graph[int_source_mod].add(mod_int)
-                        _available_module_ranges[int_doc].add((mod_int, dep.valid_range[0], dep.valid_range[1]))
+                        _available_module_ranges[int_doc].add((mod_int, dep.scope[0], dep.scope[1]))
 
             for dep in doc_info.dependencies:
                 if dep.is_use_struct:
                     # will be processed later in _link_structures as it requires the import graph
                     assert dep.module_name is not None
-                    self.use_math_structs[int_doc].append((dep.module_name, dep.valid_range[0], dep.valid_range[1]))
+                    self.use_math_structs[int_doc].append((dep.module_name, dep.scope[0], dep.scope[1]))
                 else:
                     process_dep(dep, doc)
 
