@@ -75,7 +75,7 @@ the the term ``terminal'' with the (semantic) concept of ``a goal state of a sea
 (or both).
 
 \begin{figure}[ht]\centering
-  \fbox{\includegraphics[width=10cm]{../example2.pdf}}
+  \fbox{\includegraphics[width=10cm]{../img/minimax-remarks.pdf}}
   \caption{An annotated Learning Object from an AI Lecture}\label{fig:lo}
 \end{figure}
 
@@ -113,7 +113,7 @@ for the symbol \lstinline|search-problem?goal state|
 introduced be \lstinline|\symdecl*| declaration in line 3.
 
 \begin{figure}[ht]\centering
-  \fbox{\includegraphics[width=12cm]{../search-problem.en.pdf}}
+  \fbox{\includegraphics[width=12cm, trim={1cm 0 0 0}, clip]{../img/search-problem.en.pdf}}
 \begin{lstlisting}[morekeywords={definame,symdecl},numbers=left]
 \begin{smodule}[title=Search Problem]{search-problem}
 [... some imports ...]
@@ -144,40 +144,45 @@ support already for annotated terms, so they do not solve the annotation problem
 
 \section{The \snify System}
 
-The \snify system (see \cite{stextools:git}) is a simple command-line tool that creates a
-database of symbol-verbalization pairs, analyzes \sTeX source files and then steps through
-all word occurrences in the document that share the stem with a verbalization in the
-database. For each such word, the user is presented with an annotation choice and
+The \snify system (see \cite{stextools:git}) is a simple command-line tool.
+It creates a database of symbol-verbalization pairs, analyzes \sTeX source files,
+and then steps through all word occurrences in the document that match a
+verbalization in the database.
+Matching is based on word stems using off-the-shelf stemmers, which allows us to
+e.g.\ match ``utilities'' with ``utility''.
+For each matched word, the user is presented with an annotation choice and
 interactions that allow to fine-tune the wordwise annotation workflow. \Cref{fig:snify}
-shows a typical situation.\ednote{MK: I like the example less and less! We need an example
-  that has at least one homostem (another verbalization that has the same stem; introduce
-  the concept her and use it throughout) so that we can show the choice mechanism, and
-  where the verbalization is different from the symbol name. Having a two-word compound is
-  good though.} 
+shows a typical situation.
 
 \begin{figure}[ht]
-  \fbox{\includegraphics[width=12cm]{../img/srify}}
-  \caption{\snify in Action: Annotating the term ``state space''.}\label{fig:snify}
+  \setlength{\fboxsep}{0pt}
+  \fbox{\includegraphics[width=12cm,trim={0 3cm 0 0},clip]{../img/snify}}
+  \caption{\snify in Action: Annotating the word ``terminal''.}\label{fig:snify}
 \end{figure}
 
-Here the annotator can choose an annotation by typing the corresponding choice
-number. Here, the module \lstinline|state-space| is already imported (see the little green
-check-mark); otherwise \snify would offer the annotator the choice to import it -- if we are
-in a module context -- or to add a \lstinline|\usemodule| directive and where (in the
-local environment or top-level). Alternatively, typing \lstinline|s| skips this word,
-\lstinline|S| skips and adds a comment to always skip this word, and -- if \snify first
-suggests the term `state` \lstinline|n| extends it to the compound ``state space'' by
-including the next word.
+The annotator can choose an annotation by typing the corresponding choice number,
+in this case \lstinline|0|.
+The little green check-mark indicates that the relevant module is already imported.
+Otherwise \snify would offer the annotator the choice to import it -- if we are
+in a module context -- or to add a \lstinline|\usemodule| directive, either in the
+local environment or at the top-level.
+
+To skip the word, the user can type \lstinline|s|,
+\lstinline|s!| skips it until the end of the file, and \lstinline|S|
+will skip it in future runs as well by appending a comment to the file.
+There are numerous other commands, e.g.\ to adjust the selection,
+search for alternative annotation targets,
+or view the file introducing one of the choices.
 
 \snify is usually called on a set of files -- e.g. in a directory or math archive -- which
 together form a \textbf{session}, which can be interrupted and resumed without having to
 re-do all the \lstinline|s| skips. Alternatively, \snify can be called e.g. on the top-level
 lecture notes; then the session consists of all included files. Other productivity
-features include a focus mode that can be used to propagate a particular choice to the
+features include a focus mode that can be used to only annotate a particular word in the
 rest of the file, session, or the whole \sTeX/\ALeA corpus before resuming regular
-annotation This reduces the cognitive effort from choosing a symbol from a list to
-deciding whether a particular choice is applicable in the current document context. Of
-course the include management still needs to be done locally.
+annotation. This reduces the cognitive overhead from switching between different 
+words and symbol lists.
+% Of course the include management still needs to be done locally.
 
 \section{Practical Evaluation}
 
@@ -208,16 +213,16 @@ having to introduce a Slovene stemmer\ednote{MK@FS: there is one for python at
 definienda in the book before we can harvest the symbol/verbalization pairs which are a
 prerequisite for annotation.
 
-The current interface is not well-suited for on-the-fly annotation while editing while
-authoring. For that, the underlying information (the symbol/verbalization pairs harvested
+The current interface is not well-suited for on-the-fly annotation while authoring.
+For that, the underlying information (the symbol/verbalization pairs harvested
 from the domain model) can be integrated into any IDE. In fact we plan to do this for the
 next version of the sTeX plugin for VSCode \cite{sTeX-IDE:git}.
 
 \section{Conclusion}
 
-In this system description we have presented the \snify tool, a command-line tool
-\ednote{continue} \snify is open source\ednote{MK@FS: do we have an explicit license yet in
-  the repository.}; the source and documentation are available from \cite{stextools:git}.
+In this system description we have presented \snify, a command-line tool
+\ednote{continue} \snify is open source;
+the source and documentation are available from \cite{stextools:git}.
 
 In an earlier attempt to support semantic annotation in IDEs, we tried named-entity
 recognition (NER) for classification of ``likely annotation candidate words''
