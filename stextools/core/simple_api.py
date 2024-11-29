@@ -85,7 +85,7 @@ class SimpleModule:
 
         # file name can be omitted if it's the same as the module name
         left, _, right = file_path.rpartition('/')
-        if right == module_path:
+        if right == module_path.split('/')[0]:
             file_path = left
 
         return f'{file_path}?{module_path}'
@@ -139,6 +139,10 @@ class SimpleFile:
             p = p.partition('/')[2]
 
         return p
+
+    def iter_verbalizations(self) -> Generator['SimpleVerbalization']:
+        for verb in self._stex_doc.get_doc_info(self._linker.mh).verbalizations:
+            yield SimpleVerbalization(verb, self._linker)
 
     def symbol_is_in_scope_at(self, symbol: SimpleSymbol, offset: int) -> bool:
         required_module = symbol.declaring_module._module_int
@@ -198,6 +202,14 @@ class SimpleVerbalization:
     @property
     def verb_str(self) -> str:
         return self._verbalization.verbalization
+
+    @property
+    def lang(self) -> str:
+        return self._verbalization.lang
+
+    @property
+    def is_defining(self) -> bool:
+        return self._verbalization.is_defining
 
 
 def get_symbols(linker: Linker, *, name: Optional[str] = None) -> Generator[SimpleSymbol]:
