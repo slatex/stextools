@@ -14,7 +14,7 @@ from stextools.snify.commands import CommandCollection, QuitProgramCommand, Exit
     show_current_selection, SubstitutionOutcome, SetNewCursor, \
     ExitFileCommand, UndoOutcome, RedoOutcome, UndoCommand, RedoCommand, ViewCommand, View_i_Command, \
     TextRewriteOutcome, StatisticUpdateOutcome, ReplaceCommand, RescanCommand, RescanOutcome, StateSkipOutcome, \
-    FocusOutcome, StemFocusCommand, StemFocusCommandPlus, StemFocusCommandPlusPlus
+    FocusOutcome, StemFocusCommand, StemFocusCommandPlus, StemFocusCommandPlusPlus, EditCommand, Edit_i_Command
 from stextools.snify.selection import VerbTrie, PreviousWordShouldBeIncluded, NextWordShouldBeIncluded, \
     get_linked_strings, FirstWordShouldntBeIncluded, LastWordShouldntBeIncluded
 from stextools.snify.session_storage import SessionStorage
@@ -375,6 +375,10 @@ class Controller:
                 LookupCommand(self.linker, self.state),
                 ViewCommand(),
                 View_i_Command(candidate_symbols=candidate_symbols),
+                EditCommand(1),
+                Edit_i_Command(1, candidate_symbols=candidate_symbols),
+                EditCommand(2),
+                Edit_i_Command(2, candidate_symbols=candidate_symbols),
             ],
             have_help=True
         )

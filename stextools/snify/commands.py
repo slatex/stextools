@@ -1,6 +1,8 @@
 import abc
 import dataclasses
+import os
 import re
+import subprocess
 from pathlib import Path
 from typing import Optional, Any, Sequence
 
@@ -309,6 +311,54 @@ class View_i_Command(Command):
             latex_format(symbol.declaring_file.path.read_text())
         )
         return []
+
+
+def get_editor(number: int) -> str:
+    if number == 1:
+        return get_config().get('stextools.snify', 'editor', fallback=os.getenv('EDITOR', 'nano'))
+    elif number == 2:
+        return get_config().get('stextools.snify', f'editor2', fallback=os.getenv('EDITOR', 'nano'))
+    else:
+        raise ValueError('Invalid editor number')
+
+
+class EditCommand(Command):
+    def __init__(self, number: int):
+        self.editor = get_editor(number)
+        super().__init__(CommandInfo(
+            show=False,
+            pattern_presentation='e' * number,
+            pattern_regex='^' + 'e' * number + '$',
+            description_short='dit file' + ('' if number == 1 else f' with editor {number}'),
+            description_long=f'Edit the current file with {self.editor} (can be changed in the config file)')
+        )
+
+    def execute(self, *, state: State, call: str) -> Sequence[CommandOutcome]:
+        subprocess.Popen([self.editor, str(state.get_current_file())]).wait()
+        return [RescanOutcome()]
+
+
+class Edit_i_Command(Command):
+    def __init__(self, number: int, candidate_symbols: list[SimpleSymbol]):
+        self.editor = get_editor(number)
+        super().__init__(CommandInfo(
+            show=False,
+            pattern_presentation='e' * number + '𝑖',
+            pattern_regex='^' + 'e' * number + '[0-9]+$',
+            description_short=' edit document for 𝑖' + ('' if number == 1 else f' with editor {number}'),
+            description_long=f'Edit the document that introduces symbol no. 𝑖 with {self.editor} (can be changed in the config file)')
+        )
+        self.candidate_symbols = candidate_symbols
+
+    def execute(self, *, state: State, call: str) -> Sequence[CommandOutcome]:
+        i = int(call[call.count('e'):])
+        if i >= len(self.candidate_symbols):
+            print(click.style('Invalid symbol number', fg='red'))
+            click.pause()
+            return []
+        symbol = self.candidate_symbols[i]
+        subprocess.Popen([self.editor, str(symbol.declaring_file.path)]).wait()
+        return [RescanOutcome()]
 
 
 class HelpCommand(Command):
