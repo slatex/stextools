@@ -14,7 +14,8 @@ from stextools.snify.commands import CommandCollection, QuitProgramCommand, Exit
     show_current_selection, SubstitutionOutcome, SetNewCursor, \
     ExitFileCommand, UndoOutcome, RedoOutcome, UndoCommand, RedoCommand, ViewCommand, View_i_Command, \
     TextRewriteOutcome, StatisticUpdateOutcome, ReplaceCommand, RescanCommand, RescanOutcome, StateSkipOutcome, \
-    FocusOutcome, StemFocusCommand, StemFocusCommandPlus, StemFocusCommandPlusPlus, EditCommand, Edit_i_Command
+    FocusOutcome, StemFocusCommand, StemFocusCommandPlus, StemFocusCommandPlusPlus, EditCommand, Edit_i_Command, \
+    CommandSectionLabel
 from stextools.snify.selection import VerbTrie, PreviousWordShouldBeIncluded, NextWordShouldBeIncluded, \
     get_linked_strings, FirstWordShouldntBeIncluded, LastWordShouldntBeIncluded
 from stextools.snify.session_storage import SessionStorage
@@ -354,25 +355,33 @@ class Controller:
             commands=[
                 QuitProgramCommand(),
                 ExitFileCommand(),
+                annotate_command,
+                LookupCommand(self.linker, self.state),
+                UndoCommand(is_possible=bool(self._modification_history)),
+                RedoCommand(is_possible=bool(self._modification_future)),
+                RescanCommand(),
+
+                CommandSectionLabel('\nSelection modification'),
                 ReplaceCommand(),
                 PreviousWordShouldBeIncluded(self.get_current_lang()),
                 FirstWordShouldntBeIncluded(self.get_current_lang()),
                 NextWordShouldBeIncluded(self.get_current_lang()),
                 LastWordShouldntBeIncluded(self.get_current_lang()),
+
+                CommandSectionLabel('\nSkipping'),
                 SkipOnceCommand(),
                 SkipUntilFileEnd(),
                 SkipForRestOfSession(),
                 IgnoreCommand(self.get_current_lang()),
                 AddWordToSrSkip(),
                 AddStemToSrSkip(self.get_current_lang()),
-                UndoCommand(is_possible=bool(self._modification_history)),
-                RedoCommand(is_possible=bool(self._modification_future)),
+
+                CommandSectionLabel('\nFocussing'),
                 StemFocusCommand(),
                 StemFocusCommandPlus(),
                 StemFocusCommandPlusPlus(self.linker),
-                RescanCommand(),
-                annotate_command,
-                LookupCommand(self.linker, self.state),
+
+                CommandSectionLabel('\nViewing and editing'),
                 ViewCommand(),
                 View_i_Command(candidate_symbols=candidate_symbols),
                 EditCommand(1),

@@ -4,7 +4,7 @@ import os
 import re
 import subprocess
 from pathlib import Path
-from typing import Optional, Any, Sequence
+from typing import Optional, Any, Sequence, Union
 
 import click
 
@@ -374,12 +374,16 @@ class HelpCommand(Command):
 
     def execute(self, *, state: State, call: str) -> Sequence[CommandOutcome]:
         click.clear()
-        standard_header(f'Help ({self.command_collection.name})')
-        print()
+        lines: list[str] = []
+        lines.append(standard_header_str(f'Help ({self.command_collection.name})'))
+        lines.append('')
         for command in self.command_collection.commands:
-            print(command.help_display())
-        print()
-        click.pause()
+            if isinstance(command, Command):
+                lines.append(command.help_display())
+            else:
+                lines.append(click.style(command.message, fg=pale_color()))
+        lines.append('')
+        click.echo_via_pager('\n'.join(lines), color=True)
         return []
 
 
@@ -447,12 +451,15 @@ class StemFocusCommandPlusPlus(Command):
         ]
 
 
+@dataclasses.dataclass
+class CommandSectionLabel:
+    message: str
 
 
 @dataclasses.dataclass
 class CommandCollection:
     name: str
-    commands: list[Command]
+    commands: list[Union[Command, CommandSectionLabel]]
     have_help: bool = True
 
     def __post_init__(self):
@@ -462,20 +469,25 @@ class CommandCollection:
     def apply(self, *, state: State) -> Sequence[CommandOutcome]:
         self._print_commands(state)
         call = input(click.style('>>>', bold=True) + ' ')
-        for command in self.commands:
+        for command in self._pure_commands():
             if re.match(command.command_info.pattern_regex, call):
                 return command.execute(state=state, call=call)
         print(click.style('Invalid command', fg='red'))
         click.pause()
         return []
 
+    def _pure_commands(self) -> Sequence[Command]:
+        for c in self.commands:
+            if isinstance(c, Command):
+                yield c
+
     def _print_commands(self, state: State):
-        show_all = all(c.command_info.show for c in self.commands)
+        show_all = all(c.command_info.show for c in self._pure_commands())
         if not show_all and self.have_help:
             print('Commands:   ' + click.style('enter h (help) to see all available commands', fg=pale_color()))
         else:
             print('Commands:')
 
-        for command in self.commands:
+        for command in self._pure_commands():
             if command.command_info.show:
                 print(command.standard_display(state=state))
