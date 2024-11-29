@@ -38,6 +38,12 @@ def clear_cache():
     Cache.clear()
     logger.info('Cleared cache.')
 
+@cli.command(help='Looks for a cycle (that is imported by a particular file).')
+@click.argument('file')
+def cycle_finder(file):
+    from stextools.cycle_finder import cycle_finder
+    cycle_finder(file)
+
 
 @cli.command(help='Update the archive dependencies.')
 @click.option('--mode', default='test',
