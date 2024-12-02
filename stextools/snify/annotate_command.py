@@ -245,7 +245,7 @@ class AnnotateMixin:
                         use_scope = (node.pos, node.pos + node.len)
                     if node.environmentname == 'smodule':
                         import_pos = node.nodelist[0].pos
-                        import_scope = (node.pos, node.endpos)
+                        import_scope = (node.pos, node.pos + node.len)
                     if top_use_pos is None:
                         top_use_pos = node.nodelist[0].pos
                         top_use_env = node.environmentname
