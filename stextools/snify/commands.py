@@ -24,7 +24,11 @@ def show_current_selection(state: State, with_header: bool = True):
             f'Annotations added: {state.statistic_annotations_added}'.ljust(25)
         ]
         print(' | ' + ' | '.join(status) + ' |')
-        standard_header(str(state.get_current_file().relative_to(Path.cwd())), bg='bright_green')
+        if state.get_current_file().is_relative_to(Path.cwd()):
+            pathstr = str(state.get_current_file().relative_to(Path.cwd()))
+        else:
+            pathstr = str(state.get_current_file())
+        standard_header(pathstr, bg='bright_green')
 
     cursor = state.cursor
     assert isinstance(cursor, SelectionCursor)
