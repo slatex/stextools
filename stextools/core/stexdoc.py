@@ -43,6 +43,10 @@ class Dependency:
     file_may_be_relative: bool = False
 
     def get_target_path(self, mh: MathHub, src: STeXDocument) -> Optional[Path]:
+        if len(self.module_name) > 150:
+            logger.warning(f'Ignoring very long module name in {src.path}: {self.module_name[:150]}...')
+            logger.warning(f'If this is not caused by malformed TeX, please report this issue along with the document.')
+            return None
         if self.file_hint is None:
             return None
         archive = mh.get_archive(self.archive)
