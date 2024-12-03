@@ -338,8 +338,19 @@ class EditCommand(Command):
         )
 
     def execute(self, *, state: State, call: str) -> Sequence[CommandOutcome]:
+        old_content = state.get_current_file_text()
         subprocess.Popen([self.editor, str(state.get_current_file())]).wait()
-        return [RescanOutcome()]
+        new_content = state.get_current_file_text()
+        first_change_pos = 0
+        while first_change_pos < len(old_content) and first_change_pos < len(new_content) and old_content[first_change_pos] == new_content[first_change_pos]:
+            first_change_pos += 1
+
+        outcomes = [RescanOutcome()]
+        assert isinstance(state.cursor, SelectionCursor)
+        if first_change_pos <= state.cursor.selection_end + 5:   # some buffer in case a suffix was appended
+            outcomes.append(SetNewCursor(PositionCursor(state.cursor.file_index, min(first_change_pos, state.cursor.selection_start))))
+
+        return outcomes
 
 
 class Edit_i_Command(Command):
