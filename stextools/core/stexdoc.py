@@ -60,14 +60,15 @@ class Dependency:
 
         if r := archive.resolve_path_ref(self.file_hint, 'lib' if self.is_lib else 'source', di.lang):
             return r
-        if self.file_may_be_relative and src.archive == self.archive:
+        if self.file_may_be_relative and src.archive.get_archive_name() == self.archive:
             # try to resolve relative to the source file
             s = src.get_rel_path().split('/')
             file_hint = '/'.join(s[1:-1]) + '/' + self.file_hint
-            if r := archive.resolve_path_ref(file_hint, s, di.lang):  # type: ignore
+            directory = str(src.get_rel_path()).split('/')[0]
+            if r := archive.resolve_path_ref(file_hint, directory, di.lang):  # type: ignore
                 return r
             if self.module_name:
-                return archive.resolve_path_ref(self.file_hint + '/' + self.module_name, s, di.lang)  # type: ignore
+                return archive.resolve_path_ref(self.file_hint + '/' + self.module_name, directory, di.lang)  # type: ignore
         return None
 
     @property
@@ -308,6 +309,8 @@ DEPENDENCY_PRODUCERS = [
 
     DependencyProducer('inputref', opt_param_is_archive=True, is_input=True),
     DependencyProducer('mhinput', opt_param_is_archive=True, is_input=True),
+    DependencyProducer('input', is_input=True),
+    DependencyProducer('include', is_input=True),
 
     DependencyProducer('mhgraphics', archive_in_params=True, target_no_tex=True),
     DependencyProducer('cmhgraphics', archive_in_params=True, target_no_tex=True),
