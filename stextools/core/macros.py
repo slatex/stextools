@@ -48,7 +48,10 @@ STEX_MACRO_SPECS: list = [
     MacroSpec('varseq', '{{{'),
     MacroSpec('nlex', '{'),
     MacroSpec('inlinedef', '[{'),
+    MacroSpec('inlineex', '[{'),
     MacroSpec('definiens', '[{'),
+    MacroSpec('definiens', '[{'),
+    MacroSpec('vardef', '{[{'),
 ]
 
 STEX_ENV_SPECS: list = [

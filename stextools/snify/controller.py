@@ -49,7 +49,6 @@ class FileModification(Modification):
     def apply(self, state: State):
         current_text = self.file.read_text()
         if current_text != self.old_text:
-            # raise RuntimeError(f"File {self.file} has been modified since the last time it was read")
             print(click.style(f"File {self.file} has been modified since the last time it was read", bg='bright_yellow'))
             print(click.style(f"I will not change the file", bg='bright_yellow'))
             click.pause()
@@ -60,7 +59,6 @@ class FileModification(Modification):
     def unapply(self, state: State):
         current_text = self.file.read_text()
         if current_text != self.new_text:
-            # raise RuntimeError(f"File {self.file} has been modified since the last time it was written")
             print(click.style(f"File {self.file} has been modified since the last time it was written", bg='bright_yellow'))
             print(click.style(f"I will not change the file", bg='bright_yellow'))
             click.pause()
