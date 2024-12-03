@@ -26,6 +26,7 @@ MACRO_RECURSION_RULES: dict[str, list[int]] = {
     'textit': [0],
     'inlinedef': [1],
     'inlineex': [1],
+    'inlineass': [1],
     'definiens': [1],
 }
 
