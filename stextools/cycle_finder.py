@@ -1,7 +1,11 @@
+import itertools
 from pathlib import Path
+
+import click
 
 from stextools.core.cache import Cache
 from stextools.core.linker import Linker
+from stextools.utils.ui import get_lines_around, latex_format, pale_color, print_highlight_selection
 
 
 class CycleFound(Exception):
@@ -23,8 +27,8 @@ def cycle_finder(file: str):
         stack.append(i)
         for child in graph[i]:
             if child not in covered:
+                dfs(child, stack)
                 covered.add(child)
-                dfs(child, stack + [i])
         stack.pop()
 
     start = linker.document_ints.intify(mh.get_stex_doc(Path(file)))
@@ -32,8 +36,23 @@ def cycle_finder(file: str):
     try:
         dfs(start, [])
     except CycleFound as e:
-        print('I found the following cycle:')
-        for i in e.cycle:
-            print(linker.document_ints.unintify(i).path)
+        print(click.style('I found the following cycle:', bg='bright_cyan'))
+        for i, j in itertools.pairwise(e.cycle):
+            doc = linker.document_ints.unintify(i)
+            print(click.style(doc.path, bold=True))
+            for dep in doc.get_doc_info(mh).flattened_dependencies():
+                if dep.is_use:
+                    continue
+                target_doc = dep.get_target(mh, doc)[0]
+                if target_doc is None:
+                    continue
+                if linker.document_ints.intify(target_doc) == j:
+                    print_highlight_selection(
+                        doc.path.read_text(), dep.intro_range[0], dep.intro_range[1], 1, bold=False
+                    )
+                    break
+
+        doc = linker.document_ints.unintify(e.cycle[-1])
+        print(click.style(doc.path, bold=True))
     else:
         print('No cycle found.')

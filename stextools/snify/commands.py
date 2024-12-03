@@ -14,7 +14,7 @@ from stextools.core.mathhub import make_filter_fun
 from stextools.core.simple_api import SimpleSymbol, get_files
 from stextools.snify.state import State, SelectionCursor, Cursor, PositionCursor
 from stextools.utils.ui import option_string, standard_header, pale_color, get_lines_around, latex_format, \
-    standard_header_str
+    standard_header_str, print_highlight_selection
 
 
 def show_current_selection(state: State, with_header: bool = True):
@@ -33,18 +33,13 @@ def show_current_selection(state: State, with_header: bool = True):
     cursor = state.cursor
     assert isinstance(cursor, SelectionCursor)
 
-    a, b, c, line_no_start = get_lines_around(
+    print_highlight_selection(
         state.get_current_file_text(),
         cursor.selection_start,
         cursor.selection_end,
         n_lines=int(get_config().get('stextools.snify', 'context-lines', fallback='7'))
-    )
-    doc = latex_format(a) + (
-        '\n'.join(click.style(p, bg='bright_yellow', bold=True) for p in b.split('\n'))
-    ) + latex_format(c)
 
-    for i, line in enumerate(doc.split('\n'), line_no_start):
-        print(click.style(f'{i:4} ', fg=pale_color()) + line)
+    )
 
 
 class CommandOutcome:

@@ -49,6 +49,16 @@ def simple_choice_prompt(options: list[str]):
     )
 
 
+def print_highlight_selection(doc_text: str, start: int, end: int, n_lines: int = 7, *, bold: bool = True):
+    a, b, c, line_no_start = get_lines_around(doc_text, start, end, n_lines)
+    doc = latex_format(a) + (
+        '\n'.join(click.style(p, bg='bright_yellow', bold=bold) for p in b.split('\n'))
+    ) + latex_format(c)
+
+    for i, line in enumerate(doc.split('\n'), line_no_start):
+        print(click.style(f'{i:4} ', fg=pale_color()) + line)
+
+
 def latex_format(code: str) -> str:
     from pygments import highlight
     from pygments.lexers import TexLexer
