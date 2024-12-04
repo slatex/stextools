@@ -5,7 +5,7 @@ import click
 
 from stextools.core.cache import Cache
 from stextools.core.linker import Linker
-from stextools.utils.ui import get_lines_around, latex_format, pale_color, print_highlight_selection
+from stextools.utils.ui import print_highlight_selection
 
 
 class CycleFound(Exception):

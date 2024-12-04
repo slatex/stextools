@@ -229,8 +229,8 @@ class VerbTrie:
             if not verbalizations:
                 verbalizations = [symbol.name]
             for verb in verbalizations:
-                if len(verb) < 3:
-                    continue
+                # if len(verb) < 3 and sum(1 for c in verb if c.isupper()) < 2:
+                #     continue
 
                 words = [str(w) for w in string_to_stemmed_word_sequence_simplified(verb, lang)]
                 if repr(words) in covered_verbs:
