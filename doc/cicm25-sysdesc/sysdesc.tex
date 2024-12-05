@@ -66,12 +66,20 @@ especially, if we want to tailor the educational offerings to said individual/do
 a producer task, at least until ML-based methods reach the precision and explainability
 required by the ethics of teaching.
 
-\section{Semantic Authoring in a Content Common}
+\section{Semantic Authoring in a Content Commons}
+
+Before we discuss semantic authoring in general, let us introduce a concrete example from
+the \sTeX/\ALeA world. We will use it to sharpen our intuitions of the problems an issues
+involved and to ground the solution we propose.
+
+\subsection{Running Example: Annotating  ``Terminal''}
+
 The main practical problem of annotating presentational {\LaTeX} course materials into
 semantic documents that carry enough information to support meaningful learning support
 services is to add semantic references to technical terms from the domain jargon. Take for
 instance a learning object like the paragraph in \cref{fig:lo}, where we want to annotate
-the the term ``terminal'' with the (semantic) concept of ``a goal state of a search problem''. The latter can either be defined earlier in the course or in the domain model
+the the term ``terminal'' with the (semantic) concept of ``a goal state of a search
+problem''. The latter can either be defined earlier in the course or in the domain model
 (or both).
 
 \begin{figure}[ht]\centering
@@ -106,14 +114,14 @@ and otherwise an estimate.
 % In this case the symbol name happens to be the same as its English
 % verbalization, otherwise we would have to use
 % \lstinline[mathescape]|\sr{$\llangle symbol name\rrangle$}{state space}|.
-The annotation is legitimized\ednote{grounded?} by a definition in the domain model module shown in
+The annotation rerfers to a definition in the domain model module shown in
 \cref{fig:state-space}. The \lstinline|\definame| in line 3 introduces the
-\textbf{verbalizations} ``goal state'' and ``terminal state''
-for the symbol \lstinline|search-problem?goal state|
-introduced be \lstinline|\symdecl*| declaration in line 3.
+\textbf{verbalizations} ``goal state'' and ``terminal state'' for the symbol
+\lstinline|search-problem?goal state| introduced be \lstinline|\symdecl*| declaration in
+line 3.
 
 \begin{figure}[ht]\centering
-  \fbox{\includegraphics[width=12cm, trim={1cm 0 0 0}, clip]{../img/search-problem.en.pdf}}
+  \fbox{\includegraphics[width=12cm]{../img/search-problem.en.pdf}}
 \begin{lstlisting}[morekeywords={definame,symdecl},numbers=left]
 \begin{smodule}[title=Search Problem]{search-problem}
 [... some imports ...]
@@ -127,21 +135,52 @@ introduced be \lstinline|\symdecl*| declaration in line 3.
   \caption{Simplified definition of ``goal state'' from the domain model}\label{fig:state-space}
 \end{figure}
 
-To annotate the string ``terminal'' in the learning object,
-the author has to be aware that it is a technical term,
-that the module from \cref{fig:state-space} exists, know the
-symbol name and its URL\ednote{path?}, and manage redundancy of the imports -- i.e. only adding the
-\lstinline|\importmodule| directive if it is not already (recursively) implied and
-possibly removing directives that become redundant by the new one.
-At ca 150,000 words in
-a semester's words of lecture notes and ca. 10--15\%\ednote{can we actually measure this for AI?} of technical terms a rather daunting
-task.
+To annotate the string ``terminal'' in the learning object, the author has to be aware
+that it is a technical term, that the module from \cref{fig:state-space} exists, know the
+symbol name and its URL\ednote{path?}, and manage redundancy of the imports -- i.e. only
+adding the \lstinline|\importmodule| directive if it is not already (recursively) implied
+and possibly removing directives that become redundant by the new one.  At ca 150,000
+words in a semester's words of lecture notes and ca. 10--15\%\ednote{can we actually
+  measure this for AI?} of technical terms a rather daunting task.
 
 \sTeX authoring is already supported by an VSCode IDE plugin \cite{sTeX-IDE:git} that
 analyzes annotations on the fly, displays the underlying reference semantics, reports
 errors and redundancies, and even offers a concept search interface. But these only offer
 support already for annotated terms, so they do not solve the annotation problem above.
 
+\subsection{Semantic Authoring as a Distinct Problem}
+
+\begin{newpart}{MK: looking at the problem in general and compare it to the informal
+    authoring and formal authoring problems e.g. programming in an IDE.}
+We contend that semantic authoring is a problem that is distinct from traditional
+(informal) authoring and authoring fully formal corpora (e.g. programs or formalizations),
+while sharing some of the aspects of either.
+
+In traditional authoring e.g. of a scientific article or a textbook, the domain model -- a
+highly structured model of the domain of discourse -- is in the authors' heads, and is
+partially verbalized e.g. in the preliminaries section or the main sections of the
+respective article. The content is informal -- usually a natural language like english
+augmented with technical jargon, formulae, tables, and diagrams -- and designed for
+processing via the brain of a colleague or student -- in any case, a human who shares a
+canonical part of the domain model with the authors.\ednote{MK: this shared domain model
+  could be thought of as the informal content commons; hmmm, but maybe the literature is
+  the content commons} Consequently a large part of the authoring problem lies in
+predicting the state and extent of the domain model of the reader and creating text that
+bridges the gap between the reader's domain model and the payload content of the article
+-- the knowledge the article or textbook intends to impart -- ideally using the technical
+vocabulary the reader is familiar with to reduce this gap. Tool support for traditional
+authoring is minimal and usually restricted to spell/grammar-checkers and online thesauri
+if we disregard LLM writing/formulation support for now.
+
+In fully formal authoring e.g. for programming, the content commons is given formally in
+the form of the libraries of the respective programming language, correspondingly the
+authored content is also formal -- a program -- and intended for processing by a computer,
+for which the formality is a prerequisite. 
+
+\ednote{talk about formalization in logic -- e.g. as theorem prover libraries as well}
+\end{newpart}
+
+  
 \section{The \snify System}
 
 The \snify system (see \cite{stextools:git}) is a simple command-line tool.
