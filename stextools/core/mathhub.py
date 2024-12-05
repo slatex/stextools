@@ -152,6 +152,8 @@ class Repository:
             return
         still_needed: set[str] = set()
         for rel_path, path in self._relevant_file_iterate():
+            if path.is_symlink():
+                continue
             still_needed.add(rel_path)
             if rel_path not in self._stex_documents:
                 self._stex_documents[rel_path] = STeXDocument(self, path)
@@ -185,6 +187,8 @@ class Repository:
             return
         self._stex_documents = {}
         for path in self._relevant_file_iterate_simplified():
+            if path.is_symlink():
+                continue
             stex_doc = STeXDocument(self, path)
             self._stex_documents[stex_doc.get_rel_path()] = stex_doc
 
