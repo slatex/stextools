@@ -49,8 +49,8 @@ class FileModification(Modification):
     def apply(self, state: State):
         current_text = self.file.read_text()
         if current_text != self.old_text:
-            print(click.style(f"File {self.file} has been modified since the last time it was read", bg='bright_yellow'))
-            print(click.style(f"I will not change the file", bg='bright_yellow'))
+            print(click.style(f"File {self.file} has been modified since the last time it was read", fg='black', bg='bright_yellow'))
+            print(click.style(f"I will not change the file", fg='black', bg='bright_yellow'))
             click.pause()
             return
 
@@ -59,8 +59,8 @@ class FileModification(Modification):
     def unapply(self, state: State):
         current_text = self.file.read_text()
         if current_text != self.new_text:
-            print(click.style(f"File {self.file} has been modified since the last time it was written", bg='bright_yellow'))
-            print(click.style(f"I will not change the file", bg='bright_yellow'))
+            print(click.style(f"File {self.file} has been modified since the last time it was written", fg='black', bg='bright_yellow'))
+            print(click.style(f"I will not change the file", fg='black', bg='bright_yellow'))
             click.pause()
             return
         self.file.write_text(self.old_text)
@@ -494,7 +494,14 @@ def snify(files: list[str], filter: str, ignore: str):
     if state is None:
         state = State(files=[], filter_pattern=filter,
                       ignore_pattern=ignore, cursor=PositionCursor(file_index=0, offset=0))
-        controller = Controller(state, new_files=[Path(file).absolute().resolve() for file in files])
+        paths: list[Path] = []
+        for file in files:
+            path = Path(file).absolute().resolve()
+            if path.is_dir():
+                paths.extend(path.rglob('*.tex'))
+            else:
+                paths.append(path)
+        controller = Controller(state, new_files=paths)
     else:
         controller = Controller(state)
     unfinished = controller.run()
