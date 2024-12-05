@@ -87,7 +87,7 @@ def translate(path):
 
 
 @cli.command(name='snify', help='\\sn-ify sTeX documents')
-@click.argument('files', nargs=-1)
+@click.argument('files', nargs=-1)  # Path to files or directories to snify
 @click.option('--filter',
               default=lambda: get_config().get('stextools.snify', 'filter', fallback=None),
               help='Filter pattern to only include some archives (e.g. \'smglom/*,courses/*\')')

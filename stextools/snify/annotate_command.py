@@ -385,8 +385,8 @@ def symbol_display(file: SimpleFile, symbol: SimpleSymbol, state: State, style: 
             symb_path[0] + '?' +
             (
                 (
-                        click.style(symb_path[1], bg=color('bright_cyan', (180, 180, 255))) + '?' +
-                        click.style(symb_path[2], bg=color('bright_green', (180, 255, 180)))
+                        click.style(symb_path[1], fg='black', bg=color('bright_cyan', (180, 180, 255))) + '?' +
+                        click.style(symb_path[2], fg='black', bg=color('bright_green', (180, 255, 180)))
                 )
                 if style else (symb_path[1] + '?' + symb_path[2])
             )
