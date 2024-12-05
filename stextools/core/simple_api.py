@@ -193,6 +193,10 @@ class SimpleArchive:
     def __hash__(self) -> int:
         return hash((self._repo, self._linker))
 
+    @property
+    def path(self) -> Path:
+        return self._repo.path
+
 
 @dataclasses.dataclass
 class SimpleVerbalization:
@@ -231,6 +235,11 @@ def file_from_path(path: Path, linker: Linker) -> Optional[SimpleFile]:
 def get_files(linker: Linker) -> Iterable[SimpleFile]:
     for doc_int in linker.document_ints.int_iter():
         yield SimpleFile(doc_int, linker)
+
+
+def get_repos(linker: Linker) -> Iterable[SimpleArchive]:
+    for repo in linker.mh.iter_stex_archives():
+        yield SimpleArchive(repo, linker)
 
 
 def get_linker() -> Linker:
