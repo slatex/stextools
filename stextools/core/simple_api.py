@@ -21,10 +21,10 @@ class SimpleSymbol:
 
     def get_verbalizations(self, lang: Optional[str] = None) -> Generator['SimpleVerbalization']:
         for verb_int in self._linker.symb_to_verbs[self._symbol_int]:
-            verb = self._linker.verb_ints.unintify(verb_int)[1]
+            doc_int, verb = self._linker.verb_ints.unintify(verb_int)
             if lang is not None and verb.lang != lang:
                 continue
-            yield SimpleVerbalization(verb, self._linker)
+            yield SimpleVerbalization(verb_int, self._linker)
 
     @property
     def path_rel_to_archive(self) -> str:
@@ -37,6 +37,10 @@ class SimpleSymbol:
     @property
     def declaring_file(self) -> 'SimpleFile':
         return self.declaring_module.file
+
+    @property
+    def macro_range(self) -> tuple[int, int]:
+        return self._symbol.decl_def
 
     @property
     def declaring_module(self) -> 'SimpleModule':
@@ -142,7 +146,7 @@ class SimpleFile:
 
     def iter_verbalizations(self) -> Generator['SimpleVerbalization']:
         for verb in self._stex_doc.get_doc_info(self._linker.mh).verbalizations:
-            yield SimpleVerbalization(verb, self._linker)
+            yield SimpleVerbalization(self._linker.verb_ints.intify((self._doc_int, verb)), self._linker)
 
     def symbol_is_in_scope_at(self, symbol: SimpleSymbol, offset: int) -> bool:
         required_module = symbol.declaring_module._module_int
@@ -198,10 +202,16 @@ class SimpleArchive:
         return self._repo.path
 
 
-@dataclasses.dataclass
 class SimpleVerbalization:
     _verbalization: Verbalization
+    _doc_int: int
+    _verbalization_int: int
     _linker: Linker
+
+    def __init__(self, verbalization_int: int, linker: Linker):
+        self._doc_int, self._verbalization = linker.verb_ints.unintify(verbalization_int)
+        self._verbalization_int = verbalization_int
+        self._linker = linker
 
     @property
     def verb_str(self) -> str:
@@ -214,6 +224,14 @@ class SimpleVerbalization:
     @property
     def is_defining(self) -> bool:
         return self._verbalization.is_defining
+
+    @property
+    def declaring_file(self) -> SimpleFile:
+        return SimpleFile(self._doc_int, self._linker)
+
+    @property
+    def macro_range(self) -> tuple[int, int]:
+        return self._verbalization.macro_range
 
 
 def get_symbols(linker: Linker, *, name: Optional[str] = None) -> Generator[SimpleSymbol]:

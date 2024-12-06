@@ -11,8 +11,9 @@ import click
 from stextools.core.config import get_config
 from stextools.core.linker import Linker
 from stextools.core.mathhub import make_filter_fun
-from stextools.core.simple_api import SimpleSymbol, get_files
+from stextools.core.simple_api import SimpleSymbol, get_files, SimpleVerbalization
 from stextools.snify.state import State, SelectionCursor, Cursor, PositionCursor
+from stextools.snify.stemming import string_to_stemmed_word_sequence_simplified
 from stextools.utils.ui import option_string, standard_header, pale_color, get_lines_around, latex_format, \
     standard_header_str, print_highlight_selection
 
@@ -369,6 +370,75 @@ class Edit_i_Command(Command):
         symbol = self.candidate_symbols[i]
         subprocess.Popen([self.editor, str(symbol.declaring_file.path)]).wait()
         return [RescanOutcome()]
+
+
+class Explain_i_Command(Command):
+    def __init__(self, candidate_symbols: list[SimpleSymbol]):
+        super().__init__(CommandInfo(
+            show=False,
+            pattern_presentation='x𝑖',
+            pattern_regex='^x[0-9]+$',
+            description_short=' explain 𝑖',
+            description_long='Explains why symbol no. 𝑖 is listed')
+        )
+        self.candidate_symbols = candidate_symbols
+
+    def execute(self, *, state: State, call: str) -> Sequence[CommandOutcome]:
+        i = int(call[1:])
+        if i >= len(self.candidate_symbols):
+            print(click.style('Invalid symbol number', fg='red'))
+            click.pause()
+            return []
+        symbol = self.candidate_symbols[i]
+        print(click.style(f'Explanation for symbol {i}:', bold=True))
+        print(click.style(f'{symbol.declaring_file.path}', fg=pale_color()))
+        print()
+        verb: Optional[Union[SimpleVerbalization, SimpleSymbol]] = None
+        linker = symbol._linker
+        lang = state.get_current_lang(linker)
+        stem = string_to_stemmed_word_sequence_simplified(symbol.name, lang)
+        for v in symbol.get_verbalizations(lang=lang):
+            if string_to_stemmed_word_sequence_simplified(v.verb_str, lang) == stem:
+                verb = v
+                break
+
+        if verb is None and string_to_stemmed_word_sequence_simplified(symbol.name, lang) == stem:
+            verb = symbol
+
+        if verb is None:
+            print(click.style('No matching verbalization found... this might be a bug...', bg='black', fg='bright_red'))
+        elif isinstance(verb, SimpleSymbol):
+            print('There was no matchinb verbalization, but the symbol name matches:')
+            print_highlight_selection(
+                verb.declaring_file.path.read_text(),
+                verb.macro_range[0],
+                verb.macro_range[1],
+                n_lines=2,
+            )
+        elif isinstance(verb, SimpleVerbalization):
+            print('Matching verbalization found in:')
+            print(click.style(f'  {verb.declaring_file.path}', fg='black', bg='bright_green'))
+            print_highlight_selection(
+                verb.declaring_file.path.read_text(),
+                verb.macro_range[0],
+                verb.macro_range[1],
+                n_lines=2,
+            )
+            print()
+        else:
+            raise RuntimeError(f'Unexpected type {type(verb)}')
+
+        assert isinstance(state.cursor, SelectionCursor)
+        file = state.get_current_file_simple_api(linker)
+        offset = state.cursor.selection_start
+        in_scope = file.symbol_is_in_scope_at(symbol, offset)
+
+        if in_scope:
+            ...     # TODO
+
+        click.pause()
+
+        return []
 
 
 class HelpCommand(Command):

@@ -7,6 +7,7 @@
 **New features:**
 
 * `snify` accepts directories as arguments (along with paths)
+* `x𝑖` command added to `snify` (to explain symbol suggestions)
 
 
 **Bugfixes:**
@@ -15,6 +16,8 @@
 **Other modifications/improvements:**
 
 * better colors for dark terminals
+* `snify` help slightly restructured
+* various improvements to `stextools.core.simple_api`
 
 
 

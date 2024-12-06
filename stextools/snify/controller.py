@@ -15,7 +15,7 @@ from stextools.snify.commands import CommandCollection, QuitProgramCommand, Exit
     ExitFileCommand, UndoOutcome, RedoOutcome, UndoCommand, RedoCommand, ViewCommand, View_i_Command, \
     TextRewriteOutcome, StatisticUpdateOutcome, ReplaceCommand, RescanCommand, RescanOutcome, StateSkipOutcome, \
     FocusOutcome, StemFocusCommand, StemFocusCommandPlus, StemFocusCommandPlusPlus, EditCommand, Edit_i_Command, \
-    CommandSectionLabel
+    CommandSectionLabel, Explain_i_Command
 from stextools.snify.selection import VerbTrie, PreviousWordShouldBeIncluded, NextWordShouldBeIncluded, \
     get_linked_strings, FirstWordShouldntBeIncluded, LastWordShouldntBeIncluded
 from stextools.snify.session_storage import SessionStorage
@@ -362,14 +362,16 @@ class Controller:
             commands=[
                 QuitProgramCommand(),
                 ExitFileCommand(),
-                annotate_command,
-                LookupCommand(self.linker, self.state),
                 UndoCommand(is_possible=bool(self._modification_history)),
                 RedoCommand(is_possible=bool(self._modification_future)),
                 RescanCommand(),
 
+                CommandSectionLabel('\nAnnotation'),
+                annotate_command,
+                LookupCommand(self.linker, self.state),
+                Explain_i_Command(candidate_symbols),
+
                 CommandSectionLabel('\nSelection modification'),
-                ReplaceCommand(),
                 PreviousWordShouldBeIncluded(self.get_current_lang()),
                 FirstWordShouldntBeIncluded(self.get_current_lang()),
                 NextWordShouldBeIncluded(self.get_current_lang()),
@@ -389,6 +391,7 @@ class Controller:
                 StemFocusCommandPlusPlus(self.linker),
 
                 CommandSectionLabel('\nViewing and editing'),
+                ReplaceCommand(),
                 ViewCommand(),
                 View_i_Command(candidate_symbols=candidate_symbols),
                 EditCommand(1),
