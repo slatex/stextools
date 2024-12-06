@@ -53,7 +53,7 @@ class SkipForRestOfSession(Command):
             pattern_presentation='s!!',
             pattern_regex='^s!!$',
             description_short='kip until end of session',
-            description_long='Do not propose any occurrences of the selected phrase anymore (until end of session).')
+            description_long='Do not propose any occurrences of the selected phrase anymore in this session.')
         )
 
     def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
