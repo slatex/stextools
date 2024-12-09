@@ -59,13 +59,13 @@ class State:
             new_cursor: Optional[Cursor] = None,
             select_only_stem: Optional[str] = None
     ):
+        self.focus_stack.append(
+            Focus(cursor_on_unfocus=self.cursor, files_on_unfocus=self.files, select_only_stem=select_only_stem)
+        )
         if new_files is not None:
             self.files = new_files
         if new_cursor is not None:
             self.cursor = new_cursor
-        self.focus_stack.append(
-            Focus(cursor_on_unfocus=self.cursor, files_on_unfocus=self.files, select_only_stem=select_only_stem)
-        )
 
     def pop_focus(self):
         focus = self.focus_stack.pop()
