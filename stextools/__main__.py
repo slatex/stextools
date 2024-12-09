@@ -1,5 +1,7 @@
+import importlib.metadata
 import logging
 from pathlib import Path
+from platform import python_version
 
 import click
 
@@ -97,6 +99,12 @@ def translate(path):
 def snify_actual(files, filter, ignore):
     from stextools.snify.controller import snify
     snify(files, filter, ignore)
+
+
+@cli.command(name='version', help='Print the version of stextools.')
+def version():
+    print('stextools:', importlib.metadata.version('stextools'))
+    print('python:', python_version())
 
 
 if __name__ == '__main__':
