@@ -8,6 +8,7 @@
 
 * `snify` accepts directories as arguments (along with paths)
 * `x𝑖` command added to `snify` (to explain symbol suggestions)
+* `version` command added
 
 
 **Bugfixes:**
