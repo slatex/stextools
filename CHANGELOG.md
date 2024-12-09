@@ -12,6 +12,8 @@
 
 **Bugfixes:**
 
+* `snify`: Do not presume color support by pager in `h` (#71)
+
 
 **Other modifications/improvements:**
 
