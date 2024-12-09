@@ -241,6 +241,9 @@ class Controller:
                 return False
 
             if not self.ensure_cursor_selection():
+                click.clear()
+                print('Focus mode ended')
+                click.pause()
                 self.state.pop_focus()
                 continue
 

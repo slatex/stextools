@@ -13,6 +13,7 @@
 **Bugfixes:**
 
 * `snify`: Do not presume color support by pager in `h` (#71)
+* `snify`: Fix bug during unfocusing
 
 
 **Other modifications/improvements:**
