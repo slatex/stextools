@@ -463,7 +463,7 @@ class HelpCommand(Command):
             else:
                 lines.append(click.style(command.message, fg=pale_color()))
         lines.append('')
-        click.echo_via_pager('\n'.join(lines), color=True)
+        click.echo_via_pager('\n'.join(lines))
         return []
 
 
