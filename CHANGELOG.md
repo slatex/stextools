@@ -2,7 +2,10 @@
 
 
 
-## Release 0.1.1 (up-coming)
+## Upcoming release
+
+
+## Release 0.1.1 (2024-12-09)
 
 **New features:**
 
