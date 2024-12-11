@@ -159,6 +159,7 @@ We contend that semantic authoring is a problem that is distinct from traditiona
 (informal) authoring and authoring fully formal corpora (e.g. programs or formalizations),
 while sharing some of the aspects of either.
 
+\paragraph{Traditional, informal authoring}
 In traditional authoring e.g. of a scientific article or a textbook, the domain model -- a
 highly structured model of the domain of discourse -- is in the authors' heads, and is
 partially verbalized e.g. in the preliminaries section or the main sections of the
@@ -175,6 +176,7 @@ vocabulary the reader is familiar with to reduce this gap. Tool support for trad
 authoring is minimal and usually restricted to spell/grammar-checkers and online thesauri
 if we disregard LLM writing/formulation support for now.
 
+\paragraph{Formal Authoring}
 In fully formal authoring e.g. for programming, the content commons is given formally in
 the form of the libraries of the respective programming language, correspondingly the
 authored content is also formal -- a program -- and intended for processing by a computer,
@@ -186,6 +188,7 @@ support. All of these rely on a syntactic/semantic analysis of the formal conten
 situation is very similar for authoring of formal knowledge, e.g. in program verification
 of the formalization of mathematics.
 
+\paragraph{Semantic Authoring}
 In semantic authoring, e.g. the \sTeX sources of educational content for the \ALeA system
 presented above. The base of the text is classical narrative text to which most of the
 constraints of classical authoring apply. The exception is the authoring-time tailoring to
@@ -198,7 +201,16 @@ the roles of instructor and instructee are not predetermined by academic seniori
 But in addition to the base text, semantic authoring also has to provide the semantic
 annotations that drive the personalization and interaction. Techniques from formal
 authoring could help here, but \ednote{cite Luka's CICM paper \cite{VreWelKam:tsmmdui24}
-  for the formulae; introduce the \sTeX way of writing content formulae above.}
+  for the formulae; introduce the \sTeX way of writing content formulae above.} But in
+contrast to formal authoring, we cannot just trigger the IDE functionality by the formal
+syntax, as the authored content is -- so far -- informal and the content commons (the
+target of the annotations) is itself only flexiformal. In a way, we need a local
+flexiformalization workflow that helps authors bridge the informal-formal gap.
+
+\paragraph{Semantic Authoring in \sTeX}
+How this can concretely work depends on the particular semantic framework, the specific
+annotations we want to support, and the semantics embedded in the content commons.
+
   
 \section{The \snify System}
 
