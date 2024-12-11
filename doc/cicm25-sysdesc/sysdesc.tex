@@ -60,7 +60,7 @@ precision secondary; e.g.\ for consumer-grade machine translation like \textsf{G
 
 In this paper, we address tools that help attack the coverage problem in symbolic/semantic
 approaches in practice. The producer task we use as a case study is that of adaptive
-learning assistants for MINT subjects, concretely the \ALeA system \cite{BerBetChu:lssmkm23}.
+learning assistants for STEM subjects, concretely the \ALeA system \cite{BerBetChu:lssmkm23}.
 \ALeA uses \sTeX \cite{MueKo:sdstex22,sTeX:github:on} -- a
 variant of {\LaTeX} that allows to embed semantic annotations -- for knowledge
 representation, and generates learner-adaptive learning objects instrumented with
@@ -79,7 +79,7 @@ required by the ethics of teaching.
 \section{Semantic Authoring in a Content Commons}
 
 Before we discuss semantic authoring in general, let us introduce a concrete example from
-the \sTeX/\ALeA world. We will use it to sharpen our intuitions of the problems an issues
+the \sTeX/\ALeA world. We will use it to sharpen our intuitions of the problems and issues
 involved and to ground the solution we propose.
 
 \subsection{Running Example: Annotating  ``Terminal''}
@@ -107,12 +107,12 @@ problem''. The latter can either be defined earlier in the course or in the doma
 
 Concretely this is about converting the {\LaTeX} string
 \begin{lstlisting}[numbers=left,firstnumber=3,
-caption=The (unannotated) {\LaTeX} sources of \cref{fig:lo},label=lst:los]
+caption=The unannotated {\LaTeX} sources of \cref{fig:lo},label=lst:los]
 \item \blue{Note:} Depth-limited minimax requires an evaluation for every
 cut-off state $s$. If $s$ is terminal, we use its utility, and otherwise
 an estimate.
 \end{lstlisting}
-into the (partially) annotated item:
+into the partially annotated item:
 \begin{lstlisting}[morekeywords={sr,importmodule},numbers=left,
 caption=Annotating ``terminal'' in \cref{lst:los},label=lst:losa]
 \importmodule[smglom/search]{mod?search-problem}
@@ -152,13 +152,13 @@ The \lstinline|\definame| and \lstinline|\definiendum| in lines 5--6 introduce t
 
 To annotate the string ``terminal'' in the learning object, the author has to be aware
 that it is a technical term, that the module from \cref{fig:state-space} exists, know the
-symbol name and its URL\ednote{path?}, and manage redundancy of the imports -- i.e. only
+symbol name and its URL\ednote{path/URI/identifier?}, and manage redundancy of the imports -- i.e. only
 adding the \lstinline|\importmodule| directive if it is not already (recursively) implied
 and possibly removing directives that become redundant by the new one.  At ca 150,000
 words in a semester's words of lecture notes and ca. 10--15\%\ednote{can we actually
   measure this for AI?} of technical terms a rather daunting task.
 
-\sTeX authoring is already supported by an VSCode IDE plugin \cite{sTeX-IDE:git} that
+\sTeX authoring is already supported by a VSCode IDE plugin \cite{sTeX-IDE:git} that
 analyzes annotations on the fly, displays the underlying reference semantics, reports
 errors and redundancies, and even offers a concept search interface.
 But these features only support already annotated terms, so they do not solve the annotation problem above.
@@ -196,11 +196,11 @@ offers services like semantic highlighting, tab completion, jumping to variable
 declarations, function definitions, and interface definitions, as well as refactoring
 support. All of these rely on a syntactic/semantic analysis of the formal content. The
 situation is very similar for authoring of formal knowledge, e.g. in program verification
-of the formalization of mathematics.
+or the formalization of mathematics.
 
 \paragraph{Semantic Authoring}
 In semantic authoring, e.g. the \sTeX sources of educational content for the \ALeA system
-presented above. The base of the text is classical narrative text to which most of the
+presented above, the base of the text is classical narrative text to which most of the
 constraints of classical authoring apply. The exception is the authoring-time tailoring to
 the competencies of the assumed reader, which can (partially) be automated by systems like
 \ALeA. Note that it is not a restriction that \ALeA is initially targeted to tertiary
@@ -271,7 +271,7 @@ words and symbol lists.
 
 \section{Practical Evaluation}
 
-In our experience, the step-through workflow for annotating term references for symbols
+In our experience, \snify's step-through workflow for annotating term references for symbols
 from the domain model is almost an order of magnitude more efficient than writing the
 annotations and imports by hand, even for annotators who are familiar with the domain
 model. For annotators unfamiliar with the domain model, the unassisted annotation task is
@@ -283,7 +283,7 @@ requires considerable concentration and domain knowledge, but little knowledge o
 domain model flexiformalization.
 
 The command-line interface is simple and responsive and gives all the necessary
-information in a single glance if underlying shell area exceeds ca. $80\times 35$
+information in a single glance if the underlying shell area exceeds ca. $80\times 35$
 characters. It is very much geared towards annotating existing documents with respect to a
 relatively complete -- pre-existing -- domain model, and it seems unlikely that a more
 sophisticated UI would add value for this use-case.
