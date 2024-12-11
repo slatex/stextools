@@ -155,8 +155,6 @@ But these features only support already annotated terms, so they do not solve th
 
 \subsection{Semantic Authoring as a Distinct Problem}
 
-\begin{newpart}{MK: looking at the problem in general and compare it to the informal
-    authoring and formal authoring problems e.g. programming in an IDE.}
 We contend that semantic authoring is a problem that is distinct from traditional
 (informal) authoring and authoring fully formal corpora (e.g. programs or formalizations),
 while sharing some of the aspects of either.
@@ -182,24 +180,36 @@ the form of the libraries of the respective programming language, correspondingl
 authored content is also formal -- a program -- and intended for processing by a computer,
 for which the formality is a prerequisite. Formal authoring is usually supported by an
 integraded development environment (IDE) that makes use of the fully formal content and
-offers services like semantic tab completion 
+offers services like semantic highlighting, tab completion, jumping to variable
+declarations, function definitions, and interface definitions, as well as refactoring
+support. All of these rely on a syntactic/semantic analysis of the formal content. The
+situation is very similar for authoring of formal knowledge, e.g. in program verification
+of the formalization of mathematics.
 
-\ednote{talk about formalization in logic -- e.g. as theorem prover libraries as well}
-\end{newpart}
+In semantic authoring, e.g. the \sTeX sources of educational content for the \ALeA system
+presented above. The base of the text is classical narrative text to which most of the
+constraints of classical authoring apply. The exception is the authoring-time tailoring to
+the competencies of the assumed reader, which can (partially) be automated by systems like
+\ALeA. Note that it is not a restriction that \ALeA is initially targeted to tertiary
+education; the underlying mechanisms generalize to all scientific communication and
+technical documents. After all, the purpose is to transfer information (instruct), even if
+the roles of instructor and instructee are not predetermined by academic seniority.
 
+But in addition to the base text, semantic authoring also has to provide the semantic
+annotations that drive the personalization and interaction. Techniques from formal
+authoring could help here, but \ednote{cite Luka's CICM paper \cite{VreWelKam:tsmmdui24}
+  for the formulae; introduce the \sTeX way of writing content formulae above.}
   
 \section{The \snify System}
 
-The \snify\ednote{explain name? write as sn-ify?}
-system (see \cite{stextools:git}) is a simple command-line tool
-that creates a database of symbol-verbalization pairs, analyzes \sTeX source files,
-and then steps through all word occurrences in the document that match a
-verbalization in the database.
-Matching is based on word stems using off-the-shelf stemmers, which allows us to
-e.g.\ match ``utilities'' with ``utility''.
-For each matched word, the user is presented with an annotation choice and
-interactions that allow to fine-tune the wordwise annotation workflow. \Cref{fig:snify}
-shows a typical situation.
+The \snify utility (from ``\texttt{\textbackslash sn}-ify'' for adding term references;
+see \cite{stextools:git}) is a simple command-line tool that creates a database of
+symbol-verbalization pairs, analyzes \sTeX source files, and then steps through all word
+occurrences in the document that match a verbalization in the database.  Matching is based
+on word stems using off-the-shelf stemmers, which allows us to e.g.\ match ``utilities''
+with ``utility''.  For each matched word, the user is presented with an annotation choice
+and interactions that allow to fine-tune the wordwise annotation
+workflow. \Cref{fig:snify} shows a typical situation.
 
 \begin{figure}[ht]
   \setlength{\fboxsep}{0pt}
