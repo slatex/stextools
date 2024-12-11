@@ -163,7 +163,7 @@ while sharing some of the aspects of either.
 In traditional authoring e.g. of a scientific article or a textbook, the domain model -- a
 highly structured model of the domain of discourse -- is in the authors' heads, and is
 partially verbalized e.g. in the preliminaries section or the main sections of the
-respective article. The content is informal -- usually a natural language like english
+respective article. The content is informal -- usually a natural language like English
 augmented with technical jargon, formulae, tables, and diagrams -- and designed for
 processing via the brain of a colleague or student -- in any case, a human who shares a
 canonical part of the domain model with the authors.\ednote{MK: this shared domain model
@@ -174,14 +174,14 @@ bridges the gap between the reader's domain model and the payload content of the
 -- the knowledge the article or textbook intends to impart -- ideally using the technical
 vocabulary the reader is familiar with to reduce this gap. Tool support for traditional
 authoring is minimal and usually restricted to spell/grammar-checkers and online thesauri
-if we disregard LLM writing/formulation support for now.
+if we disregard LLM-based writing/formulation support for now.
 
 \paragraph{Formal Authoring}
 In fully formal authoring e.g. for programming, the content commons is given formally in
 the form of the libraries of the respective programming language, correspondingly the
 authored content is also formal -- a program -- and intended for processing by a computer,
 for which the formality is a prerequisite. Formal authoring is usually supported by an
-integraded development environment (IDE) that makes use of the fully formal content and
+integrated development environment (IDE) that makes use of the fully formal content and
 offers services like semantic highlighting, tab completion, jumping to variable
 declarations, function definitions, and interface definitions, as well as refactoring
 support. All of these rely on a syntactic/semantic analysis of the formal content. The
@@ -200,16 +200,22 @@ the roles of instructor and instructee are not predetermined by academic seniori
 
 But in addition to the base text, semantic authoring also has to provide the semantic
 annotations that drive the personalization and interaction. Techniques from formal
-authoring could help here, but \ednote{cite Luka's CICM paper \cite{VreWelKam:tsmmdui24}
-  for the formulae; introduce the \sTeX way of writing content formulae above.} But in
-contrast to formal authoring, we cannot just trigger the IDE functionality by the formal
-syntax, as the authored content is -- so far -- informal and the content commons (the
-target of the annotations) is itself only flexiformal. In a way, we need a local
-flexiformalization workflow that helps authors bridge the informal-formal gap.
+authoring could help here, but in contrast to formal authoring, we cannot just trigger the
+IDE functionality by the formal syntax, as the authored content is -- so far -- informal
+and the content commons (the target of the annotations) is itself only flexiformal. In a
+way, we need a local flexiformalization workflow that helps authors bridge the
+informal-formal gap.
 
 \paragraph{Semantic Authoring in \sTeX}
 How this can concretely work depends on the particular semantic framework, the specific
-annotations we want to support, and the semantics embedded in the content commons.
+annotations we want to support, and the semantics embedded in the content commons. In the
+\sTeX framework, where we semantically annotate formulae and technical terms with pointers
+to their definienda, we can bridge the presentation/semantics gap -- we annotate the words
+in sentences and glyphs in formulae with the verbalizations and notations in the content
+commons.\ednote{MK: maybe explain them again}. A tool for supporting semantic authoring of
+formulae via notations has been presented by Vre{\v{c}}ar et al. in
+\cite{VreWelKam:tsmmdui24}. In this paper we present a tool that supports semantic
+annotation of technical terms via verbalizations.
 
   
 \section{The \snify System}
@@ -290,7 +296,7 @@ API\ednote{intro this above} does not supply verbalization information. The iMMT
 API~\cite{iMMT:on} currently under development will, so \snify will be able to request the
 pairs for the remaining (non-local) content commons. If a pair is chosen in an annotation,
 \snify can then automatically download the corresponding archive so that the annotated
-file can be formattted with pdflatex or rusTeX locally.
+file can be formatted with pdflatex or rusTeX locally.
 
 Finally, the current interface is not well-suited for on-the-fly annotation while
 authoring.  For that, the underlying information (the symbol/verbalization pairs harvested
@@ -301,7 +307,7 @@ next version of the sTeX plugin for VSCode \cite{sTeX-IDE:git}.
 
 In this paper we have presented the semantic authoring problem using the \sTeX corpus and
 the adaptive learning assistant \ALeA as a concrete example. We have shown that it differs
-from both classical authoring and formal authoring in terms of the necesssary system
+from both classical authoring and formal authoring in terms of the necessary system
 support. As an example of specialized authoring support, we have presented \snify, a
 command-line tool that bridges the gap between formal symbols in \sTeX and 
 
@@ -329,4 +335,4 @@ especially after the verbalizations covered by the existing domain model\ednote{
 %%% TeX-master: t
 %%% End:
 
-% LocalWords:  tbw Aarne Ranta homostem pre
+% LocalWords:  tbw Aarne Ranta homostem pre hmmm Vre ar al sn ify
