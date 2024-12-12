@@ -226,11 +226,14 @@ class Repository:
         p2 = b / (rel_path + '.tex')
         if p2.is_file():
             return p2
-        # try for .[lang].tex (at least that's how I understand the sTeX manual)
         split = rel_path.split('/')
         options = list((b / ('/'.join(split[:-1]))).glob(f'{split[-1]}.{lang}.tex'))
         if options:
             return options[0]
+        if lang not in {'*', 'en'}:
+            p3 = b / (rel_path + f'.en.tex')
+            if p3.is_file():
+                return p3
         return None
 
 
