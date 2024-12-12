@@ -242,9 +242,14 @@ class Controller:
 
             if not self.ensure_cursor_selection():
                 click.clear()
-                print('Focus mode ended')
-                click.pause()
                 self.state.pop_focus()
+                if self.state.focus_stack:
+                    print('Focus mode ended')
+                else:
+                    if self.state.statistic_annotations_added:
+                        print(f'Congratulations! You have added {self.state.statistic_annotations_added} annotations.')
+                    print('There are no more files to annotate.')
+                click.pause()
                 continue
 
             click.clear()
