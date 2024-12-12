@@ -4,6 +4,16 @@
 
 ## Upcoming release
 
+**Bugfixes:**
+
+* Fix misleading "focus mode ended" in `snify` 
+* Use `.en.tex` as a fallback in path resolution
+
+
+**Other modifications/improvements:**
+
+* various improvements to `stextools.core.simple_api`
+
 
 ## Release 0.1.1 (2024-12-09)
 
