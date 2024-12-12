@@ -45,7 +45,7 @@ class Linker:
     document_ints: Intifier[STeXDocument]
     module_ints: Intifier[tuple[int, str]]  # (document as int, module name)
     symbol_ints: Intifier[tuple[int, Symbol]]  # (module as int, symbol)
-    verb_ints: Intifier[tuple[int, Verbalization]]  # (module as int, verbalization)
+    verb_ints: Intifier[tuple[int, Verbalization]]  # (document as int, verbalization)
 
     # data from _compute_dep_graph
     file_import_graph: dict[int, set[int]]

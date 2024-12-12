@@ -171,6 +171,12 @@ class SimpleFile:
     def lang(self) -> str:
         return self._stex_doc.get_doc_info(self._linker.mh).lang
 
+    @property
+    def declared_symbols(self) -> Generator[SimpleSymbol]:
+        for module_int in self._linker.file_to_module[self._doc_int]:
+            for symbol_int in self._linker.module_to_symbs[module_int]:
+                yield SimpleSymbol(symbol_int, self._linker)
+
     def __eq__(self, other) -> bool:
         return (isinstance(other, SimpleFile) and
                 self._doc_int == other._doc_int and
@@ -200,6 +206,11 @@ class SimpleArchive:
     @property
     def path(self) -> Path:
         return self._repo.path
+
+    @property
+    def files(self) -> Iterable[SimpleFile]:
+        for doc in self._repo.stex_doc_iter():
+            yield SimpleFile(self._linker.document_ints.intify(doc), self._linker)
 
 
 class SimpleVerbalization:
