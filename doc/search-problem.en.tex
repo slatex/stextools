@@ -1,0 +1,43 @@
+\documentclass{standalone}
+\usepackage{stex}
+\libinput{preamble}
+\begin{document}
+\begin{smodule}[title=Search Problem]{search-problem}
+\importmodule[smglom/sets]{mod?powerset}
+\importmodule[smglom/mv]{mod?structure}
+\importmodule[smglom/sets]{mod?emptyset}
+\importmodule[smglom/sets]{mod?union}
+\importmodule[smglom/arithmetics]{mod?natarith}
+\importmodule[smglom/epistemology]{mod?state}
+\importmodule[smglom/epistemology]{mod?action}
+\symdecl*{successor states}
+
+\begin{mathstructure}{searchprob}[search problem]
+\symdef{states}{\comp{\mathcal{S}}}
+\symdef{actions}{\comp{\mathcal{A}}}
+\symdef{tm}[name=transition model,args=2,
+  type=\funspace{\actions,\states}{\powerset\states}]{\maincomp{\mathcal{T}}(#1,#2)}
+\symdef{initial}[name=initial state,type=\powerset\states]{\comp{\mathcal{I}}}
+\symdef{goals}[name=goal state,type=\powerset\states]{\comp{\mathcal{G}}}
+\begin{minipage}{12cm}
+\begin{sdefinition}[id=search-problem.def,for={states,actions}]
+  A \definame{search problem} $\searchprob{}{}$ consists of a \sn{set} $\states$ of
+  \definame[post=s]{state}, a \sn{set} $\actions$ of \definame[post=s]{action}, and a
+  \definame{tm} $\fun{\tm!}{\pairs\actions\states}{\powerset\states}$ that \sns{assign} to
+  any \sn{action} $\inset{a}\actions$ and \sn{state} $\inset{s}\states$ a \sn{set} of
+  \definame{successor states}.
+
+  Certain \sns{state} are designated as \definame[post=s]{initial state}
+  $\sseteq\initial\states$ and \definame[post=s]{goal state} $\sseteq\goals\states$
+  (also called \definiendum{goal state}{terminal states}).
+\end{sdefinition}
+\end{minipage}
+\end{mathstructure}
+\end{smodule}
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% End:
+% srskip l:consists, l:designated
