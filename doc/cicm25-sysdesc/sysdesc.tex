@@ -96,6 +96,7 @@ Afterwards, we discuss (potential) tools in various stages of development (\cref
 describe and evaluate one concrete tool, \snify, that supports the annotation
 of terms with the semantic concepts they refer to (\cref{sec:snify,sec:eval}).
 The paper ends with a brief conclusion (\cref{sec:conclusion}).
+\ednote{rework this paragraph a bit}
 
 
 % % OLD INTRO
@@ -215,12 +216,12 @@ and possibly removing directives that become redundant by the new one.  At ca 15
 words in a semester's worth of lecture notes and ca. 10--15\%\ednote{can we actually
   measure this for AI?} of technical terms a rather daunting task.
 
-\sTeX authoring is already supported by a VSCode IDE plugin \cite{sTeX-IDE:git} that
-analyzes annotations on the fly, displays the underlying reference semantics, reports
-errors and redundancies, and even offers a concept search interface.
-But these features only support already annotated terms, so they do not solve the annotation problem above.\ednote{
-    last paragraph doesn't fit here anymore, as it only motivates \snify
-}
+% \sTeX authoring is already supported by a VSCode IDE plugin \cite{sTeX-IDE:git} that
+% analyzes annotations on the fly, displays the underlying reference semantics, reports
+% errors and redundancies, and even offers a concept search interface.
+% But these features only support already annotated terms, so they do not solve the annotation problem above.\ednote{
+%     last paragraph doesn't fit here anymore, as it only motivates \snify
+% }
 
 \subsection{Semantic Authoring as a Distinct Problem}
 We contend that semantic authoring is a problem that is distinct from traditional
@@ -275,21 +276,46 @@ and the content commons (the target of the annotations) is itself only flexiform
 way, we need a local flexiformalization workflow that helps authors bridge the
 informal-formal gap.
 
-\paragraph{Semantic Authoring in \sTeX}
-How this can concretely work depends on the particular semantic framework, the specific
-annotations we want to support, and the semantics embedded in the content commons. In the
-\sTeX framework, where we semantically annotate formulae and technical terms with pointers
-to their definienda, we can bridge the presentation/semantics gap -- we annotate the words
-in sentences and glyphs in formulae with the verbalizations and notations in the content
-commons.\ednote{MK: maybe explain them again}. A tool for supporting semantic authoring of
-formulae via notations has been presented by Vre{\v{c}}ar et al. in
-\cite{VreWelKam:tsmmdui24}. In this paper we present a tool that supports semantic
-annotation of technical terms via verbalizations.\ednote{move this in the next section}
+% \paragraph{Semantic Authoring in \sTeX}
+% How this can concretely work depends on the particular semantic framework, the specific
+% annotations we want to support, and the semantics embedded in the content commons. In the
+% \sTeX framework, where we semantically annotate formulae and technical terms with pointers
+% to their definienda, we can bridge the presentation/semantics gap -- we annotate the words
+% in sentences and glyphs in formulae with the verbalizations and notations in the content
+% commons.\ednote{MK: maybe explain them again}. A tool for supporting semantic authoring of
+% formulae via notations has been presented by Vre{\v{c}}ar et al. in
+% \cite{VreWelKam:tsmmdui24}. In this paper we present a tool that supports semantic
+% annotation of technical terms via verbalizations.\ednote{move this in the next section}
 
 
-\section{Existing and Envisioned Authoring Support for \sTeX/\ALeA}\label{sec:tools}
+\section{Tool Support for Semantic Authoring in \sTeX}\label{sec:tools}
+Semantic authoring can ``inherit'' tool support from both informal
+and formal authoring.
+In the case of \sTeX, we can re-use spell checkers for traditional informal authoring.
+Additionally, there is a custom VSCode IDE plugin \cite{sTeX-IDE:git} that
+analyzes annotations on the fly, displays the underlying reference semantics, reports
+errors and redundancies, and even offers a concept search interface.
+But such features only support existing annotations and are, therefore,
+of limited use when creating new annotations, which arguably is the
+most time consuming aspects of semantic authoring.
 
-  
+How the annotation process can be supported depends on the particular semantic framework,
+the specific annotations we want to support, and the semantics embedded in the content commons.
+In \sTeX/\ALeA, we primarily annotate formulae and technical terms with pointers to their definienda.
+A tool for supporting semantic authoring of formulae via notations has been presented by Vre{\v{c}}ar et al.\ in~\cite{VreWelKam:tsmmdui24}.
+It uses a grammar to parse informal, presentation-focused formulae (e.g.\ \lstinline|A\times B|) into abstract syntax trees based on
+semantic macros defined in \sTeX, which can then replace the original formula
+(e.g.\ \lstinline|\cart{A,B}| for the cartesian product of sets).
+In the case of ambiguity, authors can pick the correct reading in a
+graphical user interface that visualizes the different abstract syntax trees.
+
+Efficient support for the annotation of technical terms in natural language
+has been elusive so far.
+\ednote{
+    Move Hutter from conclusion here?
+    Also: Plivelic}
+
+
 \section{The \snify System}\label{sec:snify}
 
 The \snify utility (from ``\texttt{\textbackslash sn}-ify'' for adding term references;
