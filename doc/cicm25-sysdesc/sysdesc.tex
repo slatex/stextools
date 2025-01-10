@@ -1,3 +1,9 @@
+% KEY TODOs:
+%  * better title
+%  * turn overview into combined overview and contribution
+%  * Finish tool support section
+%  *  -> reduce future work paragraph in conclusion accordingly
+
 \documentclass{llncs}
 \usepackage[show]{ed}
 \usepackage{wrapfig}
@@ -84,7 +90,9 @@ The sheer size of the commons is one of the key challenges for authors:
 \SMGloM contains definitions of $X$\ednote{TODO} STEM concepts in multiple languages,
 created and maintained by over 30 contributors.
 Additionally, there are roughly 4900\ednote{
-    Includes 440 from UPS, which seems unannotated... Other issues?
+    Includes 440 from UPS, which seems unannotated...
+    Excludes talks as well...
+    Other issues?
     Command (tex comment): % grep -R --include='*.tex' -F -e '\begin{frame}' | wc -l
 }
 semantically annotated lecture slides and 4000 problems.
@@ -96,7 +104,7 @@ Afterwards, we discuss (potential) tools in various stages of development (\cref
 describe and evaluate one concrete tool, \snify, that supports the annotation
 of terms with the semantic concepts they refer to (\cref{sec:snify,sec:eval}).
 The paper ends with a brief conclusion (\cref{sec:conclusion}).
-\ednote{rework this paragraph a bit}
+\ednote{rework this paragraph a bit -- make it contribution and overview at the same time?}
 
 
 % % OLD INTRO
@@ -298,12 +306,13 @@ errors and redundancies, and even offers a concept search interface.
 But such features only support existing annotations and are, therefore,
 of limited use when creating new annotations, which arguably is the
 most time consuming aspects of semantic authoring.
+\ednote{also: SPARQL API}
 
 How the annotation process can be supported depends on the particular semantic framework,
 the specific annotations we want to support, and the semantics embedded in the content commons.
 In \sTeX/\ALeA, we primarily annotate formulae and technical terms with pointers to their definienda.
 A tool for supporting semantic authoring of formulae via notations has been presented by Vre{\v{c}}ar et al.\ in~\cite{VreWelKam:tsmmdui24}.
-It uses a grammar to parse informal, presentation-focused formulae (e.g.\ \lstinline|A\times B|) into abstract syntax trees based on
+It uses a grammar to parse informal, presentation-focused formulae (e.g.\ \lstinline[keywordstyle={}]|A\times B|) into abstract syntax trees based on
 semantic macros defined in \sTeX, which can then replace the original formula
 (e.g.\ \lstinline|\cart{A,B}| for the cartesian product of sets).
 In the case of ambiguity, authors can pick the correct reading in a
@@ -350,7 +359,7 @@ or view/edit the file introducing one of the choices.
 \snify is usually called on a set of files -- e.g. in a directory or math archive -- which
 together form a \textbf{session}, which can be interrupted and resumed without having to
 re-do all the \lstinline|s| skips. Alternatively, \snify can be called e.g. on the top-level
-lecture notes; then the session consists of all included files. Other productivity
+lecture notes; then the session consists of all (transitively) included files. Other productivity
 features include a focus mode that can be used to only annotate a particular word in the
 rest of the file, session, or the whole \sTeX/\ALeA corpus before resuming regular
 annotation. This reduces the cognitive overhead from switching between different 
@@ -387,8 +396,8 @@ definienda in the book before we can harvest the symbol/verbalization pairs whic
 prerequisite for annotation.
 
 One practical problem with \snify that remains is that the system only harvests
-symbol/verbalization pairs from \sTeX files on the local file system. This means that for
-effective annotation users (have to) download the whole content commons and keep it
+symbol/verbalization pairs from \sTeX files on the local file system. This means that, for
+effective annotation, users (have to) download the whole content commons and keep it
 updated. Unfortunately, the current MMT-based MathHub knowledge management
 API\ednote{intro this above} does not supply verbalization information. The iMMT-based
 API~\cite{iMMT:on} currently under development will, so \snify will be able to request the
@@ -397,9 +406,11 @@ pairs for the remaining (non-local) content commons. If a pair is chosen in an a
 file can be formatted with pdflatex or rusTeX locally.
 
 Finally, the current interface is not well-suited for on-the-fly annotation while
-authoring.  For that, the underlying information (the symbol/verbalization pairs harvested
+authoring.
+For that, the underlying information (the symbol/verbalization pairs harvested
 from the domain model) can be integrated into any IDE. In fact we plan to do this for the
 next version of the sTeX plugin for VSCode \cite{sTeX-IDE:git}.
+For now, the typical workflow of early adopters is to first write the document (e.g.\ a set of quiz questions) without annotations, and then run \snify to annotate the new content.
 
 \section{Conclusion}\label{sec:conclusion}
 
@@ -407,7 +418,7 @@ In this paper we have presented the semantic authoring problem using the \sTeX c
 the adaptive learning assistant \ALeA as a concrete example. We have shown that it differs
 from both classical authoring and formal authoring in terms of the necessary system
 support. As an example of specialized authoring support, we have presented \snify, a
-command-line tool that bridges the gap between formal symbols in \sTeX and 
+command-line tool that bridges the gap between informal text and formal symbols in \sTeX.
 
 \snify is open source; the source and documentation are available from
 \cite{stextools:git}.
