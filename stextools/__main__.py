@@ -96,9 +96,11 @@ def translate(path):
 @click.option('--ignore',
               default=lambda: get_config().get('stextools.snify', 'ignore', fallback=None),
               help='Pattern to exclude some archives (e.g. \'Papers/*,smglom/mv\')')
-def snify_actual(files, filter, ignore):
+@click.option('--focus',
+              help='Immediately focus on a specific word')
+def snify_actual(files, filter, ignore, focus):
     from stextools.snify.controller import snify
-    snify(files, filter, ignore)
+    snify(files, filter, ignore, focus)
 
 
 @cli.command(name='version', help='Print the version of stextools.')

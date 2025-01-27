@@ -161,7 +161,7 @@ class StateSkipModification(Modification):
 
 
 class Controller:
-    def __init__(self, state: State, new_files: Optional[list[Path]] = None):
+    def __init__(self, state: State, new_files: Optional[list[Path]] = None, stem_focus: Optional[str] = None):
         self.state: State = state
         self.mh = Cache.get_mathhub(update_all=True)
         self._linker: Optional[Linker] = None
@@ -170,9 +170,10 @@ class Controller:
         self._modification_future: list[list[Modification]] = []   # for re-doing
 
         if new_files:
-            self.load_files_dialog(new_files)
+            self.load_files_dialog(new_files, stem_focus)
 
-    def load_files_dialog(self, new_files: list[Path]):
+    def load_files_dialog(self, new_files: list[Path], stem_focus: Optional[str]):
+        # note: better design would be to move this out of the controller, I think
         have_inputs = False
         for file in new_files:
             stexdoc = self.mh.get_stex_doc(file)
@@ -215,9 +216,9 @@ class Controller:
                 else:
                     print(f'File {path} is not loaded')
 
-            self.state.push_focus(new_files=all_files)
+            self.state.push_focus(new_files=all_files, select_only_stem=stem_focus)
         else:
-            self.state.push_focus(new_files=new_files)
+            self.state.push_focus(new_files=new_files, select_only_stem=stem_focus)
 
     @property
     def linker(self) -> Linker:
@@ -499,9 +500,11 @@ class Controller:
         return self.state.get_current_lang(self.linker)
 
 
-def snify(files: list[str], filter: str, ignore: str):
+def snify(files: list[str], filter: str, ignore: str, focus: Optional[str]):
     session_storage = SessionStorage()
-    state = session_storage.get_session_dialog()
+    state: Optional[State] = None
+    if state is None and focus is None:
+        state = session_storage.get_session_dialog()
     if state is None:
         state = State(files=[], filter_pattern=filter,
                       ignore_pattern=ignore, cursor=PositionCursor(file_index=0, offset=0))
@@ -512,7 +515,7 @@ def snify(files: list[str], filter: str, ignore: str):
                 paths.extend(path.rglob('*.tex'))
             else:
                 paths.append(path)
-        controller = Controller(state, new_files=paths)
+        controller = Controller(state, new_files=paths, stem_focus=focus)
     else:
         controller = Controller(state)
     unfinished = controller.run()
