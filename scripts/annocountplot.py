@@ -67,6 +67,7 @@ def cumulative_plots():
     plot_cumulative(filtered('smglom/*'), 'smglom')
     plot_cumulative(filtered('courses/*/course'), 'course')
     plot_cumulative(filtered('*/problems'), 'problems')
+    # plot_cumulative(filtered('smglom/*', 'courses/*/course', '*/problems'), 'annotations')
 
 
 def diff_plots():

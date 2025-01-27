@@ -1,3 +1,9 @@
+% KEY TODOs:
+%  * better title
+%  * turn overview into combined overview and contribution
+%  * Finish tool support section
+%  *  -> reduce future work paragraph in conclusion accordingly
+
 \documentclass{llncs}
 \usepackage[show]{ed}
 \usepackage{wrapfig}
@@ -20,81 +26,160 @@
 % I do not want to annotate just yet.
 
 \newcommand\ALeA{\textsf{ALeA}\xspace}
+\newcommand\SMGloM{\textsf{SMGloM}\xspace}
 \newcommand\snify{\textsf{snify}\xspace}
 \def\llangle{\langle\kern-.2em\langle}
 \def\rrangle{\rangle\kern-.2em\rangle}
 
-\title{Bulk Semantic Annotation with a Partially Known Knowledge Base}
+\title{
+    Semantic Authoring in the \sTeX/\ALeA World
+    \ednote{Find better title. Was ``Bulk Semantic Annotation with a Partially Known Knowledge Base''
+}}
 \author{Michael Kohlhase, Jan Frederik Schaefer}
 \institute{Computer Science, FAU Erlangen N\"urnberg, Germany}
 \begin{document}
 \maketitle
 \begin{abstract}
-tbw
+  Semantic annotations can be utilized for learning support services in technical
+  documents. The resulting active documents support more direct and personalized
+  interaction with the knowledge conveyed, but require a large investment in the authoring
+  process.
+
+  In this paper we discuss the nature of the semantic authoring problem and argue that
+  while sharing aspects of classical, informal authoring and formal authoring, it is a
+  problem of its own that needs special editing support facilities. We present a simple
+  utility that supports the process of annotating technical terms with semantic references
+  to a flexiformal content commons that enhances annotation productivity by almost an
+  order of magnitude.
 \end{abstract}
 
 \section{Introduction}
-Arguably, dealing with large document collections is one of the key factors in the
-knowledge-driven society and economy. There are currently two main contenders for machine
-support in this area. Symbolic/logic-based technologies and sub-symbolic,
-machine-learning-based AI, e.g.\ via LLMs or chatbots. They have complementary strengths
-and challenges: Symbolic technologies offer precision and explainability out of the box,
-but face scalability challenges because the prerequisite background knowledge has to be
-(manually) formalized. ML-based approaches can be trained on all data of the Internet, but
-face challenges in precision and explainability. In \cite{Ranta:atcp17},
-Aarne Ranta matches these profiles to the notion of \textbf{producer tasks} -- i.e.\ tasks
-where precision is key, but limited coverage ($10^{3\pm1}$ concepts) is OK;
-e.g.\ for multi-language/variant manuals for very
-expensive machines -- and \textbf{consumer tasks}, where coverage is key and
-precision secondary; e.g.\ for consumer-grade machine translation like \textsf{Google translate}.
+Arguably, dealing with large document collections is one of the key factors in the knowledge-driven society and economy.
+There are currently two main contenders for machine support in this area.
+Symbolic/logic-based technologies and sub-symbolic/machine-learning-based AI, e.g.\ via LLMs or chatbots.
+They have complementary strengths and challenges:
+ML-based approaches can be trained on all data of the Internet, but face challenges in precision and explainability. 
+Symbolic technologies, on the other hand, offer precision and explainability out of the box, but face scalability challenges
+-- in particular because of the cost of semantic authoring\ednote{
+    \emph{semantic authoring} already used in context of semantic web (RDFa).
+    Tools exist and it doesn't have exactly the same challenges as we face, though there is some overlap.
+    We have a module system and need more dependency management, something else?
+    This has to be described somewhere.
 
-In this paper, we address tools that help attack the coverage problem in symbolic/semantic
-approaches in practice. The producer task we use as a case study is that of adaptive
-learning assistants for MINT subjects, concretely the \ALeA system \cite{BerBetChu:lssmkm23}.
-\ALeA uses \sTeX \cite{MueKo:sdstex22,sTeX:github:on} -- a
-variant of {\LaTeX} that allows to embed semantic annotations -- for knowledge
-representation, and generates learner-adaptive learning objects instrumented with
-learning-support interactions from that. The \textbf{\sTeX/\ALeA content commons}
-\ednote{MK@MK: continue to describe the size and distribution, and
-  authorship}\ednote{explain the \textbf{domain model} (the SMGloM) and the
-  \textbf{formulation model} (cf. \cite{BerBetChu:lssmkm23}) in the commons and give their
-  relative sizes.}
+    Related work: ``User Interfaces for Semantic Authoring of Textual Content: A Systematic Literature Review.''
+}, which we discuss in this paper.
 
-We contend that while education -- especially higher education -- as a whole is a
-wide-coverage task for society education of individual learners in specific domains --
-especially, if we want to tailor the educational offerings to said individual/domain -- is
-a producer task, at least until ML-based methods reach the precision and explainability
-required by the ethics of teaching.
+As a case study, we will use adaptive learning assistants for STEM subjects in higher education, concretely the \ALeA system \cite{BerBetChu:lssmkm23}.
+We contend that machine-learning based technologies are largely unsuitable for this task -- at least until they reach the
+precision and explainability required by the ethics of teaching --
+while the scope of specific domains is just narrow enough that symbolic approaches are viable.
+Conventional (\LaTeX-based) lecture materials can essentially be directly imported into \ALeA,
+but its ability to generate learner-adaptive learning objects -- instrumented with learning support interactions --
+depends on semantic annotations.
+These can be embedded \LaTeX\ documents using the \sTeX package~\cite{MueKo:sdstex22,sTeX:github:on}.
+In this paper, we will mostly focus on annotating terms with semantic concept they refer to,
+but \sTeX supports a much wider range of annotations, such as annotating problems with the learning objectives
+or annotating the defining phrase (definiens) in concept definitions,
+and can, in principle, even be used for full formalization.\ednote{True?}
+As \sTeX supports the full spectrum from informal (unannotated) to fully formalized content,
+we also call \sTeX content \textbf{flexiformal}.
 
-\section{Semantic Authoring in a Content Commons}
+The \textbf{\sTeX/\ALeA content commons} consists of \SMGloM~\cite{GinIanJuc:spsttom16},
+the domain model for semantic annotations,
+as well as re-usable lecture materials such as lecture slides and problems -- mostly from the area of computer science.
+The sheer size of the commons is one of the key challenges for authors:
+\SMGloM contains definitions of $X$\ednote{TODO} STEM concepts in multiple languages,
+created and maintained by over 30 contributors.
+Additionally, there are roughly 4900\ednote{
+    Includes 440 from UPS, which seems unannotated...
+    Excludes talks as well...
+    Other issues?
+    Command (tex comment): % grep -R --include='*.tex' -F -e '\begin{frame}' | wc -l
+}
+semantically annotated lecture slides and 4000 problems.
+
+% \paragraph{Overview \& Contribution}
+In this paper, we argue that semantic/flexiformal authoring shares aspects with both informal and fully formal authoring,
+but is nevertheless a distinct problem requiring special tool support (\cref{sec:semauth}).
+Using \sTeX/\ALeA as an exemplary case study,
+we will provide an overview of the authoring support (\cref{sec:tools})
+and then describe and evaluate one new, concrete tool, \snify, that supports the annotation
+of terms with the semantic concepts they refer to (\cref{sec:snify,sec:eval}).
+The paper ends with a brief conclusion (\cref{sec:conclusion}).
+
+
+% % OLD INTRO
+% Arguably, dealing with large document collections is one of the key factors in the
+% knowledge-driven society and economy. There are currently two main contenders for machine
+% support in this area. Symbolic/logic-based technologies and sub-symbolic,
+% machine-learning-based AI, e.g.\ via LLMs or chatbots. They have complementary strengths
+% and challenges: Symbolic technologies offer precision and explainability out of the box,
+% but face scalability challenges because the prerequisite background knowledge has to be
+% (manually) formalized. ML-based approaches can be trained on all data of the Internet, but
+% face challenges in precision and explainability. In \cite{Ranta:atcp17},
+% Aarne Ranta matches these profiles to the notion of \textbf{producer tasks} -- i.e.\ tasks
+% where precision is key, but limited coverage ($10^{3\pm1}$ concepts) is OK;
+% e.g.\ for multi-language/variant manuals for very
+% expensive machines -- and \textbf{consumer tasks}, where coverage is key and
+% precision secondary; e.g.\ for consumer-grade machine translation like \textsf{Google translate}.
+% 
+% In this paper, we address tools that help attack the coverage problem in symbolic/semantic
+% approaches in practice. The producer task we use as a case study is that of adaptive
+% learning assistants for STEM subjects, concretely the \ALeA system \cite{BerBetChu:lssmkm23}.
+% \ALeA uses \sTeX \cite{MueKo:sdstex22,sTeX:github:on} -- a
+% variant of {\LaTeX} that allows to embed semantic annotations -- for knowledge
+% representation, and generates learner-adaptive learning objects instrumented with
+% learning-support interactions from that. The \textbf{\sTeX/\ALeA content commons}
+% \ednote{MK@MK: continue to describe the size and distribution, and
+%   authorship}\ednote{explain the \textbf{domain model} (the SMGloM) and the
+%   \textbf{formulation model} (cf. \cite{BerBetChu:lssmkm23}) in the commons and give their
+%   relative sizes.}
+% 
+% We contend that while education -- especially higher education -- as a whole is a
+% wide-coverage task for society education of individual learners in specific domains --
+% especially, if we want to tailor the educational offerings to said individual/domain -- is
+% a producer task, at least until ML-based methods reach the precision and explainability
+% required by the ethics of teaching.
+
+\section{Semantic Authoring in a Content Commons}\label{sec:semauth}
 
 Before we discuss semantic authoring in general, let us introduce a concrete example from
-the \sTeX/\ALeA world. We will use it to sharpen our intuitions of the problems an issues
+the \sTeX/\ALeA world. We will use it to sharpen our intuitions of the problems and issues
 involved and to ground the solution we propose.
 
 \subsection{Running Example: Annotating  ``Terminal''}
-
-The main practical problem of annotating presentational {\LaTeX} course materials into
-semantic documents that carry enough information to support meaningful learning support
-services is to add semantic references to technical terms from the domain jargon. Take for
-instance a learning object like the paragraph in \cref{fig:lo}, where we want to annotate
-the the term ``terminal'' with the (semantic) concept of ``a goal state of a search
-problem''. The latter can either be defined earlier in the course or in the domain model
-(or both).
+With \sTeX, authors can add semantic references to technical terms,
+which enables straight-forward learning support services like
+showing the definition of a term, but also informs the system
+about the content/prerequisites of a learning object.
+Adding these references is a key practical problem when converting presentational {\LaTeX}
+course materials into semantic documents.
 
 \begin{figure}[ht]\centering
   \fbox{\includegraphics[width=10cm]{../img/minimax-remarks.pdf}}
-  \caption{An annotated Learning Object from an AI Lecture}\label{fig:lo}
+  \caption{An annotated learning object from an AI lecture}\label{fig:lo}
 \end{figure}
+
+Take for instance a learning object like the paragraph in \cref{fig:lo}, where we want to annotate
+the term ``terminal'' with the (semantic) concept of ``a goal state of a search
+problem''. The latter can either be defined earlier in the course or in the domain model
+(or both).
+
+
+
+% The main practical problem of annotating presentational {\LaTeX} course materials into
+% semantic documents that carry enough information to support meaningful learning support
+% services is to add semantic references to technical terms from the domain jargon.
+
 
 Concretely this is about converting the {\LaTeX} string
 \begin{lstlisting}[numbers=left,firstnumber=3,
-caption=The {\LaTeX} sources of \cref{fig:lo},label=lst:los]
+caption=The unannotated {\LaTeX} sources of \cref{fig:lo},label=lst:los]
 \item \blue{Note:} Depth-limited minimax requires an evaluation for every
 cut-off state $s$. If $s$ is terminal, we use its utility, and otherwise
 an estimate.
 \end{lstlisting}
-into the (partially) annotated item:
+into the partially annotated item:
 \begin{lstlisting}[morekeywords={sr,importmodule},numbers=left,
 caption=Annotating ``terminal'' in \cref{lst:los},label=lst:losa]
 \importmodule[smglom/search]{mod?search-problem}
@@ -114,15 +199,12 @@ and otherwise an estimate.
 % In this case the symbol name happens to be the same as its English
 % verbalization, otherwise we would have to use
 % \lstinline[mathescape]|\sr{$\llangle symbol name\rrangle$}{state space}|.
-The annotation rerfers to a definition in the domain model module shown in
-\cref{fig:state-space}. The \lstinline|\definame| in line 3 introduces the
-\textbf{verbalizations} ``goal state'' and ``terminal state'' for the symbol
-\lstinline|search-problem?goal state| introduced be \lstinline|\symdecl*| declaration in
-line 3.
+The annotation refers to a definition in the domain model module shown in \cref{fig:state-space}.
+The \lstinline|\definame| and \lstinline|\definiendum| in lines 5--6 introduce the \textbf{verbalizations} ``goal state'' and ``terminal state'' for the symbol \lstinline|search-problem?goal state| introduced by \lstinline|\symdecl*| declaration in line 3.
 
 \begin{figure}[ht]\centering
   \fbox{\includegraphics[width=12cm]{../img/search-problem.en.pdf}}
-\begin{lstlisting}[morekeywords={definame,symdecl},numbers=left]
+\begin{lstlisting}[morekeywords={definame,symdecl,definiendum},numbers=left]
 \begin{smodule}[title=Search Problem]{search-problem}
 [... some imports ...]
 \symdecl*{goal state}
@@ -137,29 +219,29 @@ line 3.
 
 To annotate the string ``terminal'' in the learning object, the author has to be aware
 that it is a technical term, that the module from \cref{fig:state-space} exists, know the
-symbol name and its URL\ednote{path?}, and manage redundancy of the imports -- i.e. only
+symbol name and its URL\ednote{path/URI/identifier?}, and manage redundancy of the imports -- i.e. only
 adding the \lstinline|\importmodule| directive if it is not already (recursively) implied
 and possibly removing directives that become redundant by the new one.  At ca 150,000
-words in a semester's words of lecture notes and ca. 10--15\%\ednote{can we actually
+words in a semester's worth of lecture notes and ca. 10--15\%\ednote{can we actually
   measure this for AI?} of technical terms a rather daunting task.
 
-\sTeX authoring is already supported by an VSCode IDE plugin \cite{sTeX-IDE:git} that
-analyzes annotations on the fly, displays the underlying reference semantics, reports
-errors and redundancies, and even offers a concept search interface. But these only offer
-support already for annotated terms, so they do not solve the annotation problem above.
+% \sTeX authoring is already supported by a VSCode IDE plugin \cite{sTeX-IDE:git} that
+% analyzes annotations on the fly, displays the underlying reference semantics, reports
+% errors and redundancies, and even offers a concept search interface.
+% But these features only support already annotated terms, so they do not solve the annotation problem above.\ednote{
+%     last paragraph doesn't fit here anymore, as it only motivates \snify
+% }
 
 \subsection{Semantic Authoring as a Distinct Problem}
-
-\begin{newpart}{MK: looking at the problem in general and compare it to the informal
-    authoring and formal authoring problems e.g. programming in an IDE.}
 We contend that semantic authoring is a problem that is distinct from traditional
 (informal) authoring and authoring fully formal corpora (e.g. programs or formalizations),
 while sharing some of the aspects of either.
 
+\paragraph{Traditional, informal authoring}
 In traditional authoring e.g. of a scientific article or a textbook, the domain model -- a
 highly structured model of the domain of discourse -- is in the authors' heads, and is
 partially verbalized e.g. in the preliminaries section or the main sections of the
-respective article. The content is informal -- usually a natural language like english
+respective article. The content is informal -- usually a natural language like English
 augmented with technical jargon, formulae, tables, and diagrams -- and designed for
 processing via the brain of a colleague or student -- in any case, a human who shares a
 canonical part of the domain model with the authors.\ednote{MK: this shared domain model
@@ -170,31 +252,90 @@ bridges the gap between the reader's domain model and the payload content of the
 -- the knowledge the article or textbook intends to impart -- ideally using the technical
 vocabulary the reader is familiar with to reduce this gap. Tool support for traditional
 authoring is minimal and usually restricted to spell/grammar-checkers and online thesauri
-if we disregard LLM writing/formulation support for now.
+if we disregard LLM-based writing/formulation support for now.
 
+\paragraph{Formal Authoring}
 In fully formal authoring e.g. for programming, the content commons is given formally in
 the form of the libraries of the respective programming language, correspondingly the
 authored content is also formal -- a program -- and intended for processing by a computer,
 for which the formality is a prerequisite. Formal authoring is usually supported by an
-integraded development environment (IDE) that makes use of the fully formal content and
-offers services like semantic tab completion 
+integrated development environment (IDE) that makes use of the fully formal content and
+offers services like semantic highlighting, tab completion, jumping to variable
+declarations, function definitions, and interface definitions, as well as refactoring
+support. All of these rely on a syntactic/semantic analysis of the formal content. The
+situation is very similar for authoring of formal knowledge, e.g. in program verification
+or the formalization of mathematics.
 
-\ednote{talk about formalization in logic -- e.g. as theorem prover libraries as well}
-\end{newpart}
+\paragraph{Semantic Authoring}
+In semantic authoring, e.g. the \sTeX sources of educational content for the \ALeA system
+presented above, the base of the text is classical narrative text to which most of the
+constraints of classical authoring apply.
+The exception is the tailoring to the competencies of the assumed reader
+that traditionally happens during authoring, but which can (partially) be automated by systems like
+\ALeA. Note that it is not a restriction that \ALeA is initially targeted to tertiary
+education; the underlying mechanisms generalize to all scientific communication and
+technical documents. After all, the purpose is to transfer information (instruct), even if
+the roles of instructor and instructee are not predetermined by academic seniority.
 
-  
-\section{The \snify System}
+But in addition to the base text, semantic authoring also has to provide the semantic
+annotations that drive the personalization and interaction. Techniques from formal
+authoring could help here, but in contrast to formal authoring, we cannot just trigger the
+IDE functionality by the formal syntax, as the authored content is -- so far -- informal
+and the content commons (the target of the annotations) is itself only flexiformal. In a
+way, we need a local flexiformalization workflow that helps authors bridge the
+informal-formal gap.
 
-The \snify\ednote{explain name? write as sn-ify?}
-system (see \cite{stextools:git}) is a simple command-line tool
-that creates a database of symbol-verbalization pairs, analyzes \sTeX source files,
-and then steps through all word occurrences in the document that match a
-verbalization in the database.
-Matching is based on word stems using off-the-shelf stemmers, which allows us to
-e.g.\ match ``utilities'' with ``utility''.
-For each matched word, the user is presented with an annotation choice and
-interactions that allow to fine-tune the wordwise annotation workflow. \Cref{fig:snify}
-shows a typical situation.
+% \paragraph{Semantic Authoring in \sTeX}
+% How this can concretely work depends on the particular semantic framework, the specific
+% annotations we want to support, and the semantics embedded in the content commons. In the
+% \sTeX framework, where we semantically annotate formulae and technical terms with pointers
+% to their definienda, we can bridge the presentation/semantics gap -- we annotate the words
+% in sentences and glyphs in formulae with the verbalizations and notations in the content
+% commons.\ednote{MK: maybe explain them again}. A tool for supporting semantic authoring of
+% formulae via notations has been presented by Vre{\v{c}}ar et al. in
+% \cite{VreWelKam:tsmmdui24}. In this paper we present a tool that supports semantic
+% annotation of technical terms via verbalizations.\ednote{move this in the next section}
+
+
+\section{Tool Support for Semantic Authoring in \sTeX}\label{sec:tools}
+Semantic authoring can ``inherit'' tool support from both informal
+and formal authoring.
+In the case of \sTeX, we can re-use spell checkers for traditional informal authoring.
+Additionally, there is a custom VSCode IDE plugin \cite{sTeX-IDE:git} that
+analyzes annotations on the fly, displays the underlying reference semantics, reports
+errors and redundancies, and even offers a concept search interface.
+But such features only support existing annotations and are, therefore,
+of limited use when creating new annotations, which arguably is the
+most time consuming aspects of semantic authoring.
+\ednote{also: SPARQL API}
+
+How the annotation process can be supported depends on the particular semantic framework,
+the specific annotations we want to support, and the semantics embedded in the content commons.
+In \sTeX/\ALeA, we primarily annotate formulae and technical terms with pointers to their definienda.
+A tool for supporting semantic authoring of formulae via notations has been presented by Vre{\v{c}}ar et al.\ in~\cite{VreWelKam:tsmmdui24}.
+It uses a grammar to parse informal, presentation-focused formulae (e.g.\ \lstinline[keywordstyle={}]|A\times B|) into abstract syntax trees based on
+semantic macros defined in \sTeX, which can then replace the original formula
+(e.g.\ \lstinline|\cart{A,B}| for the cartesian product of sets).
+In the case of ambiguity, authors can pick the correct reading in a
+graphical user interface that visualizes the different abstract syntax trees.
+
+Efficient support for the annotation of technical terms in natural language
+has been elusive so far.
+\ednote{
+    Move Hutter from conclusion here?
+    Also: Plivelic}
+
+
+\section{The \snify System}\label{sec:snify}
+
+The \snify utility (from ``\texttt{\textbackslash sn}-ify'' for adding term references;
+see \cite{stextools:git}) is a simple command-line tool that creates a database of
+symbol-verbalization pairs, analyzes \sTeX source files, and then steps through all word
+occurrences in the document that match a verbalization in the database.  Matching is based
+on word stems using off-the-shelf stemmers, which allows us to e.g.\ match ``utilities''
+with ``utility''.  For each matched word, the user is presented with an annotation choice
+and interactions that allow to fine-tune the wordwise annotation
+workflow. \Cref{fig:snify} shows a typical situation.
 
 \begin{figure}[ht]
   \setlength{\fboxsep}{0pt}
@@ -214,33 +355,33 @@ To skip the word, the user can type \lstinline|s|,
 will skip it in future runs as well by appending a comment to the file.
 There are numerous other commands, e.g.\ to adjust the selection,
 search for alternative annotation targets,
-or view the file introducing one of the choices.
+or view/edit the file introducing one of the choices.
 
 \snify is usually called on a set of files -- e.g. in a directory or math archive -- which
 together form a \textbf{session}, which can be interrupted and resumed without having to
 re-do all the \lstinline|s| skips. Alternatively, \snify can be called e.g. on the top-level
-lecture notes; then the session consists of all included files. Other productivity
+lecture notes; then the session consists of all (transitively) included files. Other productivity
 features include a focus mode that can be used to only annotate a particular word in the
 rest of the file, session, or the whole \sTeX/\ALeA corpus before resuming regular
 annotation. This reduces the cognitive overhead from switching between different 
 words and symbol lists.
 % Of course the include management still needs to be done locally.
 
-\section{Practical Evaluation}
+\section{Practical Evaluation}\label{sec:eval}
 
-In our experience, the step-through workflow for annotating term references for symbols
+In our experience, \snify's step-through workflow for annotating term references for symbols
 from the domain model is almost an order of magnitude more efficient than writing the
 annotations and imports by hand, even for annotators who are familiar with the domain
 model. For annotators unfamiliar with the domain model, the unassisted annotation task is
 almost infeasible, and the average unfamiliarity naturally grows with the domain
-model. The symbol disambiguation process -- on average a word induces $n$\ednote{MK@FS: we
-  should try to measure this: for every verbalization (i.e. symbol/word pair) we should
-  compute the ratio of those words with the same stem.} choices is still manageable,
+model. The symbol disambiguation process -- on average a word induces 4.1 choices\ednote{
+    more details? median is 3, for existing annotations, the average is 2.6 and the median 2...
+} -- is still manageable,
 requires considerable concentration and domain knowledge, but little knowledge of the
 domain model flexiformalization.
 
 The command-line interface is simple and responsive and gives all the necessary
-information in a single glance if underlying shell area exceeds ca. $80\times 35$
+information in a single glance if the underlying shell area exceeds ca. $80\times 35$
 characters. It is very much geared towards annotating existing documents with respect to a
 relatively complete -- pre-existing -- domain model, and it seems unlikely that a more
 sophisticated UI would add value for this use-case.
@@ -256,27 +397,29 @@ definienda in the book before we can harvest the symbol/verbalization pairs whic
 prerequisite for annotation.
 
 One practical problem with \snify that remains is that the system only harvests
-symbol/verbalization pairs from \sTeX files on the local file system. This means that for
-effective annotation users (have to) download the whole content commons and keep it
+symbol/verbalization pairs from \sTeX files on the local file system. This means that, for
+effective annotation, users (have to) download the whole content commons and keep it
 updated. Unfortunately, the current MMT-based MathHub knowledge management
 API\ednote{intro this above} does not supply verbalization information. The iMMT-based
 API~\cite{iMMT:on} currently under development will, so \snify will be able to request the
 pairs for the remaining (non-local) content commons. If a pair is chosen in an annotation,
 \snify can then automatically download the corresponding archive so that the annotated
-file can be formattted with pdflatex or rusTeX locally.
+file can be formatted with pdflatex or rusTeX locally.
 
 Finally, the current interface is not well-suited for on-the-fly annotation while
-authoring.  For that, the underlying information (the symbol/verbalization pairs harvested
+authoring.
+For that, the underlying information (the symbol/verbalization pairs harvested
 from the domain model) can be integrated into any IDE. In fact we plan to do this for the
 next version of the sTeX plugin for VSCode \cite{sTeX-IDE:git}.
+For now, the typical workflow of early adopters is to first write the document (e.g.\ a set of quiz questions) without annotations, and then run \snify to annotate the new content.
 
-\section{Conclusion}
+\section{Conclusion}\label{sec:conclusion}
 
 In this paper we have presented the semantic authoring problem using the \sTeX corpus and
 the adaptive learning assistant \ALeA as a concrete example. We have shown that it differs
-from both classical authoring and formal authoring in terms of the necesssary system
+from both classical authoring and formal authoring in terms of the necessary system
 support. As an example of specialized authoring support, we have presented \snify, a
-command-line tool that bridges the gap between formal symbols in \sTeX and 
+command-line tool that bridges the gap between informal text and formal symbols in \sTeX.
 
 \snify is open source; the source and documentation are available from
 \cite{stextools:git}.
@@ -302,4 +445,4 @@ especially after the verbalizations covered by the existing domain model\ednote{
 %%% TeX-master: t
 %%% End:
 
-% LocalWords:  tbw Aarne Ranta homostem pre
+% LocalWords:  tbw Aarne Ranta homostem pre hmmm Vre ar al sn ify

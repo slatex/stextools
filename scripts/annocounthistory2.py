@@ -48,8 +48,12 @@ def anno_count(repo_path: Path) -> int:
 
 def process_repo(path: Path):
     branch = 'private' if path.name == 'problems' and 'courses/FAU' in path.as_uri() else 'main'
+    if 'courses/FAU/EiDA/course' in path.as_uri():
+        branch = 'master'
+    if 'courses/FAU/GDP/problems' in path.as_uri():
+        branch = 'main'
     _, code = run_sh(f'git checkout {branch}', path)
-    assert code == 0, f'Error checking out main in {path}'
+    assert code == 0, f'Error checking out {branch} in {path}'
     history, code = run_sh("git log --pretty='format:%H!%ci!%cn'", path)
     assert code == 0, f'Error getting history in {path}'
     for line in history.splitlines():
