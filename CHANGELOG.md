@@ -4,6 +4,11 @@
 
 ## Upcoming release
 
+**New features:**
+
+* `snify` accepts `--focus` argument to immediately focus on a symbol ([#76](https://github.com/slatex/stextools/issues/76))
+
+
 **Bugfixes:**
 
 * Fix misleading "focus mode ended" in `snify` 
