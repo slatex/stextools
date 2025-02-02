@@ -10,6 +10,7 @@
 \usepackage{xspace}
 \usepackage{graphicx}
 \usepackage{stex-logo}
+\usepackage{paralist}
 %\usepackage{lststex} debug that the gray is not solid
 \usepackage{listings}
 \definecolor{codegray}{rgb}{0.9,0.9,0.9}
@@ -81,22 +82,18 @@ In this paper, we will mostly focus on annotating terms with semantic concept th
 but \sTeX supports a much wider range of annotations, such as annotating problems with the learning objectives
 or annotating the defining phrase (definiens) in concept definitions,
 and can, in principle, even be used for full formalization.\ednote{True?}
-As \sTeX supports the full spectrum from informal (unannotated) to fully formalized content,
+As \sTeX supports the full spectrum from informal (un-annotated) to fully formalized content,
 we also call \sTeX content \textbf{flexiformal}.
 
 The \textbf{\sTeX/\ALeA content commons} consists of \SMGloM~\cite{GinIanJuc:spsttom16},
-the domain model for semantic annotations,
-as well as re-usable lecture materials such as lecture slides and problems -- mostly from the area of computer science.
-The sheer size of the commons is one of the key challenges for authors:
-\SMGloM contains definitions of $X$\ednote{TODO} STEM concepts in multiple languages,
-created and maintained by over 30 contributors.
-Additionally, there are roughly 4900\ednote{
-    Includes 440 from UPS, which seems unannotated...
-    Excludes talks as well...
-    Other issues?
-    Command (tex comment): % grep -R --include='*.tex' -F -e '\begin{frame}' | wc -l
-}
-semantically annotated lecture slides and 4000 problems.
+the domain model for semantic annotations, as well as re-usable lecture materials such as
+lecture slides and problems -- mostly from the area of computer science.  The sheer size
+of the commons is one of the key challenges for authors: \SMGloM contains definitions of
+$X$\ednote{TODO} STEM concepts in multiple languages, created and maintained by over 30
+contributors.  Additionally, there are roughly 4900\ednote{ Includes 440 from UPS, which
+  seems un-annotated...  Excludes talks as well...  Other issues?  Command (tex
+  comment): % grep -R --include='*.tex' -F -e '\begin{frame}' | wc -l
+} semantically annotated lecture slides and 4000 problems.
 
 % \paragraph{Overview \& Contribution}
 In this paper, we argue that semantic/flexiformal authoring shares aspects with both informal and fully formal authoring,
@@ -172,7 +169,8 @@ problem''. The latter can either be defined earlier in the course or in the doma
 % services is to add semantic references to technical terms from the domain jargon.
 
 
-Concretely this is about converting the {\LaTeX} string
+Concretely this is about converting the {\LaTeX} string\ednote{MK: There is/was a discrepancy
+  in the last line of the example; I tried to fix it, but failed}
 \begin{lstlisting}[numbers=left,firstnumber=3,
 caption=The unannotated {\LaTeX} sources of \cref{fig:lo},label=lst:los]
 \item \blue{Note:} Depth-limited minimax requires an evaluation for every
@@ -181,26 +179,39 @@ an estimate.
 \end{lstlisting}
 into the partially annotated item:
 \begin{lstlisting}[morekeywords={sr,importmodule},numbers=left,
-caption=Annotating ``terminal'' in \cref{lst:los},label=lst:losa]
+caption=Annotating ``terminal'' and ``utility'' in \cref{lst:los},label=lst:losa]
 \importmodule[smglom/search]{mod?search-problem}
 [...]
 \item \blue{Note:} Depth-limited minimax requires an evaluation for every
-cut-off state $s$. If $s$ is \sr{goal state}{terminal}, we use its utility,
+cut-off state $s$. If $s$ is \sr{goal state}{terminal}, we use its \sn{utility},
 and otherwise an estimate.
 \end{lstlisting}
-% Concretely, the author has to remember the module that introduces the concept
-% of terminal states (\cref{fig:state-space}),
-% the symbol name \lstinline|goal state|, annotate it with the
-% \sTeX macro \lstinline[mathescape]|\sr{$\llangle symbol name \rrangle$}{$\llangle verbalization\rrangle$}|, and add the module import in the first line (unless it
-% is already imported).
-% If the symbol name and the desired verbalization coincide,
-% the short-hand macro \lstinline|\sn| can be used (e.g. \lstinline|\sn{utility}|).
+In the latter, the author has the word ``terminal'' with the concept it refers to with 
+via the \sTeX macro
+\lstinline[mathescape]|\sr{$\llangle URI \rrangle$}{$\llangle verbalization\rrangle$}|.
 
-% In this case the symbol name happens to be the same as its English
-% verbalization, otherwise we would have to use
-% \lstinline[mathescape]|\sr{$\llangle symbol name\rrangle$}{state space}|.
-The annotation refers to a definition in the domain model module shown in \cref{fig:state-space}.
-The \lstinline|\definame| and \lstinline|\definiendum| in lines 5--6 introduce the \textbf{verbalizations} ``goal state'' and ``terminal state'' for the symbol \lstinline|search-problem?goal state| introduced by \lstinline|\symdecl*| declaration in line 3.
+\begin{newpart}{MK: more definitions}
+  In \sTeX, objects and concepts are represented by \textbf{symbols}, which are identified
+globally and unambiguously by a URI that includes a \textbf{namespace}, a \textbf{module
+  name}, and a \textbf{symbol name}. Every symbol can have one or more
+\textbf{verbalizations}: words that of the domain jargon used to refer to the concept or
+object. Verbalizations can vary between between subdomains and communities of practice. In
+our example, the verbalization ``terminal [state]'' was annotated with the symbol with
+name \lstinline|goal state|. It comes from the module with name \lstinline|search-problem|
+in the namespace \lstinline|smglom/search/mod| imported via the \lstinline|\importmodule|
+macro in line 1. As the symbol name \lstinline|goal state| is unique in the imports here
+it suffices as a relative URI in the \lstinline|\sr| annotation.
+
+If the symbol name and the desired verbalization coincide (as they often do in English),
+the short-hand macro \lstinline|\sn| can be used (e.g. as \lstinline|\sn{utility}| in
+\cref{lst:losa}).
+\end{newpart}
+
+The annotation refers to a definition in the domain model module shown in
+\cref{fig:state-space}.  The \lstinline|\definame| and \lstinline|\definiendum| in lines
+5--6 introduce the verbalizations ``goal state'' and ``terminal state'' for the symbol
+\lstinline|search-problem?goal state| introduced by \lstinline|\symdecl*| declaration in
+line 3.
 
 \begin{figure}[ht]\centering
   \fbox{\includegraphics[width=12cm]{../img/search-problem.en.pdf}}
@@ -217,20 +228,62 @@ The \lstinline|\definame| and \lstinline|\definiendum| in lines 5--6 introduce t
   \caption{Simplified definition of ``goal state'' from the domain model}\label{fig:state-space}
 \end{figure}
 
-To annotate the string ``terminal'' in the learning object, the author has to be aware
-that it is a technical term, that the module from \cref{fig:state-space} exists, know the
-symbol name and its URL\ednote{path/URI/identifier?}, and manage redundancy of the imports -- i.e. only
-adding the \lstinline|\importmodule| directive if it is not already (recursively) implied
-and possibly removing directives that become redundant by the new one.  At ca 150,000
-words in a semester's worth of lecture notes and ca. 10--15\%\ednote{can we actually
-  measure this for AI?} of technical terms a rather daunting task.
+\begin{newpart}{MK: trying to make some general remark about annotation before we go into
+    semantic authoring}
+\subsection{Annotation Workflows and Requirements}
 
-% \sTeX authoring is already supported by a VSCode IDE plugin \cite{sTeX-IDE:git} that
-% analyzes annotations on the fly, displays the underlying reference semantics, reports
-% errors and redundancies, and even offers a concept search interface.
-% But these features only support already annotated terms, so they do not solve the annotation problem above.\ednote{
-%     last paragraph doesn't fit here anymore, as it only motivates \snify
-% }
+To annotate the word ``terminal'' in the document, the author has to be aware that it is a
+technical term, that the module from \cref{fig:state-space} exists, know the symbol URL,
+and manage redundancy of the imports -- i.e. only adding the \lstinline|\importmodule|
+directive if it is not already (recursively) implied and possibly removing directives that
+become redundant by the new one.  At ca 150,000 words in a semester's worth of lecture
+notes and ca. 10--15\% of technical terms a rather daunting task.
+
+While annotation needs to happen during authoring and curation of documents, the majority
+of annotation tasks in practice concern the semantic augmentation of existing documents
+(\textbf{bulk annotation}) with respect to an existing semantic domain model. In any case,
+it is probably useful to separate the roles of author and semantic annotator conceptually,
+even though they may well be the same person in practice.
+
+The most important resource for annotators is a verbalization to symbol URI mapping -- we
+call it the \textbf{annotation catalog} -- either implicitly in the mind of the annotator
+or explicitly as a technical artifact, which allows to
+\begin{inparaenum}[\em i\rm)]
+\item identify the known technical terms,
+\item to map them to the corresponding symbols, and 
+\item manage the necessary import directives.
+\end{inparaenum}
+This catalog can be harvested from the \textbf{formal declarations}
+(\lstinline|\definiendum|, \lstinline|\begin|/\lstinline|\end{smodule}| and
+\lstinline|\importmodule|, etc.) of the domain model and existing documents in the
+semantic corpus.
+
+In $L$-language documents, where $L$ is not English the annotation practices are a bit
+more complex still, in particular because the annotation catalog is usually incomplete.
+
+Note that for $L$-annotation, we need a $L$-specific annotation catalog. 
+\sTeX already supports multilinguality:
+\begin{itemize}
+\item Documents have explicit language annotations (usually in form of the file extension
+  \lstinline[mathescape]|.$\llangle lang\rrangle$.tex| where $\llangle lang\rrangle$ is the
+  ISO-639 language identifier.)
+\item Modules in the domain model allow $L$-translations that share the formal
+  declarations with another module. In particular all definienda in $L$-modules are
+  $L$-specific.
+\end{itemize}
+
+But still, $L$-annotation catalogs are usually inadequate for $L$-annotation tasks in
+practice, as
+\begin{enumerate}[\em i\rm)]
+\item $L$-verbalizations and symbol names do not often coincide and
+\item the domain model may not even have $L$-modules -- especially for the ``smaller''
+  languages
+\end{enumerate}
+ In this situation, we usually have to invest in
+establishing a suitable catalog e.g. by providing $L$-translations (or at least dictionary
+information) in the domain model or delineating modules and annotating definienda that the
+domain model does not cover in the documents to be annotated.
+\end{newpart}
 
 \subsection{Semantic Authoring as a Distinct Problem}
 We contend that semantic authoring is a problem that is distinct from traditional
@@ -298,26 +351,26 @@ informal-formal gap.
 
 
 \section{Tool Support for Semantic Authoring in \sTeX}\label{sec:tools}
-Semantic authoring can ``inherit'' tool support from both informal
-and formal authoring.
+Semantic authoring can ``inherit'' tool support from both informal and formal authoring.
 In the case of \sTeX, we can re-use spell checkers for traditional informal authoring.
-Additionally, there is a custom VSCode IDE plugin \cite{sTeX-IDE:git} that
-analyzes annotations on the fly, displays the underlying reference semantics, reports
-errors and redundancies, and even offers a concept search interface.
-But such features only support existing annotations and are, therefore,
-of limited use when creating new annotations, which arguably is the
-most time consuming aspects of semantic authoring.
-\ednote{also: SPARQL API}
+Additionally, there is a custom VSCode IDE plugin \cite{sTeX-IDE:git} that analyzes
+annotations on the fly, displays the underlying reference semantics, reports errors and
+redundancies, and even offers a concept search interface.  But such features only support
+existing annotations and are, therefore, of limited use when creating new annotations,
+which arguably is the most time consuming aspects of semantic authoring.  \ednote{also:
+  SPARQL API}
 
 How the annotation process can be supported depends on the particular semantic framework,
-the specific annotations we want to support, and the semantics embedded in the content commons.
-In \sTeX/\ALeA, we primarily annotate formulae and technical terms with pointers to their definienda.
-A tool for supporting semantic authoring of formulae via notations has been presented by Vre{\v{c}}ar et al.\ in~\cite{VreWelKam:tsmmdui24}.
-It uses a grammar to parse informal, presentation-focused formulae (e.g.\ \lstinline[keywordstyle={}]|A\times B|) into abstract syntax trees based on
-semantic macros defined in \sTeX, which can then replace the original formula
-(e.g.\ \lstinline|\cart{A,B}| for the cartesian product of sets).
-In the case of ambiguity, authors can pick the correct reading in a
-graphical user interface that visualizes the different abstract syntax trees.
+the specific annotations we want to support, and the semantics embedded in the content
+commons.  In \sTeX/\ALeA, we primarily annotate formulae and technical terms with pointers
+to their definienda.  A tool for supporting semantic authoring of formulae via notations
+has been presented by Vre{\v{c}}ar et al.\ in~\cite{VreWelKam:tsmmdui24}.  It uses a
+grammar to parse informal, presentation-focused formulae (e.g.\
+\lstinline[keywordstyle={}]|A\times B|) into abstract syntax trees based on semantic
+macros defined in \sTeX, which can then replace the original formula (e.g.\
+\lstinline|\cart{A,B}| for the Cartesian product of sets).  In the case of ambiguity,
+authors can pick the correct reading in a graphical user interface that visualizes the
+different abstract syntax trees.
 
 Efficient support for the annotation of technical terms in natural language
 has been elusive so far.
@@ -445,4 +498,5 @@ especially after the verbalizations covered by the existing domain model\ednote{
 %%% TeX-master: t
 %%% End:
 
-% LocalWords:  tbw Aarne Ranta homostem pre hmmm Vre ar al sn ify
+% LocalWords:  tbw Aarne Ranta homostem pre hmmm Vre ar al sn ify TODO et Hutter Plivelic
+% LocalWords:  lang
