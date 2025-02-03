@@ -31,7 +31,11 @@ def cycle_finder(file: str):
                 covered.add(child)
         stack.pop()
 
-    start = linker.document_ints.intify(mh.get_stex_doc(Path(file)))
+    doc = mh.get_stex_doc(Path(file))
+    if doc is None:
+        print(f'Failed to find document {file}.')
+        return
+    start = linker.document_ints.intify(doc)
 
     try:
         dfs(start, [])
@@ -47,6 +51,7 @@ def cycle_finder(file: str):
                 if target_doc is None:
                     continue
                 if linker.document_ints.intify(target_doc) == j:
+                    assert dep.intro_range
                     print_highlight_selection(
                         doc.path.read_text(), dep.intro_range[0], dep.intro_range[1], 1, bold=False
                     )

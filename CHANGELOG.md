@@ -18,6 +18,7 @@
 **Other modifications/improvements:**
 
 * various improvements to `stextools.core.simple_api`
+* fixes to type hints
 
 
 ## Release 0.1.1 (2024-12-09)

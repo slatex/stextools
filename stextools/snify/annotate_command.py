@@ -14,7 +14,7 @@ from stextools.core.mathhub import make_filter_fun
 from stextools.core.simple_api import SimpleSymbol, get_symbols, SimpleFile, SimpleModule
 from stextools.snify.commands import Command, CommandInfo, CommandOutcome, SubstitutionOutcome, SetNewCursor, \
     ImportCommand, CommandCollection, show_current_selection, StatisticUpdateOutcome, \
-    QuitSubdialogCommand, Exit
+    QuitSubdialogCommand, Exit, CommandSectionLabel
 from stextools.snify.state import State, SelectionCursor, PositionCursor
 from stextools.utils.ui import standard_header, pale_color, option_string, color, latex_format
 
@@ -146,7 +146,7 @@ class AnnotateMixin:
 
         # return use_pos or 0, top_use_pos or 0, import_pos, use_env, top_use_env
 
-        commands = [
+        commands: list[Command | CommandSectionLabel] = [
             QuitSubdialogCommand(),
             ImportCommand(
                 'u', 'semodule' + explain_loc(import_locations.use_env),

@@ -4,7 +4,7 @@ import os
 import re
 import subprocess
 from pathlib import Path
-from typing import Optional, Any, Sequence, Union
+from typing import Optional, Any, Sequence, Union, Iterable
 
 import click
 
@@ -341,7 +341,7 @@ class EditCommand(Command):
         while first_change_pos < len(old_content) and first_change_pos < len(new_content) and old_content[first_change_pos] == new_content[first_change_pos]:
             first_change_pos += 1
 
-        outcomes = [RescanOutcome()]
+        outcomes: list[CommandOutcome] = [RescanOutcome()]
         assert isinstance(state.cursor, SelectionCursor)
         if first_change_pos <= state.cursor.selection_end + 5:   # some buffer in case a suffix was appended
             outcomes.append(SetNewCursor(PositionCursor(state.cursor.file_index, min(first_change_pos, state.cursor.selection_start))))
@@ -556,7 +556,7 @@ class CommandCollection:
         click.pause()
         return []
 
-    def _pure_commands(self) -> Sequence[Command]:
+    def _pure_commands(self) -> Iterable[Command]:
         for c in self.commands:
             if isinstance(c, Command):
                 yield c
