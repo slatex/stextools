@@ -6,6 +6,7 @@ import click
 from stextools.core.linker import Linker
 from stextools.core.mathhub import make_filter_fun
 from stextools.core.simple_api import SimpleSymbol, get_files, SimpleVerbalization
+from stextools.snify.snify_state import SnifyState
 from stextools.stepper.command_outcome import CommandOutcome, SubstitutionOutcome, SetNewCursor, FocusOutcome
 from stextools.stepper.commands import CommandInfo, Command, RescanOutcome, get_editor
 from stextools.stepper.state import State, SelectionCursor, PositionCursor
@@ -207,6 +208,7 @@ class StemFocusCommandPlusPlus(Command):
 
     def execute(self, *, state: State, call: str) -> Sequence[CommandOutcome]:
         assert isinstance(state.cursor, SelectionCursor)
+        assert isinstance(state, SnifyState)
         filter_fun = make_filter_fun(state.filter_pattern, state.ignore_pattern)
         return [
             SetNewCursor(PositionCursor(state.cursor.file_index, state.cursor.selection_start)),

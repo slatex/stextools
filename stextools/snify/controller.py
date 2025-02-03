@@ -7,28 +7,28 @@ from stextools.core.cache import Cache
 from stextools.core.linker import Linker
 from stextools.core.mathhub import make_filter_fun
 from stextools.core.simple_api import file_from_path
-from stextools.core.stexdoc import Dependency
 from stextools.snify.annotate_command import AnnotateCommand, LookupCommand
 from stextools.snify.commands import View_i_Command, \
     StateSkipOutcome, \
     StemFocusCommand, StemFocusCommandPlus, StemFocusCommandPlusPlus, Edit_i_Command, \
     Explain_i_Command
-from stextools.stepper.command_outcome import CommandOutcome, Exit, StatisticUpdateOutcome, SubstitutionOutcome, \
-    TextRewriteOutcome, SetNewCursor, FocusOutcome
-from stextools.stepper.commands import QuitProgramCommand, show_current_selection, RescanOutcome, RescanCommand, \
-    ExitFileCommand, UndoOutcome, UndoCommand, RedoOutcome, RedoCommand, ViewCommand, EditCommand, CommandSectionLabel, \
-    CommandCollection, ReplaceCommand
 from stextools.snify.selection import VerbTrie, PreviousWordShouldBeIncluded, NextWordShouldBeIncluded, \
     get_linked_strings, FirstWordShouldntBeIncluded, LastWordShouldntBeIncluded
 from stextools.snify.session_storage import SessionStorage
 from stextools.snify.skip_and_ignore import SkipOnceCommand, IgnoreWordOutcome, IgnoreCommand, IgnoreList, \
     AddWordToSrSkip, AddStemToSrSkip, SrSkipped, SkipUntilFileEnd, SkipForRestOfSession
+from stextools.snify.snify_state import SnifyState
+from stextools.snify.stemming import string_to_stemmed_word_sequence_simplified, string_to_stemmed_word_sequence
+from stextools.stepper.command_outcome import CommandOutcome, Exit, StatisticUpdateOutcome, SubstitutionOutcome, \
+    TextRewriteOutcome, SetNewCursor, FocusOutcome
+from stextools.stepper.commands import QuitProgramCommand, show_current_selection, RescanOutcome, RescanCommand, \
+    ExitFileCommand, UndoOutcome, UndoCommand, RedoOutcome, RedoCommand, ViewCommand, EditCommand, CommandSectionLabel, \
+    CommandCollection, ReplaceCommand
 from stextools.stepper.file_management import include_inputs
 from stextools.stepper.modifications import Modification, FileModification, CursorModification, PushFocusModification, \
     StatisticModification
 from stextools.stepper.state import PositionCursor, SelectionCursor
 from stextools.stepper.state import State
-from stextools.snify.stemming import string_to_stemmed_word_sequence_simplified, string_to_stemmed_word_sequence
 from stextools.utils.linked_str import LinkedStr
 
 
@@ -54,6 +54,7 @@ class StateSkipModification(Modification):
         self.is_stem = is_stem
 
     def apply(self, state: State):
+        assert isinstance(state, SnifyState)
         if self.file is None:
             assert self.lang is not None
             if self.is_stem:
@@ -67,6 +68,7 @@ class StateSkipModification(Modification):
                 state.skip_literal_by_file.setdefault(self.file, set()).add(self.word)
 
     def unapply(self, state: State):
+        assert isinstance(state, SnifyState)
         if self.file is None:
             assert self.lang is not None
             if self.is_stem:
@@ -81,8 +83,8 @@ class StateSkipModification(Modification):
 
 
 class Controller:
-    def __init__(self, state: State, new_files: Optional[list[Path]] = None, stem_focus: Optional[str] = None):
-        self.state: State = state
+    def __init__(self, state: SnifyState, new_files: Optional[list[Path]] = None, stem_focus: Optional[str] = None):
+        self.state: SnifyState = state
         self.mh = Cache.get_mathhub(update_all=True)
         self._linker: Optional[Linker] = None
         self._verb_trie_by_lang: dict[str, VerbTrie] = {}
@@ -375,12 +377,14 @@ class Controller:
 
 def snify(files: list[str], filter: str, ignore: str, focus: Optional[str]):
     session_storage = SessionStorage()
-    state: Optional[State] = None
+    state: Optional[SnifyState] = None
     if state is None and focus is None:
-        state = session_storage.get_session_dialog()
+        _state = session_storage.get_session_dialog()
+        assert isinstance(_state, SnifyState) or _state is None
+        state = _state
     if state is None:
-        state = State(files=[], filter_pattern=filter,
-                      ignore_pattern=ignore, cursor=PositionCursor(file_index=0, offset=0))
+        state = SnifyState(files=[], cursor=PositionCursor(file_index=0, offset=0), filter_pattern=filter,
+                           ignore_pattern=ignore)
         paths: list[Path] = []
         for file in files:
             path = Path(file).absolute().resolve()

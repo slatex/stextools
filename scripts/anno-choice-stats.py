@@ -10,6 +10,7 @@ from stextools.core.cache import Cache
 from stextools.core.linker import Linker
 from stextools.core.simple_api import file_from_path, get_symbols
 from stextools.snify.controller import Controller
+from stextools.snify.snify_state import SnifyState
 from stextools.stepper.state import State, PositionCursor
 from stextools.snify.stemming import string_to_stemmed_word_sequence_simplified
 
@@ -31,7 +32,7 @@ linker1 = Linker(mh)
 filter = '*'
 ignore = 'sTeX/*'  # sTeX/* is typically ignored in annotation runs with snify
 files = [Path(input('root file: ')).absolute().resolve()]
-state = State(files=[], filter_pattern=filter,
+state = SnifyState(files=[], filter_pattern=filter,
               ignore_pattern=ignore, cursor=PositionCursor(file_index=0, offset=0))
 controller = Controller(state, new_files=[Path(file).absolute().resolve() for file in files])
 

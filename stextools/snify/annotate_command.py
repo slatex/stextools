@@ -13,6 +13,7 @@ from stextools.core.macros import STEX_CONTEXT_DB
 from stextools.core.mathhub import make_filter_fun
 from stextools.core.simple_api import SimpleSymbol, get_symbols, SimpleFile, SimpleModule
 from stextools.snify.commands import ImportCommand
+from stextools.snify.snify_state import SnifyState
 from stextools.stepper.command_outcome import CommandOutcome, Exit, StatisticUpdateOutcome, SubstitutionOutcome, \
     SetNewCursor
 from stextools.stepper.commands import CommandInfo, Command, QuitSubdialogCommand, show_current_selection, \
@@ -407,6 +408,7 @@ class LookupCommand(Command, AnnotateMixin):
         AnnotateMixin.__init__(self, state, linker)
 
     def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
+        assert isinstance(state, SnifyState)
         fzf_path = shutil.which('fzf')
         get_config().get('stextools', 'fzf_path', fallback=None)
         if fzf_path is None:
