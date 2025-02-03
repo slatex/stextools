@@ -12,10 +12,12 @@ from stextools.core.linker import Linker
 from stextools.core.macros import STEX_CONTEXT_DB
 from stextools.core.mathhub import make_filter_fun
 from stextools.core.simple_api import SimpleSymbol, get_symbols, SimpleFile, SimpleModule
-from stextools.snify.commands import Command, CommandInfo, CommandOutcome, SubstitutionOutcome, SetNewCursor, \
-    ImportCommand, CommandCollection, show_current_selection, StatisticUpdateOutcome, \
-    QuitSubdialogCommand, Exit, CommandSectionLabel
-from stextools.snify.state import State, SelectionCursor, PositionCursor
+from stextools.snify.commands import ImportCommand
+from stextools.stepper.command_outcome import CommandOutcome, Exit, StatisticUpdateOutcome, SubstitutionOutcome, \
+    SetNewCursor
+from stextools.stepper.commands import CommandInfo, Command, QuitSubdialogCommand, show_current_selection, \
+    CommandSectionLabel, CommandCollection
+from stextools.stepper.state import State, SelectionCursor, PositionCursor
 from stextools.utils.ui import standard_header, pale_color, option_string, color, latex_format
 
 # This stores the keys to fix the order of the symbols within a session

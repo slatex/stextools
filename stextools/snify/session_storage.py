@@ -9,9 +9,10 @@ from typing import Optional
 
 import click
 
-from stextools.snify.commands import Command, CommandInfo, CommandOutcome, CommandCollection
-from stextools.snify.state import State
-from stextools.utils.ui import option_string, standard_header_str, standard_header
+from stextools.stepper.command_outcome import CommandOutcome
+from stextools.stepper.commands import CommandInfo, Command, CommandCollection
+from stextools.stepper.state import State
+from stextools.utils.ui import option_string, standard_header
 
 # TODO: move this somewhere else?
 PATH = Path('~/.config/stextools/sessions').expanduser()

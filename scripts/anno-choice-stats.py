@@ -10,7 +10,7 @@ from stextools.core.cache import Cache
 from stextools.core.linker import Linker
 from stextools.core.simple_api import file_from_path, get_symbols
 from stextools.snify.controller import Controller
-from stextools.snify.state import State, PositionCursor
+from stextools.stepper.state import State, PositionCursor
 from stextools.snify.stemming import string_to_stemmed_word_sequence_simplified
 
 logging.getLogger('pylatexenc.latexwalker').setLevel(logging.WARNING)

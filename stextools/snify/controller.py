@@ -1,4 +1,3 @@
-import abc
 from pathlib import Path
 from typing import Optional, Any, Sequence
 
@@ -10,73 +9,27 @@ from stextools.core.mathhub import make_filter_fun
 from stextools.core.simple_api import file_from_path
 from stextools.core.stexdoc import Dependency
 from stextools.snify.annotate_command import AnnotateCommand, LookupCommand
-from stextools.snify.commands import CommandCollection, QuitProgramCommand, Exit, CommandOutcome, \
-    show_current_selection, SubstitutionOutcome, SetNewCursor, \
-    ExitFileCommand, UndoOutcome, RedoOutcome, UndoCommand, RedoCommand, ViewCommand, View_i_Command, \
-    TextRewriteOutcome, StatisticUpdateOutcome, ReplaceCommand, RescanCommand, RescanOutcome, StateSkipOutcome, \
-    FocusOutcome, StemFocusCommand, StemFocusCommandPlus, StemFocusCommandPlusPlus, EditCommand, Edit_i_Command, \
-    CommandSectionLabel, Explain_i_Command
+from stextools.snify.commands import View_i_Command, \
+    StateSkipOutcome, \
+    StemFocusCommand, StemFocusCommandPlus, StemFocusCommandPlusPlus, Edit_i_Command, \
+    Explain_i_Command
+from stextools.stepper.command_outcome import CommandOutcome, Exit, StatisticUpdateOutcome, SubstitutionOutcome, \
+    TextRewriteOutcome, SetNewCursor, FocusOutcome
+from stextools.stepper.commands import QuitProgramCommand, show_current_selection, RescanOutcome, RescanCommand, \
+    ExitFileCommand, UndoOutcome, UndoCommand, RedoOutcome, RedoCommand, ViewCommand, EditCommand, CommandSectionLabel, \
+    CommandCollection, ReplaceCommand
 from stextools.snify.selection import VerbTrie, PreviousWordShouldBeIncluded, NextWordShouldBeIncluded, \
     get_linked_strings, FirstWordShouldntBeIncluded, LastWordShouldntBeIncluded
 from stextools.snify.session_storage import SessionStorage
 from stextools.snify.skip_and_ignore import SkipOnceCommand, IgnoreWordOutcome, IgnoreCommand, IgnoreList, \
     AddWordToSrSkip, AddStemToSrSkip, SrSkipped, SkipUntilFileEnd, SkipForRestOfSession
-from stextools.snify.state import PositionCursor, Cursor, SelectionCursor
-from stextools.snify.state import State
+from stextools.stepper.file_management import include_inputs
+from stextools.stepper.modifications import Modification, FileModification, CursorModification, PushFocusModification, \
+    StatisticModification
+from stextools.stepper.state import PositionCursor, SelectionCursor
+from stextools.stepper.state import State
 from stextools.snify.stemming import string_to_stemmed_word_sequence_simplified, string_to_stemmed_word_sequence
 from stextools.utils.linked_str import LinkedStr
-
-
-class Modification(abc.ABC):
-    files_to_reparse: list[Path]
-
-    @abc.abstractmethod
-    def apply(self, state: State):
-        pass
-
-    @abc.abstractmethod
-    def unapply(self, state: State):
-        pass
-
-
-class FileModification(Modification):
-    def __init__(self, file: Path, old_text: str, new_text: str):
-        self.files_to_reparse = [file]
-        self.file = file
-        self.old_text = old_text
-        self.new_text = new_text
-
-    def apply(self, state: State):
-        current_text = self.file.read_text()
-        if current_text != self.old_text:
-            print(click.style(f"File {self.file} has been modified since the last time it was read", fg='black', bg='bright_yellow'))
-            print(click.style(f"I will not change the file", fg='black', bg='bright_yellow'))
-            click.pause()
-            return
-
-        self.file.write_text(self.new_text)
-
-    def unapply(self, state: State):
-        current_text = self.file.read_text()
-        if current_text != self.new_text:
-            print(click.style(f"File {self.file} has been modified since the last time it was written", fg='black', bg='bright_yellow'))
-            print(click.style(f"I will not change the file", fg='black', bg='bright_yellow'))
-            click.pause()
-            return
-        self.file.write_text(self.old_text)
-
-
-class CursorModification(Modification):
-    def __init__(self, old_cursor: Cursor, new_cursor: Cursor):
-        self.files_to_reparse = []
-        self.old_cursor = old_cursor
-        self.new_cursor = new_cursor
-
-    def apply(self, state: State):
-        state.cursor = self.new_cursor
-
-    def unapply(self, state: State):
-        state.cursor = self.old_cursor
 
 
 class IgnoreListAddition(Modification):
@@ -90,39 +43,6 @@ class IgnoreListAddition(Modification):
 
     def unapply(self, state: State):
         IgnoreList.remove_word(lang=self.lang, word=self.word)
-
-
-class PushFocusModification(Modification):
-    def __init__(self, new_files: Optional[list[Path]], new_cursor: Optional[Cursor], select_only_stem: Optional[str]):
-        self.files_to_reparse = []
-        self.new_files = new_files
-        self.new_cursor = new_cursor
-        self.select_only_stem = select_only_stem
-
-    def apply(self, state: State):
-        state.push_focus(new_files=self.new_files, new_cursor=self.new_cursor, select_only_stem=self.select_only_stem)
-
-    def unapply(self, state: State):
-        state.pop_focus()
-
-
-class StatisticModification(Modification):
-    def __init__(self, statistic_update_outcome: StatisticUpdateOutcome):
-        self.files_to_reparse = []
-        self.type_ = statistic_update_outcome.type_
-        self.value = statistic_update_outcome.value
-
-    def apply(self, state: State):
-        if self.type_ == 'annotation_inc':
-            state.statistic_annotations_added += 1
-        else:
-            raise RuntimeError(f"Unexpected type {self.type_}")
-
-    def unapply(self, state: State):
-        if self.type_ == 'annotation_inc':
-            state.statistic_annotations_added -= 1
-        else:
-            raise RuntimeError(f"Unexpected type {self.type_}")
 
 
 class StateSkipModification(Modification):
@@ -170,55 +90,8 @@ class Controller:
         self._modification_future: list[list[Modification]] = []   # for re-doing
 
         if new_files:
-            self.load_files_dialog(new_files, stem_focus)
+            self.state.push_focus(new_files=include_inputs(self.mh, new_files), select_only_stem=stem_focus)
 
-    def load_files_dialog(self, new_files: list[Path], stem_focus: Optional[str]):
-        # note: better design would be to move this out of the controller, I think
-        have_inputs = False
-        for file in new_files:
-            stexdoc = self.mh.get_stex_doc(file)
-            if not stexdoc:
-                continue
-            for dep in stexdoc.get_doc_info(self.mh).dependencies:
-                if dep.is_input:
-                    have_inputs = True
-                    break
-            if have_inputs:
-                break
-        if have_inputs and click.confirm(
-            'The selected files input other files. Should I include those as well?'
-        ):
-            all_files: list[Path] = []
-            all_files_set: set[Path] = set()
-            todo_list = list(reversed(new_files))
-            while todo_list:
-                file = todo_list.pop()
-                path = file.absolute().resolve()
-                if path in all_files_set:
-                    continue
-                stexdoc = self.mh.get_stex_doc(path)
-                if stexdoc:
-                    all_files.append(path)
-                    all_files_set.add(path)
-                    dependencies: list[Dependency] = [
-                        dep
-                        for dep in stexdoc.get_doc_info(self.mh).dependencies
-                        if dep.is_input
-                    ]
-                    # reverse as todo_list is a stack
-                    dependencies.sort(key=lambda dep: dep.intro_range[0] if dep.intro_range else 0, reverse=True)
-                    for dep in dependencies:
-                        if not dep.is_input:
-                            continue
-                        target_path = dep.get_target_path(self.mh, stexdoc)
-                        if target_path:
-                            todo_list.append(target_path)
-                else:
-                    print(f'File {path} is not loaded')
-
-            self.state.push_focus(new_files=all_files, select_only_stem=stem_focus)
-        else:
-            self.state.push_focus(new_files=new_files, select_only_stem=stem_focus)
 
     @property
     def linker(self) -> Linker:

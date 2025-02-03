@@ -3,6 +3,10 @@
 
 ## Upcoming release
 
+**Other modifications/improvements:**
+
+* Factoring a `stepper` module out of `snify`
+
 
 ## Release 0.1.2 (2025-02-03
 
