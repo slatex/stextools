@@ -151,7 +151,17 @@ class Explain_i_Command(Command):
         in_scope = file.symbol_is_in_scope_at(symbol, offset)
 
         if in_scope:
-            ...     # TODO
+            print(click.style('The symbol is in scope due to the following import chain:', bg='bright_cyan'))
+            import_path = file.explain_symbol_in_scope_at(symbol, offset)
+            assert import_path is not None, 'Symbol is in scope, but no import path found'
+            for file, range_ in import_path:
+                print(click.style(f'  {file.path}', fg='black'))
+                print_highlight_selection(
+                    file.path.read_text(),
+                    range_[0],
+                    range_[1],
+                    n_lines=0,
+                )
 
         click.pause()
 

@@ -20,5 +20,8 @@ For example, the `ReplaceCommand`, which can be used to replace the currently se
 will return a `SubstitutionOutcome` and a `SetNewCursor` outcome,
 which in turn are translated into a `FileModification` and a `CursorModification`.
 
+In some cases, the conversion to `Modification`s is not necessary
+and `CommandOutcome`s can be applied directly.
+
 A `CommandCollection` holds all commands that can be executed in a particular situation.
 

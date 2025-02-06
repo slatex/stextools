@@ -381,6 +381,9 @@ class STeXDocument:
                 elif node.nodeType() == LatexEnvironmentNode:
                     # TODO: handle smodules
                     if node.environmentname == 'smodule':
+                        if node.nodeargd is None:
+                            logger.error(f'{self.path}: malformed smodule - skipping it')
+                            continue
                         name = node.nodeargd.argnlist[1].latex_verbatim()[1:-1]
                         if module_info:
                             name = f'{module_info.name}/{name}'

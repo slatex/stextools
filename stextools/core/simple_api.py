@@ -1,5 +1,9 @@
+from __future__ import annotations
+
 import dataclasses
+from collections import deque
 from collections.abc import Iterable, Generator
+import itertools
 from pathlib import Path
 from typing import Optional
 
@@ -154,6 +158,62 @@ class SimpleFile:
             if start <= offset < end and required_module in self._linker.transitive_imports[mod]:
                 return True
         return False
+
+    def explain_symbol_in_scope_at(self, symbol: SimpleSymbol, offset: int) -> Optional[list[tuple[SimpleFile, tuple[int, int]]]]:
+        required_module = symbol.declaring_module._module_int
+        mh = self._linker.mh
+
+        def dep_to_mod(doc, dep):
+            target_doc, target_mod = dep.get_target(self._linker.mh, doc)
+            if target_doc is None or target_mod is None:
+                return None
+            return self._linker.module_ints.intify((self._linker.document_ints.intify(target_doc), target_mod.name))
+
+        for mod, start, end in self._linker.available_module_ranges[self._doc_int]:
+            if start <= offset < end and required_module in self._linker.transitive_imports[mod]:
+                # bfs to find shortest path
+                queue = deque([[mod]])   # lists path (is this sufficiently memory efficient - or do we need predecessor graph?)
+                visited = set([mod])
+                while queue:
+                    path = queue.popleft()
+                    if path[-1] != required_module:
+                        for child in self._linker.module_import_graph[path[-1]]:
+                            if child not in visited:
+                                visited.add(child)
+                                queue.append(path + [child])
+                        continue
+
+                    # found a path
+                    result: list[tuple[SimpleFile, tuple[int, int]]] = []
+                    for dep in self._stex_doc.get_doc_info(mh).flattened_dependencies():
+                        if dep.scope[0] > offset or dep.scope[1] <= offset:
+                            continue
+                        assert dep.intro_range
+                        result.append((self, dep.intro_range))
+                        break
+
+                    if not result:
+                        raise RuntimeError('I failed to find the first step of the import path - this is a bug')
+
+                    for i, j in itertools.pairwise(path):
+                        doc_int, module_name = self._linker.module_ints.unintify(i)
+                        doc = self._linker.document_ints.unintify(doc_int)
+                        module_info = doc.get_doc_info(mh).get_module(module_name)
+                        if module_info is None:
+                            continue
+                        for dep in doc.get_doc_info(mh).flattened_dependencies():
+                            if dep.is_use: continue
+                            if dep_to_mod(doc, dep) == j:
+                                assert dep.intro_range
+                                if dep.intro_range[0] < module_info.valid_range[0] or dep.intro_range[1] > module_info.valid_range[1]:
+                                    continue
+                                result.append((SimpleFile(doc_int, self._linker), dep.intro_range))
+                                break
+                    return result
+
+                raise RuntimeError('I failed to find the import path - this is a bug')
+        return None   # symbol not in scope
+
 
     def get_compilation_dependencies(self) -> Generator['SimpleFile']:
         for dep_int in self._linker.file_import_graph[self._doc_int]:
