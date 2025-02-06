@@ -6,9 +6,7 @@
 **Other modifications/improvements:**
 
 * Factoring a `stepper` module out of `snify`
-
-
-## Release 0.1.2 (2025-02-03
+* More error messages when an archive is cloned twice (related to [#62](https://github.com/slatex/stextools/issues/62))
 
 **New features:**
 

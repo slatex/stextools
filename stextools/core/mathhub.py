@@ -61,6 +61,12 @@ class MathHub:
             repo.resolve_path_ref.cache_clear()
             repo.is_stex_archive.cache_clear()
 
+            if repo.get_archive_name() in self.archive_lookup:
+                existing = self.archive_lookup[repo.get_archive_name()]
+                if not existing.path.is_dir():
+                    del self.archive_lookup[repo.get_archive_name()]
+                elif existing.path != repo.path:
+                    logger.error(f'Found two repositories for the same archive: {repo.path} and {existing.path}. I\'ll ignore the former, but this can lead to errors further down the line.')
             if repo.get_archive_name() not in self.archive_lookup:
                 self.archive_lookup[repo.get_archive_name()] = repo
             still_needed.add(repo.get_archive_name())

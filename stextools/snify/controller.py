@@ -319,7 +319,7 @@ class Controller:
                 self.state.cursor = _cursor
                 continue
             if not file_from_path(self.state.get_current_file(), self.linker):
-                print(click.style(f"File {self.state.get_current_file()} is not loaded. Skipping it.", fg='red'))
+                print(click.style(f"File {self.state.get_current_file()} is not loaded. Skipping it.\nPotential causes:\n * One archive is cloned multiple times\n * The file is not in an archive\n * The file is in an archive outside the MATHHUB path", fg='red'))
                 click.pause()
                 _cursor = PositionCursor(_cursor.file_index + 1, offset=0)
                 self.state.cursor = _cursor
