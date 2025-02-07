@@ -3,10 +3,18 @@
 
 ## Upcoming release
 
+**New features:**
+
+* `x𝑖` command now also shows the import path of symbols (if in scope)
+
 **Other modifications/improvements:**
 
 * Factoring a `stepper` module out of `snify`
 * More error messages when an archive is cloned twice (related to [#62](https://github.com/slatex/stextools/issues/62))
+* Skip malformed `smodule` environments instead of crashing (see also [#78](https://github.com/slatex/stextools/issues/78))
+
+
+## Release 0.1.2 (2025-02-03)
 
 **New features:**
 
