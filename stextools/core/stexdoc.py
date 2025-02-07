@@ -494,6 +494,10 @@ class STeXDocument:
                 else:
                     raise Exception(f'Unexpected node type: {node.nodeType()}')
 
-        process(walker.get_latex_nodes()[0], (0, walker.get_latex_nodes()[2]))
+        try:
+            process(walker.get_latex_nodes()[0], (0, walker.get_latex_nodes()[2]))
+        except Exception as e:
+            logger.error(f'Error processing document {self.path}: {e}')
+            logger.exception(e)
         doc_info.finalize()
         self._doc_info = doc_info

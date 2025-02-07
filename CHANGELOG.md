@@ -12,6 +12,7 @@
 * Factoring a `stepper` module out of `snify`
 * More error messages when an archive is cloned twice (related to [#62](https://github.com/slatex/stextools/issues/62))
 * Skip malformed `smodule` environments instead of crashing (see also [#78](https://github.com/slatex/stextools/issues/78))
+* More generally, continue if stex processing fails for a file
 
 
 ## Release 0.1.2 (2025-02-03)
