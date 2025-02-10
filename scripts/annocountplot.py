@@ -1,10 +1,10 @@
 from collections import defaultdict
-from datetime import timedelta
+from datetime import datetime
 from fnmatch import fnmatch
 
 from matplotlib import pyplot as plt
 
-from annocounthistory2 import *
+from annocounthistory2 import CommitInfo, load_history
 
 HISTORY_DATA = load_history()
 
@@ -45,8 +45,8 @@ def plot_diff(data: list[CommitInfo], label: str):
     diff_dates = []
     diff_counts = []
 
-    for i in range(int(SINCE.timestamp()), int(datetime.now().timestamp()), 1*24*60*60):
-        a = i - 28*24*60*60
+    for i in range(int(SINCE.timestamp()), int(datetime.now().timestamp()), 1 * 24 * 60 * 60):
+        a = i - 28 * 24 * 60 * 60
         b = i
 
         count_before_week = 0
@@ -99,4 +99,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

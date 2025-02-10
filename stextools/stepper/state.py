@@ -37,12 +37,8 @@ class Focus:
 class State:
     """ Editing state for snify. This can be saved to a file and reloaded. """
     files: list[Path]
-
     cursor: Cursor
-
     statistic_annotations_added: int = 0
-
-
     focus_stack: list[Focus] = dataclasses.field(default_factory=list)
 
     def push_focus(

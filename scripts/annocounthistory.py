@@ -6,12 +6,16 @@ import subprocess
 import sys
 from pathlib import Path
 
+import matplotlib.pyplot as plt
+
 paths: list[Path] = [Path(p) for p in sys.argv[1:]]
 
 repo_paths: list[Path] = []
 
 for path in paths:
-    for line in subprocess.run(['sh', '-c', 'find -name .git'], cwd=path, capture_output=True, text=True).stdout.splitlines():
+    for line in subprocess.run(
+            ['sh', '-c', 'find -name .git'], cwd=path, capture_output=True, text=True
+    ).stdout.splitlines():
         print(line)
         line = line.strip()
         if line:
@@ -19,7 +23,10 @@ for path in paths:
 
 
 def checkout_date(repo_path: Path, date: datetime.date):
-    result = subprocess.run(['sh', '-c', f'git rev-list -n1 --before={date.isoformat()} main | xargs git checkout'], cwd=repo_path)
+    result = subprocess.run(
+        ['sh', '-c', f'git rev-list -n1 --before={date.isoformat()} main | xargs git checkout'],
+        cwd=repo_path
+    )
     if result.returncode != 0:
         print(f'Error checking out {date.isoformat()} in {repo_path}')
 
@@ -32,7 +39,13 @@ def checkout_date(repo_path: Path, date: datetime.date):
 
 current_names = ['sn', 'sns', 'Sn', 'Sns', 'sr']
 intermediate_names = ['symname', 'Symname', 'symref']
-old_names = [prefix + core + suff + suffsuff for core in ['tref', 'Tref'] for suff in ['i', 'ii', 'iii', 'iv'] for suffsuff in ['', 's'] for prefix in ['', 'm']]
+old_names = [
+    prefix + core + suff + suffsuff
+    for core in ['tref', 'Tref']
+    for suff in ['i', 'ii', 'iii', 'iv']
+    for suffsuff in ['', 's']
+    for prefix in ['', 'm']
+]
 
 
 def anno_count(repo_path: Path):
@@ -47,6 +60,7 @@ def anno_count(repo_path: Path):
             print(e)
             print()
     return count
+
 
 end_date = datetime.date.today()
 
@@ -69,14 +83,10 @@ with open('history.json', 'w') as f:
     json.dump(HISTORY_BY_REPO, f)
 
 
-import matplotlib.pyplot as plt
-
-
 labels_to_show = set(sorted(list(HISTORY.keys()))[::4])
 
 
 def draw_hist(hist, label):
-    keys = []
     vals = []
     for k in sorted(hist.keys()):
         # keys.append(k)
@@ -84,6 +94,7 @@ def draw_hist(hist, label):
 
     import random
     plt.plot([b - a + random.random() for a, b in itertools.pairwise(vals)], label=label)
+
 
 for repo in repo_paths:
     draw_hist(HISTORY_BY_REPO[str(repo)], str(repo))

@@ -159,7 +159,9 @@ class SimpleFile:
                 return True
         return False
 
-    def explain_symbol_in_scope_at(self, symbol: SimpleSymbol, offset: int) -> Optional[list[tuple[SimpleFile, tuple[int, int]]]]:
+    def explain_symbol_in_scope_at(
+            self, symbol: SimpleSymbol, offset: int
+    ) -> Optional[list[tuple[SimpleFile, tuple[int, int]]]]:
         required_module = symbol.declaring_module._module_int
         mh = self._linker.mh
 
@@ -172,8 +174,9 @@ class SimpleFile:
         for mod, start, end in self._linker.available_module_ranges[self._doc_int]:
             if start <= offset < end and required_module in self._linker.transitive_imports[mod]:
                 # bfs to find shortest path
-                queue = deque([[mod]])   # lists path (is this sufficiently memory efficient - or do we need predecessor graph?)
-                visited = set([mod])
+                # queu lists path (is this sufficiently memory efficient - or do we need predecessor graph?)
+                queue = deque([[mod]])
+                visited = {mod}
                 while queue:
                     path = queue.popleft()
                     if path[-1] != required_module:
@@ -202,10 +205,12 @@ class SimpleFile:
                         if module_info is None:
                             continue
                         for dep in doc.get_doc_info(mh).flattened_dependencies():
-                            if dep.is_use: continue
+                            if dep.is_use:
+                                continue
                             if dep_to_mod(doc, dep) == j:
                                 assert dep.intro_range
-                                if dep.intro_range[0] < module_info.valid_range[0] or dep.intro_range[1] > module_info.valid_range[1]:
+                                if dep.intro_range[0] < module_info.valid_range[0] or \
+                                        dep.intro_range[1] > module_info.valid_range[1]:
                                     continue
                                 result.append((SimpleFile(doc_int, self._linker), dep.intro_range))
                                 break
@@ -213,7 +218,6 @@ class SimpleFile:
 
                 raise RuntimeError('I failed to find the import path - this is a bug')
         return None   # symbol not in scope
-
 
     def get_compilation_dependencies(self) -> Generator['SimpleFile']:
         for dep_int in self._linker.file_import_graph[self._doc_int]:

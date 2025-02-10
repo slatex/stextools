@@ -65,7 +65,9 @@ def process_repo(path: Path):
         _, code = run_sh(f'git checkout {commit_hash}', path)
         assert code == 0, f'Error checking out {commit_hash} in {path}'
         count = anno_count(path)
-        HISTORY_DATA[commit_hash] = CommitInfo(date, count, creator, commit_hash, str(path.relative_to(get_mathhub_path())))
+        HISTORY_DATA[commit_hash] = CommitInfo(
+            date, count, creator, commit_hash, str(path.relative_to(get_mathhub_path()))
+        )
     _, code = run_sh(f'git checkout {branch}', path)
 
 

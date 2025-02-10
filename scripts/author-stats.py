@@ -1,4 +1,4 @@
-from annocounthistory2 import *
+from annocounthistory2 import load_history
 
 HISTORY_DATA = load_history()
 

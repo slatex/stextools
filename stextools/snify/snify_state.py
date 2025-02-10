@@ -1,4 +1,3 @@
-import dataclasses
 from pathlib import Path
 
 from stextools.stepper.state import State, Cursor
