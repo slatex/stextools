@@ -14,7 +14,7 @@ from stextools.snify.commands import View_i_Command, \
     Explain_i_Command
 from stextools.snify.selection import VerbTrie, PreviousWordShouldBeIncluded, NextWordShouldBeIncluded, \
     get_linked_strings, FirstWordShouldntBeIncluded, LastWordShouldntBeIncluded
-from stextools.snify.session_storage import SessionStorage
+from stextools.stepper.session_storage import SessionStorage
 from stextools.snify.skip_and_ignore import SkipOnceCommand, IgnoreWordOutcome, IgnoreCommand, IgnoreList, \
     AddWordToSrSkip, AddStemToSrSkip, SrSkipped, SkipUntilFileEnd, SkipForRestOfSession
 from stextools.snify.snify_state import SnifyState
