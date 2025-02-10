@@ -376,7 +376,7 @@ class Controller:
 
 
 def snify(files: list[str], filter: str, ignore: str, focus: Optional[str]):
-    session_storage = SessionStorage()
+    session_storage = SessionStorage('snify')
     state: Optional[SnifyState] = None
     if state is None and focus is None:
         _state = session_storage.get_session_dialog()

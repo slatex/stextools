@@ -29,29 +29,30 @@ def format_past_timestamp(time: datetime) -> str:
 
 
 class Session:
-    def __init__(self, identifier: str, metadata: dict):
+    def __init__(self, identifier: str, metadata: dict, tool_id: str):
         self.identifier = identifier
         self.metadata = metadata
+        self.tool_id = tool_id
 
     def write(self, state: State):
-        with open(PATH / (self.identifier + '.json'), 'w') as fp:
+        with open(PATH / (self.identifier + f'.{self.tool_id}.json'), 'w') as fp:
             fp.write(json.dumps(self.metadata))
-        with open(PATH / (self.identifier + '.dmp'), 'wb') as fp:
+        with open(PATH / (self.identifier + f'.{self.tool_id}.dmp'), 'wb') as fp:
             pickle.dump(state, fp)
 
     def get_state(self) -> State:
-        with open(PATH / (self.identifier + '.dmp'), 'rb') as fp:
+        with open(PATH / (self.identifier + f'.{self.tool_id}.dmp'), 'rb') as fp:
             return pickle.load(fp)
 
     @classmethod
-    def from_identifier(cls, identifier: str):
-        with open(PATH / (identifier + '.json'), 'r') as fp:
+    def from_identifier(cls, identifier: str, tool_id: str):
+        with open(PATH / (identifier + f'.{tool_id}.json'), 'r') as fp:
             metadata = json.loads(fp.read())
-        return cls(identifier, metadata)
+        return cls(identifier, metadata, tool_id)
 
     def delete(self):
-        (PATH / (self.identifier + '.json')).unlink()
-        (PATH / (self.identifier + '.dmp')).unlink()
+        (PATH / (self.identifier + f'.{self.tool_id}.json')).unlink()
+        (PATH / (self.identifier + f'.{self.tool_id}.dmp')).unlink()
 
 
 class SessionChoiceOutcome(CommandOutcome):
@@ -138,12 +139,13 @@ class ContinueWithoutSession(Command):
 
 
 class SessionStorage:
-    def __init__(self):
-        self.path = PATH
-        self.path.mkdir(parents=True, exist_ok=True)
+    def __init__(self, tool_id: str):
+        self.tool_id = tool_id
+        PATH.mkdir(parents=True, exist_ok=True)
         self.sessions: list[Session] = []
-        for file in PATH.glob('*.json'):
-            self.sessions.append(Session.from_identifier(file.stem))
+        for file in PATH.glob(f'*.{self.tool_id}.json'):
+            identifier = str(file.name)[:-len(f'.{self.tool_id}.json')]
+            self.sessions.append(Session.from_identifier(identifier, self.tool_id))
 
         last_modified = -math.inf
         for file in Path(__file__).parent.rglob('**/*.py'):
@@ -223,6 +225,7 @@ class SessionStorage:
                 'description': description,
                 'timestamp': time.time(),
                 'srifytimestamp': self.srify_timestamp,
-            }
+            },
+            tool_id=self.tool_id
         )
         session.write(state)
