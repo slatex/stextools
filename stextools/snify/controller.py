@@ -14,10 +14,11 @@ from stextools.snify.commands import View_i_Command, \
     Explain_i_Command
 from stextools.snify.selection import VerbTrie, PreviousWordShouldBeIncluded, NextWordShouldBeIncluded, \
     get_linked_strings, FirstWordShouldntBeIncluded, LastWordShouldntBeIncluded
+from stextools.stepper.base_controller import BaseController
 from stextools.stepper.session_storage import SessionStorage
 from stextools.snify.skip_and_ignore import SkipOnceCommand, IgnoreWordOutcome, IgnoreCommand, IgnoreList, \
     AddWordToSrSkip, AddStemToSrSkip, SrSkipped, SkipUntilFileEnd, SkipForRestOfSession
-from stextools.snify.snify_state import SnifyState
+from stextools.snify.snify_state import SnifyState, SnifyFocusInfo
 from stextools.snify.stemming import string_to_stemmed_word_sequence_simplified, string_to_stemmed_word_sequence
 from stextools.stepper.command_outcome import CommandOutcome, Exit, StatisticUpdateOutcome, SubstitutionOutcome, \
     TextRewriteOutcome, SetNewCursor, FocusOutcome
@@ -82,27 +83,12 @@ class StateSkipModification(Modification):
                 state.skip_literal_by_file[self.file].remove(self.word)
 
 
-class Controller:
+class Controller(BaseController):
     def __init__(self, state: SnifyState, new_files: Optional[list[Path]] = None, stem_focus: Optional[str] = None):
-        self.state: SnifyState = state
-        self.mh = Cache.get_mathhub(update_all=True)
-        self._linker: Optional[Linker] = None
+        super().__init__(state, new_files, SnifyFocusInfo(select_only_stem=stem_focus))
         self._verb_trie_by_lang: dict[str, VerbTrie] = {}
-        self._modification_history: list[list[Modification]] = []
-        self._modification_future: list[list[Modification]] = []   # for re-doing
 
-        if new_files:
-            self.state.push_focus(new_files=include_inputs(self.mh, new_files), select_only_stem=stem_focus)
-
-
-    @property
-    def linker(self) -> Linker:
-        if self._linker is None:
-            self._linker = Linker(self.mh)
-        return self._linker
-
-    def reset_linker(self):
-        self._linker = None
+    def post_reset_linker_hook(self):
         self._verb_trie_by_lang = {}
 
     def get_verb_trie(self, lang: str) -> VerbTrie:
@@ -110,129 +96,12 @@ class Controller:
             self._verb_trie_by_lang[lang] = VerbTrie(lang, self.linker)
         return self._verb_trie_by_lang[lang]
 
-    def run(self) -> bool:
-        """Returns True iff there are more files to annotate."""
-        while True:
-            if not self.state.focus_stack:
-                return False
-
-            if not self.ensure_cursor_selection():
-                click.clear()
-                self.state.pop_focus()
-                if self.state.focus_stack:
-                    print('Focus mode ended')
-                else:
-                    if self.state.statistic_annotations_added:
-                        print(f'Congratulations! You have added {self.state.statistic_annotations_added} annotations.')
-                    print('There are no more files to annotate.')
-                click.pause()
-                continue
-
-            click.clear()
-            show_current_selection(self.state)
-            outcomes = self._get_and_run_command()
-
-            new_modifications: list[Modification] = []
-
-            for outcome in outcomes:
-                modification: Optional[Modification] = None
-
-                if isinstance(outcome, Exit):
-                    return True
-                elif isinstance(outcome, SubstitutionOutcome):
-                    text = self.state.get_current_file_text()
-                    modification = FileModification(
-                        file=self.state.get_current_file(),
-                        old_text=text,
-                        new_text=text[:outcome.start_pos] + outcome.new_str + text[outcome.end_pos:]
-                    )
-                elif isinstance(outcome, TextRewriteOutcome):
-                    modification = FileModification(
-                        file=self.state.get_current_file(),
-                        old_text=self.state.get_current_file_text(),
-                        new_text=outcome.new_text
-                    )
-                    if not outcome.requires_reparse:
-                        modification.files_to_reparse = []
-                elif isinstance(outcome, SetNewCursor):
-                    modification = CursorModification(
-                        old_cursor=self.state.cursor,
-                        new_cursor=outcome.new_cursor
-                    )
-                elif isinstance(outcome, StatisticUpdateOutcome):
-                    modification = StatisticModification(outcome)
-                elif isinstance(outcome, FocusOutcome):
-                    modification = PushFocusModification(
-                        new_files=outcome.new_files,
-                        new_cursor=outcome.new_cursor,
-                        select_only_stem=outcome.select_only_stem
-                    )
-                elif isinstance(outcome, StateSkipOutcome):
-                    modification = StateSkipModification(
-                        file=None if outcome.session_wide else self.state.get_current_file(),
-                        lang=self.get_current_lang() if outcome.session_wide else None,
-                        word=outcome.word,
-                        is_stem=outcome.is_stem
-                    )
-                elif isinstance(outcome, IgnoreWordOutcome):
-                    modification = IgnoreListAddition(lang=outcome.lang, word=outcome.word)
-                elif isinstance(outcome, UndoOutcome):
-                    mods = self._modification_history.pop()
-                    for mod in reversed(mods):
-                        mod.unapply(self.state)
-                        self.reset_after_modification(mod)
-                        self._modification_future.append(mods)
-                elif isinstance(outcome, RedoOutcome):
-                    mods = self._modification_future.pop()
-                    for mod in mods:
-                        mod.apply(self.state)
-                        self.reset_after_modification(mod)
-                    self._modification_history.append(mods)
-                elif isinstance(outcome, RescanOutcome):
-                    self.reset_linker()
-                    self.mh.update()
-                else:
-                    raise RuntimeError(f"Unexpected outcome {outcome}")
-
-                if modification is not None:
-                    modification.apply(self.state)
-                    new_modifications.append(modification)
-                    self.reset_after_modification(modification)
-
-            if new_modifications:
-                self._modification_history.append(new_modifications)
-                self._modification_future.clear()
-                if len(self._modification_history) > 150:
-                    self._modification_history = self._modification_history[-100:]
-
-    def reset_after_modification(self, modification: Modification):
-        if modification.files_to_reparse:
-            self.reset_linker()
-            for file in modification.files_to_reparse:
-                doc = self.mh.get_stex_doc(file)
-                assert doc is not None
-                doc.delete_doc_info_if_outdated()
-
-    def _get_and_run_command(self) -> Sequence[CommandOutcome]:
-        command_collection = self._get_current_command_collection()
-        print()
-        return command_collection.apply(state=self.state)
-
-    def _get_current_command_collection(self) -> CommandCollection:
+    def get_current_command_collection(self) -> CommandCollection:
         vt = self.get_verb_trie(self.get_current_lang())
         match_info = vt.find_first_match(
             string_to_stemmed_word_sequence_simplified(self.state.get_selected_text(), self.get_current_lang())
         )
-        # sos = self.state.focus_stack[-1].select_only_stem
-        # if sos is None:
-        #     match_info = vt.find_first_match(
-        #         string_to_stemmed_word_sequence_simplified(self.state.get_selected_text(), self.get_current_lang())
-        #     )
-        # else:
-        #     match_info = vt.find_first_match_restricted(
-        #         string_to_stemmed_word_sequence_simplified(self.state.get_selected_text(), self.get_current_lang()),
-        #         string_to_stemmed_word_sequence_simplified(sos, self.get_current_lang()),
-        #     )
+
         candidate_symbols = match_info[2] if match_info is not None else []
         filter_fun = make_filter_fun(self.state.filter_pattern, self.state.ignore_pattern)
         candidate_symbols = [s for s in candidate_symbols if filter_fun(s.declaring_file.archive.name)]
@@ -286,18 +155,6 @@ class Controller:
             have_help=True
         )
 
-    def ensure_cursor_selection(self) -> bool:
-        """Returns False if nothing is left to select."""
-        if self.state.cursor.file_index >= len(self.state.files):
-            return False
-        if isinstance(self.state.cursor, PositionCursor):
-            # selection_cursor = self.get_verb_trie(self.get_current_lang()).find_next_selection(self.state)
-            selection_cursor = self.find_next_selection()
-            if selection_cursor is None:
-                return False
-            self.state.cursor = selection_cursor
-        return True
-
     def find_next_selection(self) -> Optional[SelectionCursor]:
         _cursor: PositionCursor = self.state.cursor  # type: ignore
         if not isinstance(_cursor, PositionCursor):
@@ -341,7 +198,7 @@ class Controller:
                         continue
                     words_filtered.append(word)
 
-                sos = self.state.focus_stack[-1].select_only_stem
+                sos = self.state.focus_stack[-1].other_info.select_only_stem
                 if sos is None:
                     match = self.get_verb_trie(self.get_current_lang()).find_first_match(
                         [str(w) for w in words_filtered],
@@ -370,9 +227,6 @@ class Controller:
         if progress_bar is not None:
             progress_bar.render_finish()
         return None
-
-    def get_current_lang(self) -> str:
-        return self.state.get_current_lang(self.linker)
 
 
 def snify(files: list[str], filter: str, ignore: str, focus: Optional[str]):

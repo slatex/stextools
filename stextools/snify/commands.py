@@ -6,7 +6,7 @@ import click
 from stextools.core.linker import Linker
 from stextools.core.mathhub import make_filter_fun
 from stextools.core.simple_api import SimpleSymbol, get_files, SimpleVerbalization
-from stextools.snify.snify_state import SnifyState
+from stextools.snify.snify_state import SnifyState, SnifyFocusInfo
 from stextools.stepper.command_outcome import CommandOutcome, SubstitutionOutcome, SetNewCursor, FocusOutcome
 from stextools.stepper.commands import CommandInfo, Command, RescanOutcome, get_editor
 from stextools.stepper.state import State, SelectionCursor, PositionCursor
@@ -183,7 +183,7 @@ class StemFocusCommand(Command):
         return [
             # do not want to return to old selection
             SetNewCursor(PositionCursor(state.cursor.file_index, state.cursor.selection_start)),
-            FocusOutcome([state.get_current_file()], select_only_stem=state.get_selected_text())
+            FocusOutcome([state.get_current_file()], other_info=SnifyFocusInfo(state.get_selected_text()))
         ]
 
 
@@ -201,7 +201,7 @@ class StemFocusCommandPlus(Command):
         assert isinstance(state.cursor, SelectionCursor)
         return [
             SetNewCursor(PositionCursor(state.cursor.file_index, state.cursor.selection_start)),
-            FocusOutcome(select_only_stem=state.get_selected_text())
+            FocusOutcome(other_info=SnifyFocusInfo(state.get_selected_text()))
         ]
 
 
@@ -228,7 +228,7 @@ class StemFocusCommandPlusPlus(Command):
                     for f in get_files(self.linker)
                     if filter_fun(f.archive.name) and f.lang == state.get_current_lang(self.linker)
                 ],
-                select_only_stem=state.get_selected_text()
+                other_info=SnifyFocusInfo(state.get_selected_text())
             )
         ]
 

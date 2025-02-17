@@ -61,14 +61,14 @@ class CursorModification(Modification):
 
 
 class PushFocusModification(Modification):
-    def __init__(self, new_files: Optional[list[Path]], new_cursor: Optional[Cursor], select_only_stem: Optional[str]):
+    def __init__(self, new_files: Optional[list[Path]], new_cursor: Optional[Cursor], other_info):
         self.files_to_reparse = []
         self.new_files = new_files
         self.new_cursor = new_cursor
-        self.select_only_stem = select_only_stem
+        self.other_info = other_info
 
     def apply(self, state: State):
-        state.push_focus(new_files=self.new_files, new_cursor=self.new_cursor, select_only_stem=self.select_only_stem)
+        state.push_focus(new_files=self.new_files, new_cursor=self.new_cursor, other_info=self.other_info)
 
     def unapply(self, state: State):
         state.pop_focus()

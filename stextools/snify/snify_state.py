@@ -1,9 +1,16 @@
+import dataclasses
 from pathlib import Path
+from typing import Optional
 
 from stextools.stepper.state import State, Cursor
 
 
-class SnifyState(State):
+@dataclasses.dataclass
+class SnifyFocusInfo:
+    select_only_stem: Optional[str] = None
+
+
+class SnifyState(State[SnifyFocusInfo]):
     filter_pattern: str
     ignore_pattern: str
 

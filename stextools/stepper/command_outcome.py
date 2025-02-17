@@ -44,7 +44,8 @@ class SetNewCursor(CommandOutcome):
 
 
 class FocusOutcome(CommandOutcome):
-    def __init__(self, new_files: Optional[list[Path]] = None, new_cursor: Optional[Cursor] = None, select_only_stem: Optional[str] = None):
+    def __init__(self, new_files: Optional[list[Path]] = None, new_cursor: Optional[Cursor] = None,
+                 other_info = None):
         self.new_files = new_files
         self.new_cursor = new_cursor
-        self.select_only_stem = select_only_stem
+        self.other_info = other_info
