@@ -11,10 +11,10 @@ from stextools.core.simple_api import get_symbols, SimpleSymbol
 from stextools.snify.annotate_command import AnnotateMixin, symbol_display
 from stextools.snify.skip_and_ignore import SkipOnceCommand
 from stextools.stepper.base_controller import BaseController
-from stextools.stepper.command_outcome import CommandOutcome
+from stextools.stepper.command_outcome import CommandOutcome, Exit
 from stextools.stepper.commands import CommandCollection, QuitProgramCommand, ExitFileCommand, UndoCommand, RedoCommand, \
     RescanCommand, ViewCommand, EditCommand, Command, CommandInfo
-from stextools.stepper.session_storage import SessionStorage
+from stextools.stepper.session_storage import SessionStorage, IgnoreSessions
 from stextools.stepper.state import State, SelectionCursor, PositionCursor
 from stextools.utils.fzf import get_symbol_from_fzf
 
@@ -129,8 +129,10 @@ class DefiAnnoController(BaseController):
 
 def defianno(files: list[str], macros: Optional[set[str]] = None, environments: Optional[set[str]] = None):
     session_storage = SessionStorage('defianno')
-    state: Optional[State] = session_storage.get_session_dialog()
-    if state is None:
+    result = session_storage.get_session_dialog()
+    if isinstance(result, Exit):
+        return
+    if isinstance(result, IgnoreSessions):
         state = DefiAnnoState(files=[], cursor=PositionCursor(file_index=0, offset=0),
                               environments=environments, **({} if macros is None else {'macros': macros}))
         paths: list[Path] = []
@@ -142,6 +144,8 @@ def defianno(files: list[str], macros: Optional[set[str]] = None, environments: 
                 paths.append(path)
         controller = DefiAnnoController(state, paths)
     else:
+        assert isinstance(result, State)
+        state = result
         controller = DefiAnnoController(state, [])
     unfinished = controller.run()
     if unfinished:

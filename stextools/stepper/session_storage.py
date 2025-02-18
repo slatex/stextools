@@ -9,8 +9,8 @@ from typing import Optional
 
 import click
 
-from stextools.stepper.command_outcome import CommandOutcome
-from stextools.stepper.commands import CommandInfo, Command, CommandCollection
+from stextools.stepper.command_outcome import CommandOutcome, Exit
+from stextools.stepper.commands import CommandInfo, Command, CommandCollection, QuitSubdialogCommand, QuitProgramCommand
 from stextools.stepper.state import State
 from stextools.utils.ui import option_string, standard_header
 
@@ -130,7 +130,7 @@ class ContinueWithoutSession(Command):
             show=True,
             pattern_presentation='c',
             pattern_regex='^c$',
-            description_short='ontinue',
+            description_short='ontinue (ignore old sessions)',
             description_long='Continue and do not resume any session')
         )
 
@@ -161,9 +161,9 @@ class SessionStorage:
             self.sessions.remove(self.loaded_session)
             self.loaded_session.delete()
 
-    def get_session_dialog(self) -> Optional[State]:
+    def get_session_dialog(self) -> State | Exit | IgnoreSessions:
         if not self.have_ongoing_session():
-            return None
+            return IgnoreSessions()
 
         while self.sessions:
             click.clear()
@@ -174,6 +174,7 @@ class SessionStorage:
                 name='session management',
                 commands=[
                     ContinueWithoutSession(self.sessions),
+                    QuitProgramCommand(),
                     DeleteSessionCommand(self.sessions),
                     DeleteAllSessionsCommand(self.sessions),
                     PickSessionCommand(self.sessions),
@@ -183,7 +184,9 @@ class SessionStorage:
 
             for outcome in outcomes:
                 if isinstance(outcome, IgnoreSessions):
-                    return None
+                    return outcome
+                elif isinstance(outcome, Exit):
+                    return outcome
                 elif isinstance(outcome, SessionChoiceOutcome):
                     if outcome.action == 'resume':
                         session = self.sessions[outcome.session_number]
@@ -204,7 +207,7 @@ class SessionStorage:
                 else:
                     raise RuntimeError(f'Unexpected outcome: {outcome}')
 
-        return None   # no sessions left
+        return IgnoreSessions()
 
     def store_session_dialog(self, state: State):
         print('\n\n')

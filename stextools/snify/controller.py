@@ -16,11 +16,12 @@ from stextools.snify.skip_and_ignore import SkipOnceCommand, IgnoreCommand, Igno
 from stextools.snify.snify_state import SnifyState, SnifyFocusInfo
 from stextools.snify.stemming import string_to_stemmed_word_sequence_simplified, string_to_stemmed_word_sequence
 from stextools.stepper.base_controller import BaseController
+from stextools.stepper.command_outcome import Exit
 from stextools.stepper.commands import QuitProgramCommand, RescanCommand, \
     ExitFileCommand, UndoCommand, RedoCommand, ViewCommand, EditCommand, CommandSectionLabel, \
     CommandCollection, ReplaceCommand
 from stextools.stepper.modifications import Modification
-from stextools.stepper.session_storage import SessionStorage
+from stextools.stepper.session_storage import SessionStorage, IgnoreSessions
 from stextools.stepper.state import PositionCursor, SelectionCursor
 from stextools.stepper.state import State
 from stextools.utils.linked_str import LinkedStr
@@ -226,9 +227,12 @@ def snify(files: list[str], filter: str, ignore: str, focus: Optional[str]):
     session_storage = SessionStorage('snify')
     state: Optional[SnifyState] = None
     if focus is None:
-        _state = session_storage.get_session_dialog()
-        assert isinstance(_state, SnifyState) or _state is None
-        state = _state
+        result = session_storage.get_session_dialog()
+        if isinstance(result, Exit):
+            return
+        _state = result
+        assert isinstance(_state, SnifyState) or isinstance(_state, IgnoreSessions)
+        state = _state if isinstance(_state, SnifyState) else None
     if state is None:
         state = SnifyState(files=[], cursor=PositionCursor(file_index=0, offset=0), filter_pattern=filter,
                            ignore_pattern=ignore)
