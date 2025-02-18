@@ -1,7 +1,7 @@
 import dataclasses
 import shutil
 import subprocess
-from typing import Optional, Union, Any
+from typing import Optional, Union, Any, Literal
 
 import click
 from pylatexenc.latexwalker import LatexMacroNode, LatexSpecialsNode, LatexMathNode, LatexGroupNode, \
@@ -19,6 +19,7 @@ from stextools.stepper.command_outcome import CommandOutcome, Exit, StatisticUpd
 from stextools.stepper.commands import CommandInfo, Command, QuitSubdialogCommand, show_current_selection, \
     CommandSectionLabel, CommandCollection
 from stextools.stepper.state import State, SelectionCursor, PositionCursor
+from stextools.utils.fzf import get_fzf_path, get_symbol_from_fzf
 from stextools.utils.ui import standard_header, pale_color, option_string, color, latex_format
 
 # This stores the keys to fix the order of the symbols within a session
@@ -85,9 +86,13 @@ def get_redundant_import_removals(
 
 
 class AnnotateMixin:
-    def __init__(self, state: State, linker: Linker):
+    def __init__(
+            self, state: State, linker: Linker,
+            import_policy: Literal['always_ask', 'prefer_import_warn_use'] = 'always_ask'
+    ):
         self.state = state
         self.linker = linker
+        self.import_policy = import_policy
         if not isinstance(self.state.cursor, SelectionCursor):
             raise RuntimeError("AnnotateCommand can only be used with a SelectionCursor")
         self.cursor: SelectionCursor = self.state.cursor
@@ -139,19 +144,15 @@ class AnnotateMixin:
                     break
             return indentation
 
-        explain_loc = lambda loc: ' after ' + latex_format(
-            '\\begin{' + loc + '}') if loc else ' at the beginning of the file'
-
         def _get_use_struct(pos: int) -> str:
             if structure_use:
                 return _get_indentation(pos) + structure_use
             return ''
 
-        # return use_pos or 0, top_use_pos or 0, import_pos, use_env, top_use_env
+        explain_loc = lambda loc: ' after ' + latex_format(
+            '\\begin{' + loc + '}') if loc else ' at the beginning of the file'
 
-        commands: list[Command | CommandSectionLabel] = [
-            QuitSubdialogCommand(),
-            ImportCommand(
+        use_module_cmd = ImportCommand(
                 'u', 'semodule' + explain_loc(import_locations.use_env),
                      'Inserts \\usemodule' + explain_loc(import_locations.use_env),
                 SubstitutionOutcome(
@@ -161,29 +162,31 @@ class AnnotateMixin:
                 redundancies=get_redundant_import_removals(
                     file, text, needed_module, import_locations.use_scope, is_use=True
                 )
-            ),
-            ImportCommand(
-                't',
-                'op-level usemodule (i.e.' + explain_loc(import_locations.top_use_env) + ')'
-                if import_locations.top_use_env else
-                'op-level usemodule (in this case same as [u])',
-                'Inserts \\usemodule at the top of the document (i.e.' + explain_loc(import_locations.top_use_env) + ')'
-                if import_locations.top_use_env else
-                'Inserts \\usemodule at the top of the document (in this case same as [u])',
-                SubstitutionOutcome(
-                    _get_indentation(import_locations.top_use_pos) + f'\\usemodule{args}' + _get_use_struct(import_locations.top_use_pos),
-                    import_locations.top_use_pos, import_locations.top_use_pos
-                ),
-                redundancies=get_redundant_import_removals(
-                    file, text, needed_module, import_locations.top_use_scope, is_use=True
-                )
             )
-        ]
+        top_use_module_cmd = ImportCommand(
+            't',
+            'op-level usemodule (i.e.' + explain_loc(import_locations.top_use_env) + ')'
+            if import_locations.top_use_env else
+            'op-level usemodule (in this case same as [u])',
+            'Inserts \\usemodule at the top of the document (i.e.' + explain_loc(import_locations.top_use_env) + ')'
+            if import_locations.top_use_env else
+            'Inserts \\usemodule at the top of the document (in this case same as [u])',
+            SubstitutionOutcome(
+                _get_indentation(import_locations.top_use_pos) + f'\\usemodule{args}' + _get_use_struct(
+                    import_locations.top_use_pos),
+                import_locations.top_use_pos, import_locations.top_use_pos
+            ),
+            redundancies=get_redundant_import_removals(
+                file, text, needed_module, import_locations.top_use_scope, is_use=True
+            )
+        )
+
+        import_command: Optional[ImportCommand] = None
 
         if not import_impossible_reason:
             assert import_locations.import_pos is not None
             assert import_locations.import_scope is not None
-            commands.append(ImportCommand(
+            import_command = ImportCommand(
                 'i', 'mportmodule',
                 'Inserts \\importmodule',
                 SubstitutionOutcome(
@@ -194,7 +197,37 @@ class AnnotateMixin:
                 redundancies=get_redundant_import_removals(
                     file, text, needed_module, import_locations.import_scope, is_use=False
                 )
-            ))
+            )
+
+        if self.import_policy == 'always_ask':
+            results = self.ask_user_for_import_type(
+                import_impossible_reason, [use_module_cmd, top_use_module_cmd, import_command]
+            )
+        elif self.import_policy == 'prefer_import_warn_use':
+            if import_impossible_reason:
+                print(f'\\importmodule is impossible: {import_impossible_reason}')
+                print('Using \\usemodule instead.')
+                click.pause()
+                results = use_module_cmd.execute(state=self.state, call='u')
+            else:
+                results = import_command.execute(state=self.state, call='i')
+        else:
+            raise RuntimeError(f"Unknown import policy: {self.import_policy}")
+
+        if len(results) == 1 and isinstance(results[0], Exit):
+            return Exit()
+        else:
+            assert all(isinstance(r, SubstitutionOutcome) for r in results)
+            return results   # type: ignore   # TODO: type guard
+
+    def ask_user_for_import_type(
+            self, import_impossible_reason: Optional[str], import_commands: list[ImportCommand],
+    ) -> list[CommandOutcome]:
+        commands: list[Command | CommandSectionLabel] = [
+            QuitSubdialogCommand(),
+        ]
+        commands.extend(import_commands)
+
 
         cmd_collection = CommandCollection('Import options', commands, have_help=True)
 
@@ -209,11 +242,9 @@ class AnnotateMixin:
                 print(f'\\importmodule is impossible: {import_impossible_reason}')
             print()
             results = list(cmd_collection.apply(state=self.state))
-        if len(results) == 1 and isinstance(results[0], Exit):
-            return Exit()
-        else:
-            assert all(isinstance(r, SubstitutionOutcome) for r in results)
-            return results   # type: ignore   # TODO: type guard
+
+        return results
+
 
     def get_import_locations(self) -> ImportPositions:  # tuple[int, int, Optional[int], Optional[str], Optional[str]]:
         use_pos: Optional[int] = None
@@ -274,21 +305,21 @@ class AnnotateMixin:
             import_scope=import_scope,
         )
 
-    def get_sr(self, symbol: SimpleSymbol) -> str:
-        # check if symbol is uniquely identified by its name
+    def _symbol_is_unique(self, symbol: SimpleSymbol) -> bool:
         file = self.state.get_current_file_simple_api(self.linker)
-        symbol_unique = True
         for _symbol in get_symbols(self.linker, name=symbol.name):
             if _symbol == symbol:
                 continue
             # Note: for stronger disambiguation policy: omit the check
             if file.symbol_is_in_scope_at(_symbol, self.cursor.selection_start):
-                symbol_unique = False
-                break
+                return False
+        return True
 
+    def get_sr(self, symbol: SimpleSymbol) -> str:
+        # check if symbol is uniquely identified by its name
         word = self.state.get_selected_text()
         symb_name = symbol.name
-        if symbol_unique:
+        if self._symbol_is_unique(symbol):
             symb_path = symb_name
         else:
             symb_path = symbol.path_rel_to_archive
@@ -409,22 +440,6 @@ class LookupCommand(Command, AnnotateMixin):
 
     def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
         assert isinstance(state, SnifyState)
-        fzf_path = shutil.which('fzf')
-        get_config().get('stextools', 'fzf_path', fallback=None)
-        if fzf_path is None:
-            print(click.style('fzf not found', fg='red'))
-            print('Please install fzf to use this feature.')
-            print('You install it via your package manager, e.g.:')
-            print('  sudo apt install fzf')
-            print('  sudo pacman -S fzf')
-            print('  brew install fzf')
-            print('For more information, see https://github.com/junegunn/fzf?tab=readme-ov-file#installation')
-            print()
-            print('You can also place the fzf binary in your PATH.')
-            print('Download: https://github.com/junegunn/fzf/releases')
-            print()
-            click.pause()
-            return []
 
         file = state.get_current_file_simple_api(self.linker)
         cursor = state.cursor
@@ -432,23 +447,9 @@ class LookupCommand(Command, AnnotateMixin):
 
         filter_fun = make_filter_fun(state.filter_pattern, state.ignore_pattern)
 
-        lookup = {}
-        lines = []
-        for symbol in get_symbols(self.linker):
-            if not filter_fun(symbol.declaring_file.archive.name):
-                continue
-            lookup[symbol_display(file, symbol, state, style=False)] = symbol
-            lines.append(symbol_display(file, symbol, state, style=False))
+        symbol = get_symbol_from_fzf(
+            [symbol for symbol in get_symbols(self.linker) if filter_fun(symbol.declaring_file.archive.name)],
+            lambda s: symbol_display(file, s, state, style=False)
+        )
 
-        proc = subprocess.Popen(['fzf', '--ansi'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
-        assert proc.stdin is not None
-        proc.stdin.write('\n'.join(lines))
-        proc.stdin.close()
-        assert proc.stdout is not None
-        selected = proc.stdout.read().strip()
-        proc.wait()
-        if not selected:
-            return []
-        symbol_ = lookup.get(selected)
-        assert symbol_ is not None
-        return self.get_outcome_for_symbol(symbol_)
+        return self.get_outcome_for_symbol(symbol) if symbol else None

@@ -5,7 +5,8 @@
 
 **New features:**
 
-* `x𝑖` command now also shows the import path of symbols (if in scope)
+* `defianno` tool added (helps with annotating definienda)
+* `snify`'s `x𝑖` command now also shows the import path of symbols (if in scope)
 
 **Other modifications/improvements:**
 

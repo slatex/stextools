@@ -5,6 +5,7 @@ from platform import python_version
 
 import click
 
+from stextools.core.macros import STEX_CONTEXT_DB
 from stextools.utils import ui
 from stextools.core.cache import Cache
 from stextools.core.config import get_config
@@ -102,6 +103,29 @@ def translate(path):
 def snify_actual(files, filter, ignore, focus):
     from stextools.snify.controller import snify
     snify(files, filter, ignore, focus)
+
+
+@cli.command(name='defianno', help='Annotate definienda.')
+@click.argument('files', nargs=-1)  # Path to files or directories to snify
+@click.option('--macros', default='emph,textbf,textit', help='Comma-separated list of macros to consider')
+@click.option('--environments', default=None, help='Comma-separated list of environments to consider (all if not given)')
+def defianno_actual(files, macros, environments):
+    from stextools.defianno import defianno
+    macro_set = set(macros.split(','))
+    environment_set = set(environments.split(',')) if environments else None
+    # TODO: The following feels a bit hacky and might not work in pylatexenc 3
+    for macro in macro_set:
+        if not any(macro in STEX_CONTEXT_DB.d[cat]['macros'] for cat in STEX_CONTEXT_DB.category_list):
+            logger.warning(f'There is no spec for macro {macro} – this will likely lead to issues.')
+    for environment in environment_set or []:
+        if not any(environment in STEX_CONTEXT_DB.d[cat]['environments'] for cat in STEX_CONTEXT_DB.category_list):
+            logger.warning(f'There is no spec for environment {environment} – this will likely lead to issues.')
+    # for macro in macro_set:
+    #     STEX_CONTEXT_DB.get_macro_spec(macro, raise_if_not_found=True)
+    # for environment in environment_set or []:
+    #     STEX_CONTEXT_DB.get_environment_spec(environment, raise_if_not_found=True)
+    # return
+    defianno(files, macro_set, environment_set)
 
 
 @cli.command(name='version', help='Print the version of stextools.')

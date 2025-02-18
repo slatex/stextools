@@ -1,33 +1,26 @@
 from pathlib import Path
-from typing import Optional, Any, Sequence
+from typing import Optional, Any
 
 import click
 
-from stextools.core.cache import Cache
-from stextools.core.linker import Linker
 from stextools.core.mathhub import make_filter_fun
 from stextools.core.simple_api import file_from_path
 from stextools.snify.annotate_command import AnnotateCommand, LookupCommand
 from stextools.snify.commands import View_i_Command, \
-    StateSkipOutcome, \
     StemFocusCommand, StemFocusCommandPlus, StemFocusCommandPlusPlus, Edit_i_Command, \
     Explain_i_Command
 from stextools.snify.selection import VerbTrie, PreviousWordShouldBeIncluded, NextWordShouldBeIncluded, \
     get_linked_strings, FirstWordShouldntBeIncluded, LastWordShouldntBeIncluded
-from stextools.stepper.base_controller import BaseController
-from stextools.stepper.session_storage import SessionStorage
-from stextools.snify.skip_and_ignore import SkipOnceCommand, IgnoreWordOutcome, IgnoreCommand, IgnoreList, \
+from stextools.snify.skip_and_ignore import SkipOnceCommand, IgnoreCommand, IgnoreList, \
     AddWordToSrSkip, AddStemToSrSkip, SrSkipped, SkipUntilFileEnd, SkipForRestOfSession
 from stextools.snify.snify_state import SnifyState, SnifyFocusInfo
 from stextools.snify.stemming import string_to_stemmed_word_sequence_simplified, string_to_stemmed_word_sequence
-from stextools.stepper.command_outcome import CommandOutcome, Exit, StatisticUpdateOutcome, SubstitutionOutcome, \
-    TextRewriteOutcome, SetNewCursor, FocusOutcome
-from stextools.stepper.commands import QuitProgramCommand, show_current_selection, RescanOutcome, RescanCommand, \
-    ExitFileCommand, UndoOutcome, UndoCommand, RedoOutcome, RedoCommand, ViewCommand, EditCommand, CommandSectionLabel, \
+from stextools.stepper.base_controller import BaseController
+from stextools.stepper.commands import QuitProgramCommand, RescanCommand, \
+    ExitFileCommand, UndoCommand, RedoCommand, ViewCommand, EditCommand, CommandSectionLabel, \
     CommandCollection, ReplaceCommand
-from stextools.stepper.file_management import include_inputs
-from stextools.stepper.modifications import Modification, FileModification, CursorModification, PushFocusModification, \
-    StatisticModification
+from stextools.stepper.modifications import Modification
+from stextools.stepper.session_storage import SessionStorage
 from stextools.stepper.state import PositionCursor, SelectionCursor
 from stextools.stepper.state import State
 from stextools.utils.linked_str import LinkedStr
@@ -232,7 +225,7 @@ class Controller(BaseController):
 def snify(files: list[str], filter: str, ignore: str, focus: Optional[str]):
     session_storage = SessionStorage('snify')
     state: Optional[SnifyState] = None
-    if state is None and focus is None:
+    if focus is None:
         _state = session_storage.get_session_dialog()
         assert isinstance(_state, SnifyState) or _state is None
         state = _state
