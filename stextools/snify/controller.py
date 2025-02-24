@@ -27,54 +27,54 @@ from stextools.stepper.state import State
 from stextools.utils.linked_str import LinkedStr
 
 
-class IgnoreListAddition(Modification):
-    def __init__(self, lang: str, word: str):
-        self.files_to_reparse = []
-        self.lang = lang
-        self.word = word
-
-    def apply(self, state: State):
-        IgnoreList.add_word(lang=self.lang, word=self.word)
-
-    def unapply(self, state: State):
-        IgnoreList.remove_word(lang=self.lang, word=self.word)
-
-
-class StateSkipModification(Modification):
-    def __init__(self, file: Optional[Path], lang: Optional[str], word: str, is_stem: bool):
-        self.files_to_reparse = []
-        self.file = file
-        self.lang = lang
-        self.word = word
-        self.is_stem = is_stem
-
-    def apply(self, state: State):
-        assert isinstance(state, SnifyState)
-        if self.file is None:
-            assert self.lang is not None
-            if self.is_stem:
-                state.skip_stem_all_session.setdefault(self.lang, set()).add(self.word)
-            else:
-                state.skip_literal_all_session.setdefault(self.lang, set()).add(self.word)
-        else:
-            if self.is_stem:
-                state.skip_stem_by_file.setdefault(self.file, set()).add(self.word)
-            else:
-                state.skip_literal_by_file.setdefault(self.file, set()).add(self.word)
-
-    def unapply(self, state: State):
-        assert isinstance(state, SnifyState)
-        if self.file is None:
-            assert self.lang is not None
-            if self.is_stem:
-                state.skip_stem_all_session[self.lang].remove(self.word)
-            else:
-                state.skip_literal_all_session[self.lang].remove(self.word)
-        else:
-            if self.is_stem:
-                state.skip_stem_by_file[self.file].remove(self.word)
-            else:
-                state.skip_literal_by_file[self.file].remove(self.word)
+# class IgnoreListAddition(Modification):
+#     def __init__(self, lang: str, word: str):
+#         self.files_to_reparse = []
+#         self.lang = lang
+#         self.word = word
+#
+#     def apply(self, state: State):
+#         IgnoreList.add_word(lang=self.lang, word=self.word)
+#
+#     def unapply(self, state: State):
+#         IgnoreList.remove_word(lang=self.lang, word=self.word)
+#
+#
+# class StateSkipModification(Modification):
+#     def __init__(self, file: Optional[Path], lang: Optional[str], word: str, is_stem: bool):
+#         self.files_to_reparse = []
+#         self.file = file
+#         self.lang = lang
+#         self.word = word
+#         self.is_stem = is_stem
+#
+#     def apply(self, state: State):
+#         assert isinstance(state, SnifyState)
+#         if self.file is None:
+#             assert self.lang is not None
+#             if self.is_stem:
+#                 state.skip_stem_all_session.setdefault(self.lang, set()).add(self.word)
+#             else:
+#                 state.skip_literal_all_session.setdefault(self.lang, set()).add(self.word)
+#         else:
+#             if self.is_stem:
+#                 state.skip_stem_by_file.setdefault(self.file, set()).add(self.word)
+#             else:
+#                 state.skip_literal_by_file.setdefault(self.file, set()).add(self.word)
+#
+#     def unapply(self, state: State):
+#         assert isinstance(state, SnifyState)
+#         if self.file is None:
+#             assert self.lang is not None
+#             if self.is_stem:
+#                 state.skip_stem_all_session[self.lang].remove(self.word)
+#             else:
+#                 state.skip_literal_all_session[self.lang].remove(self.word)
+#         else:
+#             if self.is_stem:
+#                 state.skip_stem_by_file[self.file].remove(self.word)
+#             else:
+#                 state.skip_literal_by_file[self.file].remove(self.word)
 
 
 class Controller(BaseController):
@@ -223,7 +223,7 @@ class Controller(BaseController):
         return None
 
 
-def snify(files: list[str], filter: str, ignore: str, focus: Optional[str]):
+def snify(files: list[str], filter: str, ignore: str, focus: Optional[str], lang: Optional[str]):
     session_storage = SessionStorage('snify')
     state: Optional[SnifyState] = None
     if focus is None:
@@ -235,7 +235,7 @@ def snify(files: list[str], filter: str, ignore: str, focus: Optional[str]):
         state = _state if isinstance(_state, SnifyState) else None
     if state is None:
         state = SnifyState(files=[], cursor=PositionCursor(file_index=0, offset=0), filter_pattern=filter,
-                           ignore_pattern=ignore)
+                           ignore_pattern=ignore, lang=lang)
         paths: list[Path] = []
         for file in files:
             path = Path(file).absolute().resolve()

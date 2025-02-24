@@ -68,7 +68,7 @@ class BaseController(Generic[S]):
                 continue
 
             click.clear()
-            show_current_selection(self.state)
+            show_current_selection(self.state, self.linker)
             outcomes = self._get_and_run_command()
 
             new_modifications: list[Modification] = []

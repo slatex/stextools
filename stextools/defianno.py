@@ -44,15 +44,12 @@ class DefiAnnotateCommand(Command, AnnotateMixin):
         cursor = state.cursor
         assert isinstance(cursor, SelectionCursor)
 
-        print('A')
-
         symbol = get_symbol_from_fzf(
             [symbol for symbol in get_symbols(self.linker)],
             lambda s: symbol_display(file, s, state, style=False)
         )
-        print('B')
 
-        return self.get_outcome_for_symbol(symbol) if symbol else None
+        return self.get_outcome_for_symbol(symbol) if symbol else []
 
     @override
     def get_sr(self, symbol: SimpleSymbol) -> str:
@@ -110,7 +107,7 @@ class DefiAnnoController(BaseController):
                             return SelectionCursor(file_index=cursor.file_index, selection_start=node.pos, selection_end=node.pos + node.len)
                         _recurse(node.nodeargd.argnlist, in_definition_environment)
                     elif node.nodeType() == LatexEnvironmentNode:
-                        _recurse(node.nodelist, in_definition_environment or node.envname in environments)
+                        _recurse(node.nodelist, in_definition_environment or node.envname in environments)  # type: ignore
                     elif node.nodeType() == LatexGroupNode:
                         _recurse(node.nodelist, in_definition_environment)
                     else:
@@ -144,7 +141,7 @@ def defianno(files: list[str], macros: Optional[set[str]] = None, environments: 
                 paths.append(path)
         controller = DefiAnnoController(state, paths)
     else:
-        assert isinstance(result, State)
+        assert isinstance(result, DefiAnnoState)
         state = result
         controller = DefiAnnoController(state, [])
     unfinished = controller.run()

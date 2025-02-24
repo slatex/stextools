@@ -13,6 +13,7 @@ from typing import Sequence, Union, Iterable
 import click
 
 from stextools.core.config import get_config
+from stextools.core.linker import Linker
 from stextools.stepper.command_outcome import CommandOutcome, Exit, SetNewCursor, SubstitutionOutcome
 from stextools.stepper.state import State, SelectionCursor, PositionCursor
 from stextools.utils.ui import option_string, standard_header, print_highlight_selection, standard_header_str, \
@@ -79,10 +80,11 @@ class QuitProgramCommand(Command):
         return [Exit()]
 
 
-def show_current_selection(state: State, with_header: bool = True):
+def show_current_selection(state: State, linker: Linker, with_header: bool = True):
     if with_header:
         status = [
             f'File {state.cursor.file_index + 1}/{len(state.files)}'.ljust(15),
+            f'lang: {state.get_current_lang(linker)}'.ljust(10),
             f'Annotations added: {state.statistic_annotations_added}'.ljust(25)
         ]
         print(' | ' + ' | '.join(status) + ' |')

@@ -1,13 +1,10 @@
 import dataclasses
-import shutil
-import subprocess
-from typing import Optional, Union, Any, Literal
+from typing import Optional, Union, Any, Literal, Sequence
 
 import click
 from pylatexenc.latexwalker import LatexMacroNode, LatexSpecialsNode, LatexMathNode, LatexGroupNode, \
     LatexEnvironmentNode, LatexCommentNode, LatexCharsNode, LatexWalker
 
-from stextools.core.config import get_config
 from stextools.core.linker import Linker
 from stextools.core.macros import STEX_CONTEXT_DB
 from stextools.core.mathhub import make_filter_fun
@@ -19,7 +16,7 @@ from stextools.stepper.command_outcome import CommandOutcome, Exit, StatisticUpd
 from stextools.stepper.commands import CommandInfo, Command, QuitSubdialogCommand, show_current_selection, \
     CommandSectionLabel, CommandCollection
 from stextools.stepper.state import State, SelectionCursor, PositionCursor
-from stextools.utils.fzf import get_fzf_path, get_symbol_from_fzf
+from stextools.utils.fzf import get_symbol_from_fzf
 from stextools.utils.ui import standard_header, pale_color, option_string, color, latex_format
 
 # This stores the keys to fix the order of the symbols within a session
@@ -200,8 +197,9 @@ class AnnotateMixin:
             )
 
         if self.import_policy == 'always_ask':
-            results = self.ask_user_for_import_type(
-                import_impossible_reason, [use_module_cmd, top_use_module_cmd, import_command]
+            results: Sequence[CommandOutcome] = self.ask_user_for_import_type(
+                import_impossible_reason,
+                [use_module_cmd, top_use_module_cmd] + ([] if import_command is None else [import_command])
             )
         elif self.import_policy == 'prefer_import_warn_use':
             if import_impossible_reason:
@@ -210,6 +208,7 @@ class AnnotateMixin:
                 click.pause()
                 results = use_module_cmd.execute(state=self.state, call='u')
             else:
+                assert import_command is not None
                 results = import_command.execute(state=self.state, call='i')
         else:
             raise RuntimeError(f"Unknown import policy: {self.import_policy}")
@@ -234,7 +233,7 @@ class AnnotateMixin:
         results: list[CommandOutcome] = []
         while not results:
             click.clear()
-            show_current_selection(self.state)
+            show_current_selection(self.state, linker=self.linker)
             print()
             standard_header('Import options', bg=pale_color())
             print('The symbol is not in scope.')
@@ -452,4 +451,4 @@ class LookupCommand(Command, AnnotateMixin):
             lambda s: symbol_display(file, s, state, style=False)
         )
 
-        return self.get_outcome_for_symbol(symbol) if symbol else None
+        return self.get_outcome_for_symbol(symbol) if symbol else []

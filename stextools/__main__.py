@@ -100,9 +100,10 @@ def translate(path):
               help='Pattern to exclude some archives (e.g. \'Papers/*,smglom/mv\')')
 @click.option('--focus',
               help='Immediately focus on a specific word')
-def snify_actual(files, filter, ignore, focus):
+@click.option('--lang', default=None, help='Language of the document (e.g. en, de)')
+def snify_actual(files, filter, ignore, focus, lang):
     from stextools.snify.controller import snify
-    snify(files, filter, ignore, focus)
+    snify(files, filter, ignore, focus, lang)
 
 
 @cli.command(name='defianno', help='Annotate definienda.')
