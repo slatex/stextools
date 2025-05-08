@@ -4,7 +4,7 @@
 %  * Finish tool support section
 %  *  -> reduce future work paragraph in conclusion accordingly
 
-\documentclass{llncs}
+\documentclass[runningheads]{llncs}
 \usepackage[show]{ed}
 \usepackage{wrapfig}
 \usepackage{xspace}
@@ -12,6 +12,8 @@
 \usepackage{stex-logo}
 \usepackage{paralist}
 \usepackage{wrapfig}
+\usepackage[hidelinks]{hyperref}
+\usepackage{orcidlink}
 %\usepackage{lststex} debug that the gray is not solid
 \usepackage{listings}
 \definecolor{codegray}{rgb}{0.9,0.9,0.9}
@@ -39,7 +41,9 @@
     % \ednote{Find better title. Was ``Bulk Semantic Annotation with a Partially Known Knowledge Base''}
 Semantic authoring in a flexiformal context --- Bulk annotation of rigorous documents
 }
-\author{Michael Kohlhase, Jan Frederik Schaefer}
+\author{Michael Kohlhase\orcidlink{0000-0002-9859-6337} \and Jan Frederik Schaefer\orcidlink{0000-0003-2545-4626}}
+
+% \keywords{semantic authoring, \snify, \sTeX, \ALeA, flexiformal content commons}
 \institute{Computer Science, FAU Erlangen N\"urnberg, Germany}
 \begin{document}
 \maketitle
@@ -68,10 +72,12 @@ Semantic authoring in a flexiformal context --- Bulk annotation of rigorous docu
     problem and argue that, while sharing aspects of classical
     (informal) authoring and formal authoring,
     it is a problem of its own that needs special editing support facilities.
-    We present a simple utility that supports the process of annotating
+    We present and evaluate a simple utility that supports the process of annotating
     technical terms with semantic references to a flexiformal content commons
     that enhances annotation productivity by almost an order of magnitude.
 \end{abstract}
+% \setcounter{tocdepth}{3}
+% \tableofcontents
 
 \section{Introduction}
 Arguably, dealing with large document collections is one of the key factors in the knowledge-driven society and economy.
@@ -93,8 +99,8 @@ These can be embedded \LaTeX\ documents using the \sTeX package~\cite{MueKo:sdst
 In this paper, we will mostly focus on annotating terms with the semantic concepts they refer to,
 but \sTeX supports a much wider range of annotations, such as annotating problems with the learning objectives
 or annotating the defining phrase (definiens) in concept definitions,
-and can, in principle, even be used for full formalization.\ednote{True?}
-As \sTeX supports the full spectrum from informal (un-annotated) to fully formalized content,
+and could, in principle, even be used for full formalization.
+As \sTeX supports the spectrum from informal (un-annotated) to fully formalized content,
 we say that \sTeX content is \textbf{flexiformal}.
 
 The \textbf{\sTeX/\ALeA content commons} consists of \SMGloM~\cite{GinIanJuc:spsttom16},
@@ -109,17 +115,17 @@ semantically annotated lecture slides and 4000 problems
 -- mostly from the area of computer science.
 % grep -R --include='*.tex' -F -e '\begin{frame}' | wc -l
 
-\ednote{
-    \textbf{Related work: semantic web authoring}
-    \emph{semantic authoring} already used in context of semantic web (RDFa).
-    Tools exist and it doesn't have exactly the same challenges as we face, though there is some overlap.
-    We have a module system and need more dependency management, something else?
-    This has to be described somewhere.
+% \ednote{
+%     \textbf{Related work: semantic web authoring}
+%     \emph{semantic authoring} already used in context of semantic web (RDFa).
+%     Tools exist and it doesn't have exactly the same challenges as we face, though there is some overlap.
+%     We have a module system and need more dependency management, something else?
+%     This has to be described somewhere.
+% 
+%     Related work: ``User Interfaces for Semantic Authoring of Textual Content: A Systematic Literature Review.''
+% }
 
-    Related work: ``User Interfaces for Semantic Authoring of Textual Content: A Systematic Literature Review.''
-}
-
-% \paragraph{Overview \& Contribution}
+\paragraph{Overview \& Contribution}
 In this paper, we argue that semantic/flexiformal authoring shares aspects with both informal and fully formal authoring,
 but is nevertheless a distinct problem requiring special tool support (\cref{sec:semauth}).
 Using \sTeX/\ALeA as an exemplary case study,
@@ -129,13 +135,18 @@ of terms with the semantic concepts they refer to (\cref{sec:snify,sec:eval}).
 The paper ends with a brief conclusion (\cref{sec:conclusion}).
 
 
+\paragraph{Acknowledgments}
+The work reported in this article was conducted as part of the VoLL-KI project (see
+\url{https://voll-ki.de}) funded by the German Research/Education Ministry under grant
+16DHBKI089.
+
 \section{Semantic Authoring in a Content Commons}\label{sec:semauth}
 
 Before we discuss semantic authoring in general, let us introduce a concrete example from
 the \sTeX/\ALeA world. We will use it to sharpen our intuitions of the challenges
 involved and to ground the solution we propose.
 
-\subsection{Running Example: Annotating  ``Terminal''}
+\subsection{Running Example: Annotating ``terminal''}
 With \sTeX, authors can add semantic references to technical terms,
 which enables straight-forward learning support services like
 showing the definition of a term, but also informs the system
@@ -221,9 +232,7 @@ escapechar=!]
   \caption{Simplified definition of ``goal state'' from the domain model}\label{fig:state-space}
 \end{figure}
 
-\begin{newpart}{MK: trying to make some general remark about annotation before we go into
-    semantic authoring}
-    \subsection{Annotation Workflows and Requirements}\label{sec:workflows}
+\subsection{Annotation Workflows and Requirements}\label{sec:workflows}
 
 To annotate the word ``terminal'' in the document, the author has to be aware that it is a
 technical term, that the module from \cref{fig:state-space} exists, know the symbol URI,
@@ -276,7 +285,6 @@ practice, as
 establishing a suitable catalog e.g. by providing $L$-translations (or at least dictionary
 information) in the domain model or delineating modules and annotating definienda that the
 domain model does not cover in the documents to be annotated.
-\end{newpart}
 \ednote{FS: Todo: verbalizations can also be
 inferred from existing annotations (without any $L$-modules).}
 
@@ -333,16 +341,23 @@ and the content commons (the target of the annotations) is itself only flexiform
 way, we need a local flexiformalization workflow that helps authors bridge the
 informal-formal gap.
 
-% \paragraph{Semantic Authoring in \sTeX}
-% How this can concretely work depends on the particular semantic framework, the specific
-% annotations we want to support, and the semantics embedded in the content commons. In the
-% \sTeX framework, where we semantically annotate formulae and technical terms with pointers
-% to their definienda, we can bridge the presentation/semantics gap -- we annotate the words
-% in sentences and glyphs in formulae with the verbalizations and notations in the content
-% commons.\ednote{MK: maybe explain them again}. A tool for supporting semantic authoring of
-% formulae via notations has been presented by Vre{\v{c}}ar et al. in
-% \cite{VreWelKam:tsmmdui24}. In this paper we present a tool that supports semantic
-% annotation of technical terms via verbalizations.\ednote{move this in the next section}
+\paragraph{Semantic Authoring and the Semantic Web}
+The phrase ``semantic authoring'' has also been used in the context of the semantic web with varying meanings.
+This includes ontology authoring, which we would classify as formal authoring,
+and metadata annotation (e.g. the title, author, and creation date of a document),
+which is a somewhat different concern.
+A closer match is the annotation of informal content with
+references to a domain ontology,
+but there are some differences to our situation with \sTeX/\ALeA:
+The domain ontology would be a fully formal target
+-- possibly containing verbalizations --
+while in our case the target is flexiformal.
+Furthermore, \sTeX has a module system, which requires
+dependency management during authoring.
+
+
+
+
 
 
 \section{Tool Support for Semantic Authoring in \sTeX/\ALeA}\label{sec:tools}

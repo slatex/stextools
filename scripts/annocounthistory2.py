@@ -52,7 +52,11 @@ def process_repo(path: Path):
         branch = 'master'
     if 'courses/FAU/GDP/problems' in path.as_uri():
         branch = 'main'
-    _, code = run_sh(f'git checkout {branch}', path)
+    _, code = run_sh(f'git checkout stex4', path)
+    if code == 0:
+        branch = 'stex4'
+    else:
+        _, code = run_sh(f'git checkout {branch}', path)
     assert code == 0, f'Error checking out {branch} in {path}'
     history, code = run_sh("git log --pretty='format:%H!%ci!%cn'", path)
     assert code == 0, f'Error getting history in {path}'
