@@ -23,6 +23,10 @@
 \addbibresource{kwarccrossrefs.bib}
 \addbibresource{extcrossrefs.bib}
 \usepackage[noabbrev]{cleveref}
+\usepackage{tikz}
+\usetikzlibrary{shapes}
+\usetikzlibrary{arrows}
+\usetikzlibrary{docicon}
 
 % I do not want to annotate just yet.
 
@@ -449,6 +453,29 @@ having to introduce a Slovene stemmer\ednote{MK@FS: there is one for python at
 definienda in the book before we can harvest the symbol/verbalization pairs which are a
 prerequisite for annotation.
 
+\begin{wrapfigure}r{5.5cm}
+  \begin{tikzpicture}[scale=.7]
+    \tikzstyle{doc}=[draw,thick,align=center,color=black,
+                  shape=document,minimum width=10mm,minimum height=15mm]
+    \tikzstyle{database}=[cylinder,shape border rotate=90,aspect=0.25,draw, 
+     cylinder uses custom fill,cylinder body fill=yellow!30,cylinder end fill=yellow!30]
+     \tikzstyle{include}=[right hook-angle 45,thick]
+     \tikzstyle{includeleft}=[left hook-angle 45,thick]
+    \node[doc] (cc) at (0,0) {\shortstack{Content\\ Commons}};
+    \node[doc] (pl) at (5,0) {\shortstack{Private/\\Local}};
+    \node[database] (db) at (3,2.5) {\shortstack{\tiny Verbalization\\Cache}};
+    \node (sn) at (0,4.5) {\texttt{snify}};
+    \node (id) at (2.5,5) {IDE};
+    \node (wo) at (5,4.5) {WOIDE};
+    \draw[include]  (cc) -- (db);
+    \draw[includeleft] (pl) -- (db);
+    \draw[->] (db) -- (sn);
+    \draw[->] (db) -- (id);
+    \draw[->] (db) -- (wo);
+    \draw[dashed,thick] (3,1.6)  -- (3,-1.4);
+  \end{tikzpicture}
+  \caption{Architecture}\label{fig:arch}\vspace*{-2em}
+\end{wrapfigure}
 One practical problem with \snify that remains is that the system only harvests
 symbol/verbalization pairs from \sTeX files on the local file system. This means that, for
 effective annotation, users (have to) download the whole content commons and keep it
