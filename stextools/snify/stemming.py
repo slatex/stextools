@@ -22,12 +22,10 @@ def mystem(word: str, lang: str) -> str:
     stem_fun = get_stem_fun(lang)
 
     if lang == 'en':
-        import nltk.stem.porter  # type: ignore
         if word and word[-1] == 's' and word[:-1].isupper():  # plural acronym
             return word[:-1]
         return ' '.join(stem_fun(w) for w in word.split())
     elif lang == 'de':
-        from nltk.stem import SnowballStemmer
         return ' '.join(stem_fun(w) for w in word.split())
     else:
         raise ValueError(f"Unsupported language: {lang}")

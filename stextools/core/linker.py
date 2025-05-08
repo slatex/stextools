@@ -52,17 +52,20 @@ class Linker:
     module_import_graph: dict[int, set[int]]   # module -> set[module]
     file_to_module: dict[int, set[int]]        # file -> set[module]  (maps to all modules in the file)
     module_to_file: dict[int, int]             # module -> file
-    available_module_ranges: dict[int, set[tuple[int, int, int]]]   # file -> set[(module, range_start, range_end)] - from imports, uses and smodule environments
+    # file -> set[(module, range_start, range_end)] - from imports, uses and smodule environments
+    available_module_ranges: dict[int, set[tuple[int, int, int]]]
     module_to_symbs: dict[int, set[int]]        # module -> set[symbol]
     symbol_to_module: dict[int, int]            # symbol -> module
     symbs_by_name: dict[str, set[tuple[int, int]]]   # name -> set[(module, symbol)]
     structures_by_name: dict[str, set[int]]      # name -> set[structure (module)]
-    structure_info: dict[int, tuple[str, int, set[str], int]]  # structure -> (name, containing module, dependencies, start_pos)
+    # structure -> (name, containing module, dependencies, start_pos)
+    structure_info: dict[int, tuple[str, int, set[str], int]]
     structures_by_file: dict[int, list[int]]      # file -> set[structure (module)]
     use_math_structs: dict[int, list[tuple[str, int, int]]]  # file -> set[(struct name, start, end)]
 
     # data from _transitive_imports
-    transitive_imports: dict[int, set[int]]    # module -> set[module] (transitive closure of module imports, including self)
+    # module -> set[module] (transitive closure of module imports, including self)
+    transitive_imports: dict[int, set[int]]
 
     # data from _link_symbols
     symb_to_verbs: dict[int, set[int]]          # symbol -> set[verbalization]
@@ -76,16 +79,16 @@ class Linker:
         self.symbol_ints = Intifier()
         self.verb_ints = Intifier()
 
-        import time
-        a = time.time()
+        # import time
+        # a = time.time()
         self._compute_dep_graph()
-        b = time.time()
+        # b = time.time()
         self._compute_transitive_imports()
-        c = time.time()
+        # c = time.time()
         self._link_structures()
-        d = time.time()
+        # d = time.time()
         self._link_symbols()
-        e = time.time()
+        # e = time.time()
         # print(f'Compute dep graph: {b - a}')
         # print(f'Compute transitive imports: {c - b}')
         # print(f'Link structures: {d - c}')
@@ -175,7 +178,8 @@ class Linker:
                                 if hasattr(current, 'name'):  # files don't have this
                                     int_parent_mod = _mod_intify((int_doc, current.name))
                                 break
-                            if child.valid_range[0] <= mod.valid_range[0] and mod.valid_range[1] <= child.valid_range[1]:
+                            if child.valid_range[0] <= mod.valid_range[0] and \
+                                    mod.valid_range[1] <= child.valid_range[1]:
                                 current = child
                                 keep_going = True
                                 break
@@ -220,12 +224,12 @@ class Linker:
                         if chosen_candidate is not None:
                             break
                     if chosen_candidate is None:
-                        logger.warning(f'No structure found for dependency {dep_name} in {self.document_ints.unintify(doc_int).path}')
+                        logger.warning(f'No structure found for dependency {dep_name} in {self.document_ints.unintify(doc_int).path}')  # noqa
                         continue
                     struct_deps.setdefault(struct, set()).add(chosen_candidate)
 
         # Step 2: update transitive import graph with structure dependencies
-        for struct in top_sort(struct_deps, lambda struct: f'structure {self.structure_info[struct][0]} in {self.document_ints.unintify(self.module_to_file[struct]).path}'):
+        for struct in top_sort(struct_deps, lambda struct: f'structure {self.structure_info[struct][0]} in {self.document_ints.unintify(self.module_to_file[struct]).path}'):  # noqa
             for dep in struct_deps[struct]:
                 self.transitive_imports[struct].update(self.transitive_imports[dep])
 
@@ -247,7 +251,7 @@ class Linker:
                     if chosen_candidate is not None:
                         break
                 if chosen_candidate is None:
-                    logger.warning(f'No structure found for \\usestructure{{{struct_name}}} in {self.document_ints.unintify(doc_int).path}')
+                    logger.warning(f'No structure found for \\usestructure{{{struct_name}}} in {self.document_ints.unintify(doc_int).path}')  # noqa
                     continue
                 self.available_module_ranges[doc_int].add((chosen_candidate, start_range, end_range))
 
@@ -285,7 +289,8 @@ class Linker:
                 selection: list[int] = []
                 for candidate in final_candidate_modules:
                     candidate_symbol = candidate_module_to_candidate_symbol[candidate]
-                    if verb.symbol_path_hint and not self.module_ints.unintify(candidate)[1].endswith(verb.symbol_path_hint):
+                    if verb.symbol_path_hint and \
+                            not self.module_ints.unintify(candidate)[1].endswith(verb.symbol_path_hint):
                         continue
                     selection.append(candidate_symbol)
 
@@ -294,8 +299,6 @@ class Linker:
                     continue
                 if len(selection) > 1:
                     logger.warning(f'Multiple symbols found for verbalization {verb} in {stexdoc.path}')
-                    # for s in selection:
-                    #     logger.warning(f'    {self.symbol_ints.unintify(s)} {self.module_ints.unintify(self.symbol_to_module[s])}')
                     continue
                 int_verb = self.verb_ints.intify((file, verb))
                 self.verb_to_symb[int_verb] = selection[0]

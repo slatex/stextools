@@ -61,6 +61,13 @@ class MathHub:
             repo.resolve_path_ref.cache_clear()
             repo.is_stex_archive.cache_clear()
 
+            if repo.get_archive_name() in self.archive_lookup:
+                existing = self.archive_lookup[repo.get_archive_name()]
+                if not existing.path.is_dir():
+                    del self.archive_lookup[repo.get_archive_name()]
+                elif existing.path != repo.path:
+                    logger.error(f'Found two repositories for the same archive: {repo.path} and {existing.path}. '
+                                 'I\'ll ignore the former, but this can lead to errors further down the line.')
             if repo.get_archive_name() not in self.archive_lookup:
                 self.archive_lookup[repo.get_archive_name()] = repo
             still_needed.add(repo.get_archive_name())
@@ -214,7 +221,9 @@ class Repository:
         return self._manifest
 
     @functools.lru_cache(2 ** 16)
-    def resolve_path_ref(self, rel_path: str, directory: Literal['source', 'lib'] = 'source', lang: str = '*') -> Optional[Path]:
+    def resolve_path_ref(
+            self, rel_path: str, directory: Literal['source', 'lib'] = 'source', lang: str = '*'
+    ) -> Optional[Path]:
         """ Tries to resolve a file reference (e.g. by appending .tex or .en.tex).
             Returns None if the file does not exist.
             TODO: Currently any language is accepted - should it be restricted to the language of the source document?
@@ -231,11 +240,10 @@ class Repository:
         if options:
             return options[0]
         if lang not in {'*', 'en'}:
-            p3 = b / (rel_path + f'.en.tex')
+            p3 = b / (rel_path + '.en.tex')
             if p3.is_file():
                 return p3
         return None
-
 
     # @functools.lru_cache(2 ** 16)
     # def normalize_tex_file_ref(

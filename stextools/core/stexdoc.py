@@ -381,6 +381,9 @@ class STeXDocument:
                 elif node.nodeType() == LatexEnvironmentNode:
                     # TODO: handle smodules
                     if node.environmentname == 'smodule':
+                        if node.nodeargd is None:
+                            logger.error(f'{self.path}: malformed smodule - skipping it')
+                            continue
                         name = node.nodeargd.argnlist[1].latex_verbatim()[1:-1]
                         if module_info:
                             name = f'{module_info.name}/{name}'
@@ -491,6 +494,10 @@ class STeXDocument:
                 else:
                     raise Exception(f'Unexpected node type: {node.nodeType()}')
 
-        process(walker.get_latex_nodes()[0], (0, walker.get_latex_nodes()[2]))
+        try:
+            process(walker.get_latex_nodes()[0], (0, walker.get_latex_nodes()[2]))
+        except Exception as e:
+            logger.error(f'Error processing document {self.path}: {e}')
+            logger.exception(e)
         doc_info.finalize()
         self._doc_info = doc_info

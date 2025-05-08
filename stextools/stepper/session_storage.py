@@ -9,9 +9,10 @@ from typing import Optional
 
 import click
 
-from stextools.snify.commands import Command, CommandInfo, CommandOutcome, CommandCollection
-from stextools.snify.state import State
-from stextools.utils.ui import option_string, standard_header_str, standard_header
+from stextools.stepper.command_outcome import CommandOutcome, Exit
+from stextools.stepper.commands import CommandInfo, Command, CommandCollection, QuitSubdialogCommand, QuitProgramCommand
+from stextools.stepper.state import State
+from stextools.utils.ui import option_string, standard_header
 
 # TODO: move this somewhere else?
 PATH = Path('~/.config/stextools/sessions').expanduser()
@@ -28,29 +29,30 @@ def format_past_timestamp(time: datetime) -> str:
 
 
 class Session:
-    def __init__(self, identifier: str, metadata: dict):
+    def __init__(self, identifier: str, metadata: dict, tool_id: str):
         self.identifier = identifier
         self.metadata = metadata
+        self.tool_id = tool_id
 
     def write(self, state: State):
-        with open(PATH / (self.identifier + '.json'), 'w') as fp:
+        with open(PATH / (self.identifier + f'.{self.tool_id}.json'), 'w') as fp:
             fp.write(json.dumps(self.metadata))
-        with open(PATH / (self.identifier + '.dmp'), 'wb') as fp:
+        with open(PATH / (self.identifier + f'.{self.tool_id}.dmp'), 'wb') as fp:
             pickle.dump(state, fp)
 
     def get_state(self) -> State:
-        with open(PATH / (self.identifier + '.dmp'), 'rb') as fp:
+        with open(PATH / (self.identifier + f'.{self.tool_id}.dmp'), 'rb') as fp:
             return pickle.load(fp)
 
     @classmethod
-    def from_identifier(cls, identifier: str):
-        with open(PATH / (identifier + '.json'), 'r') as fp:
+    def from_identifier(cls, identifier: str, tool_id: str):
+        with open(PATH / (identifier + f'.{tool_id}.json'), 'r') as fp:
             metadata = json.loads(fp.read())
-        return cls(identifier, metadata)
+        return cls(identifier, metadata, tool_id)
 
     def delete(self):
-        (PATH / (self.identifier + '.json')).unlink()
-        (PATH / (self.identifier + '.dmp')).unlink()
+        (PATH / (self.identifier + f'.{self.tool_id}.json')).unlink()
+        (PATH / (self.identifier + f'.{self.tool_id}.dmp')).unlink()
 
 
 class SessionChoiceOutcome(CommandOutcome):
@@ -128,7 +130,7 @@ class ContinueWithoutSession(Command):
             show=True,
             pattern_presentation='c',
             pattern_regex='^c$',
-            description_short='ontinue',
+            description_short='ontinue (ignore old sessions)',
             description_long='Continue and do not resume any session')
         )
 
@@ -137,12 +139,13 @@ class ContinueWithoutSession(Command):
 
 
 class SessionStorage:
-    def __init__(self):
-        self.path = PATH
-        self.path.mkdir(parents=True, exist_ok=True)
+    def __init__(self, tool_id: str):
+        self.tool_id = tool_id
+        PATH.mkdir(parents=True, exist_ok=True)
         self.sessions: list[Session] = []
-        for file in PATH.glob('*.json'):
-            self.sessions.append(Session.from_identifier(file.stem))
+        for file in PATH.glob(f'*.{self.tool_id}.json'):
+            identifier = str(file.name)[:-len(f'.{self.tool_id}.json')]
+            self.sessions.append(Session.from_identifier(identifier, self.tool_id))
 
         last_modified = -math.inf
         for file in Path(__file__).parent.rglob('**/*.py'):
@@ -158,9 +161,9 @@ class SessionStorage:
             self.sessions.remove(self.loaded_session)
             self.loaded_session.delete()
 
-    def get_session_dialog(self) -> Optional[State]:
+    def get_session_dialog(self) -> State | Exit | IgnoreSessions:
         if not self.have_ongoing_session():
-            return None
+            return IgnoreSessions()
 
         while self.sessions:
             click.clear()
@@ -171,6 +174,7 @@ class SessionStorage:
                 name='session management',
                 commands=[
                     ContinueWithoutSession(self.sessions),
+                    QuitProgramCommand(),
                     DeleteSessionCommand(self.sessions),
                     DeleteAllSessionsCommand(self.sessions),
                     PickSessionCommand(self.sessions),
@@ -180,7 +184,9 @@ class SessionStorage:
 
             for outcome in outcomes:
                 if isinstance(outcome, IgnoreSessions):
-                    return None
+                    return outcome
+                elif isinstance(outcome, Exit):
+                    return outcome
                 elif isinstance(outcome, SessionChoiceOutcome):
                     if outcome.action == 'resume':
                         session = self.sessions[outcome.session_number]
@@ -201,7 +207,7 @@ class SessionStorage:
                 else:
                     raise RuntimeError(f'Unexpected outcome: {outcome}')
 
-        return None   # no sessions left
+        return IgnoreSessions()
 
     def store_session_dialog(self, state: State):
         print('\n\n')
@@ -222,6 +228,7 @@ class SessionStorage:
                 'description': description,
                 'timestamp': time.time(),
                 'srifytimestamp': self.srify_timestamp,
-            }
+            },
+            tool_id=self.tool_id
         )
         session.write(state)

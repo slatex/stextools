@@ -1,7 +1,6 @@
-import abc
 import dataclasses
 from pathlib import Path
-from typing import Optional
+from typing import Optional, TypeVar, Generic
 
 from stextools.core.linker import Linker
 from stextools.core.simple_api import file_from_path, SimpleFile
@@ -27,40 +26,34 @@ class PositionCursor(Cursor):
     offset: int
 
 
+
+FocusInfoType = TypeVar('FocusInfoType')
+
 @dataclasses.dataclass
-class Focus:
+class Focus(Generic[FocusInfoType]):
     cursor_on_unfocus: Cursor
     files_on_unfocus: list[Path]
-    select_only_stem: Optional[str] = None
+    other_info: FocusInfoType
+    # select_only_stem: Optional[str] = None
 
 
 @dataclasses.dataclass
-class State:
+class State(Generic[FocusInfoType]):
     """ Editing state for snify. This can be saved to a file and reloaded. """
     files: list[Path]
-
-    filter_pattern: str
-    ignore_pattern: str
-
     cursor: Cursor
 
     statistic_annotations_added: int = 0
-
-    skip_literal_by_file: dict[Path, set[str]] = dataclasses.field(default_factory=dict)
-    skip_literal_all_session: dict[str, set[str]] = dataclasses.field(default_factory=dict)  # lang -> set of words
-    skip_stem_by_file: dict[Path, set[str]] = dataclasses.field(default_factory=dict)
-    skip_stem_all_session: dict[str, set[str]] = dataclasses.field(default_factory=dict)  # lang -> set of stems
-
-    focus_stack: list[Focus] = dataclasses.field(default_factory=list)
+    focus_stack: list[Focus[FocusInfoType]] = dataclasses.field(default_factory=list)
 
     def push_focus(
             self,
-            new_files: Optional[list[Path]] = None,
-            new_cursor: Optional[Cursor] = None,
-            select_only_stem: Optional[str] = None
+            new_files: Optional[list[Path]],
+            new_cursor: Optional[Cursor],
+            other_info: FocusInfoType,
     ):
         self.focus_stack.append(
-            Focus(cursor_on_unfocus=self.cursor, files_on_unfocus=self.files, select_only_stem=select_only_stem)
+            Focus(cursor_on_unfocus=self.cursor, files_on_unfocus=self.files, other_info=other_info)
         )
         if new_files is not None:
             self.files = new_files

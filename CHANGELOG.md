@@ -3,8 +3,23 @@
 
 ## Upcoming release
 
+**New features:**
 
-## Release 0.1.2 (2025-02-03
+* `defianno` tool added (helps with annotating definienda)
+* `snify`'s `x𝑖` command now also shows the import path of symbols (if in scope)
+* Can quit in session dialog
+* You can override `snify`'s language detection with the `--lang` argument
+
+**Other modifications/improvements:**
+
+* Factoring a `stepper` module out of `snify`
+* More error messages when an archive is cloned twice (related to [#62](https://github.com/slatex/stextools/issues/62))
+* Skip malformed `smodule` environments instead of crashing (see also [#78](https://github.com/slatex/stextools/issues/78))
+* More generally, continue if stex processing fails for a file
+* Better text for `[c]`ontinue command in session dialog
+
+
+## Release 0.1.2 (2025-02-03)
 
 **New features:**
 

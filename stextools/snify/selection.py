@@ -9,9 +9,11 @@ from pylatexenc.latexwalker import LatexWalker, LatexMacroNode, LatexMathNode, L
 from stextools.core.linker import Linker
 from stextools.core.macros import STEX_CONTEXT_DB
 from stextools.core.simple_api import get_symbols, SimpleSymbol
-from stextools.snify.commands import Command, CommandInfo, CommandOutcome, SetNewCursor
+from stextools.snify.snify_state import SnifyState
+from stextools.stepper.command_outcome import CommandOutcome, SetNewCursor
+from stextools.stepper.commands import CommandInfo, Command
 from stextools.snify.skip_and_ignore import IgnoreList, SrSkipped
-from stextools.snify.state import SelectionCursor, State
+from stextools.stepper.state import SelectionCursor, State
 from stextools.snify.stemming import string_to_stemmed_word_sequence, string_to_stemmed_word_sequence_simplified
 from stextools.utils.linked_str import LinkedStr, string_to_lstr
 from stextools.utils.ui import standard_header
@@ -309,6 +311,7 @@ class VerbTrie:
                         if srskipped is not None and srskipped.should_skip_literal(original_word):
                             skip = True
                         if state is not None:
+                            assert isinstance(state, SnifyState)
                             if file is not None:
                                 if original_word in state.skip_literal_by_file.get(file, set()):
                                     skip = True
@@ -319,6 +322,7 @@ class VerbTrie:
                     if srskipped and stemmed_word in srskipped.skipped_stems:
                         skip = True
                     if state is not None:
+                        assert isinstance(state, SnifyState)
                         if file is not None:
                             if stemmed_word in state.skip_stem_by_file.get(file, set()):
                                 skip = True

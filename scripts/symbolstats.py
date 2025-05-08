@@ -2,8 +2,8 @@ import dataclasses
 import logging
 from collections import defaultdict
 
-from stextools.core.simple_api import get_linker, get_repos, get_symbols, SimpleFile
 from stextools.core.cache import Cache
+from stextools.core.simple_api import get_linker, get_repos, get_symbols
 
 
 def prepare():
@@ -29,7 +29,11 @@ class Stat:
 def repo_to_category(repo):
     if repo.name.startswith('smglom'):
         return 'smglom'
-    if repo.name.endswith('course') or repo.name.endswith('ComSem') or repo.name.endswith('ComLog') or repo.name.endswith('TheoCS') or repo.name.endswith('eida') or repo.name.endswith('WebEng') or repo.name.endswith('lecture-notes'):
+    if (
+            repo.name.endswith('course') or repo.name.endswith('ComSem') or repo.name.endswith('ComLog') or
+            repo.name.endswith('TheoCS') or repo.name.endswith('eida') or repo.name.endswith('WebEng') or
+            repo.name.endswith('lecture-notes')
+    ):
         return 'courses'
     if repo.name.endswith('problems'):
         return 'problems'
@@ -61,8 +65,5 @@ for symbol in get_symbols(linker):
         if verb.is_defining:
             continue
         stats[repo_to_category(verb.declaring_file.archive)].annotated_refs += 1
-
-
-
 
 print(stats)

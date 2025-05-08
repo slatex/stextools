@@ -1,10 +1,10 @@
 from collections import defaultdict
-from datetime import timedelta
+from datetime import datetime
 from fnmatch import fnmatch
 
 from matplotlib import pyplot as plt
 
-from annocounthistory2 import *
+from annocounthistory2 import CommitInfo, load_history
 
 HISTORY_DATA = load_history()
 
@@ -30,9 +30,9 @@ def accumulate(data: list[CommitInfo]) -> tuple[list[float], list[int]]:
     return dates, counts
 
 
-def plot_cumulative(data: list[CommitInfo], label: str):
+def plot_cumulative(data: list[CommitInfo], label: str, lines: str):
     dates, counts = accumulate(data)
-    plt.plot(dates, counts, label=label)
+    plt.plot(dates, counts, label=label, linestyle=lines)
 
 
 def filtered(*pattern: str) -> list[CommitInfo]:
@@ -45,8 +45,8 @@ def plot_diff(data: list[CommitInfo], label: str):
     diff_dates = []
     diff_counts = []
 
-    for i in range(int(SINCE.timestamp()), int(datetime.now().timestamp()), 1*24*60*60):
-        a = i - 28*24*60*60
+    for i in range(int(SINCE.timestamp()), int(datetime.now().timestamp()), 1 * 24 * 60 * 60):
+        a = i - 28 * 24 * 60 * 60
         b = i
 
         count_before_week = 0
@@ -64,9 +64,9 @@ def plot_diff(data: list[CommitInfo], label: str):
 
 
 def cumulative_plots():
-    plot_cumulative(filtered('smglom/*'), 'smglom')
-    plot_cumulative(filtered('courses/*/course'), 'course')
-    plot_cumulative(filtered('*/problems'), 'problems')
+    plot_cumulative(filtered('smglom/*'), 'smglom', lines='dotted')
+    plot_cumulative(filtered('courses/*/course'), 'course', lines='dashed')
+    plot_cumulative(filtered('*/problems'), 'problems', lines='dashdot')
     # plot_cumulative(filtered('smglom/*', 'courses/*/course', '*/problems'), 'annotations')
 
 
@@ -86,7 +86,7 @@ def main():
     labels = []
     now = datetime.now()
     for year in range(s.year, now.year + 1):
-        for month in range(1, 13):
+        for month in range(1, 13, 3):
             if year == s.year and month < s.month:
                 continue
             if year == now.year and month > now.month:
@@ -99,4 +99,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
