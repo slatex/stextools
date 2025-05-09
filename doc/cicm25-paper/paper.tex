@@ -64,21 +64,18 @@ Semantic authoring in a flexiformal context --- Bulk annotation of rigorous docu
 %   to a flexiformal content commons that enhances annotation productivity by almost an
 %   order of magnitude.
 
-    Semantic annotations enable services that make the knowledge
-    in documents more accessible.
-    In the case of \ALeA, a learning assistant we use as a case study,
-    they enable, for example, guided tours and practice problems
-    tailored to the learner's competencies.
-    However, the cost of semantic authoring is substantial
-    and tool support is limited.
+  Semantic annotations enable services that make the knowledge in documents more
+  accessible.  In the case of \ALeA, a learning assistant we use as a case study, they
+  enable, for example, guided tours and practice problems tailored to the learner's
+  competencies.  However, the cost of semantic authoring is substantial and tool support
+  is limited.
 
-    In this paper we discuss the nature of the semantic authoring
-    problem and argue that, while sharing aspects of classical
-    (informal) authoring and formal authoring,
-    it is a problem of its own that needs special editing support facilities.
-    We present and evaluate a simple utility that supports the process of annotating
-    technical terms with semantic references to a flexiformal content commons
-    that enhances annotation productivity by almost an order of magnitude.
+  In this paper we discuss the nature of the semantic authoring problem and argue that,
+  while sharing aspects of classical (informal) authoring and formal authoring, it is a
+  problem of its own that needs special editing support facilities.  We present and
+  evaluate a simple utility that supports the process of annotating technical terms with
+  semantic references to a flexiformal content commons that enhances annotation
+  productivity by almost an order of magnitude.
 \end{abstract}
 % \setcounter{tocdepth}{3}
 % \tableofcontents
@@ -359,24 +356,19 @@ while in our case the target is flexiformal.
 Furthermore, \sTeX has a module system, which requires
 dependency management during authoring.
 
-
-
-
-
-
 \section{Tool Support for Semantic Authoring in \sTeX/\ALeA}\label{sec:tools}
+
 Semantic authoring can ``inherit'' tool support from both informal and formal authoring.
 In the case of \sTeX, we can re-use spell checkers for traditional informal authoring.
-There also is prototypical support for authoring \ALeA content in Microsoft Word
-with a custom plugin (see \cite{KohKoh:woide24}),
-which allows authors to use Word's spell checker and grammar checker.
+There also is prototypical support for authoring \ALeA content in Microsoft Word with a
+custom plugin (see \cite{KohKoh:woide24}), which allows authors to use Word's spell
+checker and grammar checker.\ednote{MK: Mention CPoint and SMD as well? Probably yes.}
 
-On the formal side, there is a custom VSCode IDE plugin for \sTeX \cite{sTeX-IDE:git} that analyzes
-annotations on the fly, displays the underlying reference semantics, reports errors and
-redundancies, and even offers a concept search interface.
-But such features only support
-existing annotations and are, therefore, of limited use when creating new annotations,
-which arguably is the most time consuming aspects of semantic authoring.
+On the formal side, there is a custom VSCode IDE plugin for \sTeX \cite{sTeX-IDE:git} that
+analyzes annotations on the fly, displays the underlying reference semantics, reports
+errors and redundancies, and even offers a concept search interface.  But such features
+only support existing annotations and are, therefore, of limited use when creating new
+annotations, which arguably is the most time consuming aspects of semantic authoring.
 % \ednote{also: SPARQL API}
 
 How the annotation process can be supported depends on the particular semantic framework,
@@ -396,19 +388,17 @@ has been elusive so far.
 
 
 \section{The \snify System}\label{sec:snify}
-The \snify\footnote{
-From ``\texttt{\textbackslash sn}-ify''; ``\texttt{\textbackslash sn}'' is
-a frequently used \sTeX short-hand macro for term annotations.}
-utility \cite{stextools:git}
-is a simple command-line tool that creates a catalog of
+
+The \snify\footnote{ From ``\texttt{\textbackslash sn}-ify''; ``\texttt{\textbackslash
+    sn}'' is a frequently used \sTeX short-hand macro for term annotations.}  utility
+\cite{stextools:git} is a simple command-line tool that creates a catalog of
 symbol-verbalization pairs, analyzes \sTeX source files, and then steps through all word
 occurrences in the document that match a verbalization in the catalog.  Matching is based
 on word stems using off-the-shelf stemmers, which allows us to e.g.\ match ``utilities''
 with ``utility''.  For each matched word, the user is presented with an annotation choice
-and interactions that allow to fine-tune the wordwise annotation
-workflow.
-The interface is inspired by traditional spell checkers like \lstinline|ispell|.
-\Cref{fig:snify} shows a typical situation.
+and interactions that allow to fine-tune the wordwise annotation workflow.  The interface
+is inspired by traditional spell checkers like \lstinline|ispell|.  \Cref{fig:snify} shows
+a typical situation.
 
 \begin{figure}[ht]
   \setlength{\fboxsep}{0pt}
@@ -432,27 +422,109 @@ or view/edit the file introducing one of the choices.
 
 \snify is usually called on a set of files -- e.g. in a directory or math archive -- which
 together form a \textbf{session}, which can be interrupted and resumed without having to
-re-do all the \lstinline|s| skips. Alternatively, \snify can be called e.g. on the top-level
-lecture notes; then the session consists of all (transitively) included files. Other productivity
-features include a focus mode that can be used to only annotate a particular word in the
-rest of the file, session, or the whole \sTeX/\ALeA corpus before resuming regular
-annotation. This reduces the cognitive overhead from switching between different 
-words and symbol lists.
+re-do all the \lstinline|s| skips. Alternatively, \snify can be called e.g. on the
+top-level lecture notes; then the session consists of all (transitively) included
+files. Other productivity features include a focus mode that can be used to only annotate
+a particular word in the rest of the file, session, or the whole \sTeX/\ALeA corpus before
+resuming regular annotation. This reduces the cognitive overhead from switching between
+different words and symbol lists.
 % Of course the include management still needs to be done locally.
 
-As a companion to \snify,
-we have \defianno, a prototype tool for annotating definienda in documents
-that were originally authored without semantic annotations.
-It can be configured to use different \LaTeX\ macros
-to identify definienda (e.g.\ \lstinline|\emph| or \lstinline|\textbf|),
-and then steps through them similarly to \snify.
-For each potential definiendum, the user can then use fuzzy search to find
-the corresponding symbol in the domain model.
-This populates the catalog with verbalizations relevant to the document,
-making subsequent \snify runs more effective,
-especially for documents in languages that are not well covered by the
-domain model (i.e.\ not English).
+\paragraph{Definition Handling as a Pre-process for Multilingual Documents}
+As a companion to \snify, we have \defianno, a prototype tool for annotating definienda in
+documents that were originally authored without semantic annotations.  It can be
+configured to use different \LaTeX\ macros to identify definienda (e.g.\ \lstinline|\emph|
+or \lstinline|\textbf|), and then steps through them similarly to \snify.  For each
+potential definiendum, the user can then use fuzzy search to find the corresponding symbol
+in the domain model.  This populates the catalog with verbalizations relevant to the
+document, making subsequent \snify runs more effective, especially for documents in
+languages that are not well covered by the domain model (i.e.\ not English).
 
+\begin{newpart}{MK: rewritten as existing but experimental. This needs to be placed
+    somewhere else.}
+  \paragraph{Scaling \snify to the Flexiformal Content Commons }
+One practical problem with \snify system as presented so far is that it only harvests
+symbol/verbalization pairs from \sTeX files on the local file system. This means that, for
+effective annotation, users (have to) download the whole content commons and keep it
+updated -- an assumption/requirement that becomes increasingly impractical as the \sTeX
+ecosystem grows.
+
+The general situation is that on the one hand there is a constantly growing, shared
+\textbf{content commons} of public math archives -- currently 200 with about 14.000 \sTeX
+files -- that are regularly converted to FTML (\underline{F}lexiformal \underline{T}ext
+\underline{M}arkup \underline{L}anguage) and served on \url{https://MathHub.info}. On the
+other hand authors are working on
+\begin{compactenum}[\em i\rm)]
+\item a set of local working copies of the archives -- with the intention of publishing
+  them on MathHub.info and their dependencies (they need to be local, since pdflatex
+  cannot deal with remote files) and
+\item possibly a set of private archive (think papers under development or exam
+  problems/solutions) 
+\end{compactenum}
+This situation is familiar from software development and also from e.g. the \LaTeX
+ecosystem. Semantic authoring -- and thus the \snify utility -- inherits the requirements
+from both.
+
+\begin{wrapfigure}r{5.5cm}\vspace*{-2em}
+  \begin{tikzpicture}[scale=.7]
+    \tikzstyle{doc}=[draw,thick,align=center,color=black,
+                  shape=document,minimum width=10mm,minimum height=15mm]
+    \tikzstyle{database}=[cylinder,shape border rotate=90,aspect=0.25,draw, 
+     cylinder uses custom fill,cylinder body fill=yellow!30,cylinder end fill=yellow!30]
+     \tikzstyle{include}=[right hook-angle 45,thick]
+     \tikzstyle{includeleft}=[left hook-angle 45,thick]
+    \node[doc] (cc) at (0,-1) {\shortstack{Content\\ Commons}};
+    \node[doc] (pl) at (5,-1) {\shortstack{Private/\\Local}};
+    \node[database] (db) at (3,2.5) {\shortstack{\tiny Verbalization\\Cache}};
+    \node[draw] (sn) at (0,4.5) {\snify};
+    \node[draw] (id) at (2.5,5) {IDE};
+    \node[draw] (wo) at (5,4.5) {WOIDE};
+    \draw[draw,fill=black!10] (-1.3,.5) rectangle ++ (6.4,1); 
+    \node (f) at (-.5,.9) {\flams};
+    \draw[include]  (cc) -- node[left] {\tiny F2RDF} (db);
+    \draw[includeleft] (pl) -- node[right] {\tiny linter} (db);
+    \draw[->] (db) -- (sn);
+    \draw[->] (db) -- (id);
+    \draw[->] (db) -- (wo);
+    \draw[dashed,thick] (3,1.6)  -- (3,-2);
+    \draw[dashed,thick] (3,1.6)  -- (3,-2);
+    \draw[includeleft] (pl) to[bend right=10] (wo);
+  \end{tikzpicture}
+  \caption{Architecture}\label{fig:arch}\vspace*{-1em}
+\end{wrapfigure}
+To cope with this situation, We have extended the brand-new \flams system
+\cite{flams:on}\footnote{A paper on \flams is submitted to CICM 2025 and will be cited
+  here if accepted.} with functionality for handling definienda in the FTML2RDF harvester,
+so that all symbol/verbalizations are available in the \flams triple-store. Thus a harvest
+from the flexiformal content commons is just a simple SPARQL query and some postprocessing
+of the result (de-duplication, stemming, and pairing) away. Note that \flams works
+directly on FTML, which is generated from \sTeX input by \textsf{rus\TeX} and exported
+from annoated MS Word files via WOIDE.
+
+In local/private archives, the \snify harvester needs to work directly on the \sTeX
+sources. Here we have extended the \flams \textbf{linter} -- a simple \sTeX parser that
+drives the LSP functionality the VSCode and \texttt{emacs} \sTeX IDE plugins use to deal
+with definienda. This is much more efficient (and robust) than the initial regex-based
+python parser). The analogon for this on the WOIDE side is still under development it
+could be based on FTML generated by WOIDE, or WOIDE could export symbol/verbalization
+pairs into the \snify verbalization cache directly.
+
+In this situation, the main functionality of \snify is to maintain the verbalization cache
+and answer front-end queries for verbalizations efficiently so that we can power various
+front-ends from that. These include
+\begin{compactenum}[\em i\rm)]
+\item The traditional text/terminal-based \snify UI for bulk annotation,
+\item the \sTeX IDEs in VSCode and \texttt{emacs} that can supply while-editing annotation
+  support, and 
+\item WOIDE, which can be seen as a semantic authoring IDE based on MS Word.\ednote{MK:
+    CPoint and semantic wikis.}
+\end{compactenum}
+
+Note that implemented this broadly \snify can provide additionall logistic services: If a
+pair is chosen in an annotation, \snify can then automatically download the corresponding
+archive so that the annotated file can be formatted with \texttt{pdflatex} or
+\textsf{rus\TeX} locally.
+\end{newpart}
 
 \section{Practical Evaluation and Future Work}\label{sec:eval}
 \begin{wrapfigure}{r}{0.4\textwidth}
@@ -517,44 +589,6 @@ A combination with \snify's catalog-based approach might change the trade-offs i
 % \ednote{TODO: I've commented out Hutter in conclusion - we can integrate it here as a potential workflow}
 
 
-\begin{wrapfigure}r{5.5cm}
-  \begin{tikzpicture}[scale=.7]
-    \tikzstyle{doc}=[draw,thick,align=center,color=black,
-                  shape=document,minimum width=10mm,minimum height=15mm]
-    \tikzstyle{database}=[cylinder,shape border rotate=90,aspect=0.25,draw, 
-     cylinder uses custom fill,cylinder body fill=yellow!30,cylinder end fill=yellow!30]
-     \tikzstyle{include}=[right hook-angle 45,thick]
-     \tikzstyle{includeleft}=[left hook-angle 45,thick]
-    \node[doc] (cc) at (0,0) {\shortstack{Content\\ Commons}};
-    \node[doc] (pl) at (5,0) {\shortstack{Private/\\Local}};
-    \node[database] (db) at (3,2.5) {\shortstack{\tiny Verbalization\\Cache}};
-    \node (sn) at (0,4.5) {\texttt{snify}};
-    \node (id) at (2.5,5) {IDE};
-    \node (wo) at (5,4.5) {WOIDE};
-    \draw[include]  (cc) -- (db);
-    \draw[includeleft] (pl) -- (db);
-    \draw[->] (db) -- (sn);
-    \draw[->] (db) -- (id);
-    \draw[->] (db) -- (wo);
-    \draw[dashed,thick] (3,1.6)  -- (3,-1.4);
-  \end{tikzpicture}
-  \caption{Architecture}\label{fig:arch}\vspace*{-2em}
-\end{wrapfigure}
-One practical problem with \snify that remains is that the system only harvests
-symbol/verbalization pairs from \sTeX files on the local file system. This means that, for
-effective annotation, users (have to) download the whole content commons and keep it
-updated. Unfortunately, the current MMT-based MathHub knowledge management
-API\ednote{intro this above} does not supply verbalization information. The iMMT-based
-API~\cite{iMMT:on} currently under development will, so \snify will be able to request the
-pairs for the remaining (non-local) content commons.\ednote{
-    This is already outdated.
-    What is the current API status?
-    How is it related to FLAMS?
-}
-If a pair is chosen in an annotation,
-\snify can then automatically download the corresponding archive so that the annotated
-file can be formatted with pdflatex or rusTeX locally.
-
 Finally, the current interface is not well-suited for on-the-fly annotation while
 authoring.
 For that, the underlying information (the symbol/verbalization pairs harvested
@@ -595,4 +629,5 @@ command-line tool that bridges the gap between informal text and formal symbols 
 %%% End:
 
 % LocalWords:  tbw Aarne Ranta homostem pre hmmm Vre ar al sn ify TODO et Hutter Plivelic
-% LocalWords:  lang
+% LocalWords:  lang DHBKI FS Todo FTML lexiformal arkup anguage CICM RDF postprocessing
+% LocalWords:  de
