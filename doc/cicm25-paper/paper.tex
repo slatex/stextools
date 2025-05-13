@@ -160,16 +160,11 @@ course materials into semantic documents.
   \caption{An annotated learning object from an AI lecture}\label{fig:lo}
 \end{figure}
 
-Take for instance a learning object like the paragraph in \cref{fig:lo}, where we want to annotate
-the term ``terminal'' with the (semantic) concept of ``a goal state of a search
+Take for instance a learning object like the paragraph in \cref{fig:lo}, where we want to
+annotate the term ``terminal'' with the (semantic) concept of ``a goal state of a search
 problem''. The latter can either be defined earlier in the course or in the domain model
-(or both).
+(or both). Concretely this is about converting the {\LaTeX} string
 
-Concretely this is about converting the {\LaTeX} string
-    (for conciseness completely unannotated)
-    \ednote{MK: There is/was a discrepancy
-  in the last line of the example; I tried to fix it, but failed\\
-    FS: Is it fixed now? I don't see any discrepancy.}
 \begin{lstlisting}[numbers=left,firstnumber=3,
 caption=The unannotated {\LaTeX} sources of \cref{fig:lo},label=lst:los]
 \item \blue{Note:} Depth-limited minimax requires an evaluation for every
@@ -185,33 +180,25 @@ caption=Annotating ``terminal'' in \cref{lst:los},label=lst:losa]
 cut-off state $s$. If $s$ is \sr{goal state}{terminal}, we use its utility,
 and otherwise an estimate.
 \end{lstlisting}
-In the latter, the author has the word ``terminal'' with the concept it refers to with 
-via the \sTeX macro
+In the latter, the author has annotated the word ``terminal'' with the concept it refers
+to with via the \sTeX macro
 \lstinline[mathescape]|\sr{$\llangle URI \rrangle$}{$\llangle verbalization\rrangle$}|.
 
-\begin{newpart}{MK: more definitions}
-  In \sTeX, objects and concepts are represented by \textbf{symbols}, which are identified
+In \sTeX, objects and concepts are represented by \textbf{symbols}, which are identified
 globally and unambiguously by a URI that includes a \textbf{namespace}, a \textbf{module
   name}, and a \textbf{symbol name}. Every symbol can have one or more
-\textbf{verbalizations}:
-words of the domain jargon used to refer to the concept or object.
-Verbalizations can vary between between subdomains and communities of practice. In
-our example, the verbalization ``terminal [state]'' was annotated with the symbol with
-name \lstinline|goal state|. It comes from the module with name \lstinline|search-problem|
-in the namespace \lstinline|smglom/search/mod| imported via the \lstinline|\importmodule|
-macro in line 1. As the symbol name \lstinline|goal state| is unique in the imports here
-it suffices as a relative URI in the \lstinline|\sr| annotation.
+\textbf{verbalizations}: words of the domain jargon used to refer to the concept or
+object.  Verbalizations can vary between between subdomains and communities of
+practice. In our example, the verbalization ``terminal [state]'' was annotated with the
+symbol with name \lstinline|goal state|. It comes from the module with name
+\lstinline|search-problem| in the namespace \lstinline|smglom/search/mod| imported via the
+\lstinline|\importmodule| macro in line 1. As the symbol name \lstinline|goal state| is
+unique in the imports here it suffices as a relative URI in the \lstinline|\sr|
+annotation. If the symbol name and the desired verbalization coincide (as they often do in
+English), the short-hand macro \lstinline|\sn| can be used (e.g. as
+\lstinline|\sn{utility}| for ``utility'' in \cref{lst:losa}).
 
-If the symbol name and the desired verbalization coincide (as they often do in English),
-the short-hand macro \lstinline|\sn| can be used (e.g. as \lstinline|\sn{utility}| for ``utility'' in \cref{lst:losa}).\ednote{
-    FS: Do we need the last paragraph?
-        I've removed the ``sn utility'' annotation from the listing
-        because I thought it breaks the flow a bit.
-        But if we want to show the sn macro, I can add it back.
-}
-\end{newpart}
-
-The annotation refers to a definition in the domain model module shown in
+Both variants of the annotation refer to a definition in the domain model module shown in
 \cref{fig:state-space}.  The \lstinline|\definame| and \lstinline|\definiendum| in lines
 5--6 introduce the verbalizations ``goal state'' and ``terminal state'' for the symbol
 \lstinline|search-problem?goal state| introduced by \lstinline|\symdecl*| declaration in
