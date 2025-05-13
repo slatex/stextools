@@ -335,30 +335,27 @@ informal-formal gap.
   trade-off towards sharing and interoperability. In our experience sufficiently annotated
   documents can be automatically customized, if the semantics has multiple
   notations/verbalizations/presentations. Consider for instance course materials on
-  complex arithmetic, which become re-usable across the electrical
-  engineering/mathematics border, if the imaginary unit in formulae is represented e.g. by
-  a macro \lstinline|\imaginaryunit|, which can alternatively expand to $i$ (for uses in
-  maths) and $j$ (for EE uses). As a consequence semantic authoring is more geared towards
+  complex arithmetic, which become re-usable across the electrical engineering/mathematics
+  border, if the imaginary unit in formulae is represented e.g. by a semantic macro
+  \lstinline|\imaginaryunit|, which can alternatively expand to $i$ (for uses in maths)
+  and $j$ (for EE uses). As a consequence semantic authoring is more geared towards
   creating reusable/shareable document fragments organized in central or federated
   repositories and hubs. This is quite similar to the formal authoring system, where we
   see a tendency towards massively shared math libraries in formal systems and package
   hubs for programming libraries. As a consequence, semantic authoring support systems
-  should facilitate the logistics of using and curating shared libraries. 
+  should facilitate the logistics of using and curating shared libraries.
 \end{newpart}
 
 \paragraph{Semantic Authoring and the Semantic Web}
-The phrase ``semantic authoring'' has also been used in the context of the semantic web with varying meanings.
-This includes ontology authoring, which we would classify as formal authoring,
-and metadata annotation (e.g. the title, author, and creation date of a document),
-which is a somewhat different concern.
-A closer match is the annotation of informal content with
-references to a domain ontology,
-but there are some differences to our situation with \sTeX/\ALeA:
-The domain ontology would be a fully formal target
--- possibly containing verbalizations --
-while in our case the target is flexiformal.
-Furthermore, \sTeX has a module system, which requires
-dependency management during authoring.
+The phrase ``semantic authoring'' has also been used in the context of the semantic web
+with varying meanings.  This includes ontology authoring, which we would classify as
+formal authoring, and metadata annotation (e.g. the title, author, and creation date of a
+document), which is a somewhat different concern.  A closer match is the annotation of
+informal content with references to a domain ontology, but there are some differences to
+our situation with \sTeX/\ALeA: The domain ontology would be a fully formal target --
+possibly containing verbalizations -- while in our case the target is flexiformal.
+Furthermore, \sTeX has a module system, which requires dependency management during
+authoring.\ednote{MK: We need more citations here}
 
 \section{Tool Support for Semantic Authoring in \sTeX/\ALeA}\label{sec:tools}
 
@@ -444,8 +441,6 @@ in the domain model.  This populates the catalog with verbalizations relevant to
 document, making subsequent \snify runs more effective, especially for documents in
 languages that are not well covered by the domain model (i.e.\ not English).
 
-\begin{newpart}{MK: rewritten as existing but experimental. This needs to be placed
-    somewhere else.}
   \paragraph{Scaling \snify to the Flexiformal Content Commons }
 One practical problem with \snify system as presented so far is that it only harvests
 symbol/verbalization pairs from \sTeX files on the local file system. This means that, for
@@ -528,7 +523,6 @@ Note that implemented this broadly \snify can provide additional logistic servic
 pair is chosen in an annotation, \snify can then automatically download the corresponding
 archive so that the annotated file can be formatted with \texttt{pdflatex} or
 \textsf{rus\TeX} locally.
-\end{newpart}
 
 \section{Practical Evaluation and Future Work}\label{sec:eval}
 \begin{wrapfigure}{r}{0.4\textwidth}
@@ -559,25 +553,20 @@ relatively complete -- pre-existing -- domain model, and it seems unlikely that 
 sophisticated UI would add value for this use-case.
 
 For less complete domain models we have to skip too many terms that should ultimately be
-annotated and annotation efficiency suffers.\ednote{
-    FS: Isn't this wrong? We don't have to skip them, the problem is that \snify skips them.
-    Efficiency does not suffer, but rather effectiveness.
-}
-This is currently the case for all
+annotated and annotation effectiveness suffers. This is currently the case for all
 non-English languages in the \sTeX corpus we work with. Coverage in German is only about
-half of that of English and we can already see the practical effects.
-The \defianno tool (see end of \cref{sec:snify}) can mitigate this partially by
-providing verbalizations for the definienda in the document,
-but we also want to annotate terms that are not explicitly defined in the document.
-A potential solution would be to extend \snify with a machine learning-based
-tool for identifying unannotated technical terms that are not in the catalog.
-The user could then pick a symbol for annotation, which would add a verbalization to the catalog.
-In an earlier (pre-\snify) attempt, we used named-entity
+half of that of English and we can already see the practical effects.  The \defianno tool
+(see end of \cref{sec:snify}) can mitigate this partially by providing verbalizations for
+the definienda in the document, but we also want to annotate terms that are not explicitly
+defined in the document.  A potential solution would be to extend \snify with a machine
+learning-based tool for identifying unannotated technical terms that are not in the
+catalog.  The user could then pick a symbol for annotation, which would add a
+verbalization to the catalog.  In an earlier (pre-\snify) attempt, we used named-entity
 recognition (NER) for classification of ``likely annotation candidate words''
 \cite{hutterer:msc23}. However, this classification was not precise enough in the
-distinction in ``technical terms'' and ordinary English noun phrases
-to be practical on its own.
-A combination with \snify's catalog-based approach might change the trade-offs involved.
+distinction in ``technical terms'' and ordinary English noun phrases to be practical on
+its own.  A combination with \snify's catalog-based approach might change the trade-offs
+involved.
 
 
 % For less complete domain models we have to skip too many terms that should ultimately be
