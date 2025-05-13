@@ -329,6 +329,23 @@ and the content commons (the target of the annotations) is itself only flexiform
 way, we need a local flexiformalization workflow that helps authors bridge the
 informal-formal gap.
 
+\begin{newpart}{MK: please re-read}
+  A distinctive feature of semantic authoring that is not apparent at the first glance is
+  that the added investment in annotation moves the sweet spot in the re-use/customize
+  trade-off towards sharing and interoperability. In our experience sufficiently annotated
+  documents can be automatically customized, if the semantics has multiple
+  notations/verbalizations/presentations. Consider for instance course materials on
+  complex arithmetic, which become re-usable across the electrical
+  engineering/mathematics border, if the imaginary unit in formulae is represented e.g. by
+  a macro \lstinline|\imaginaryunit|, which can alternatively expand to $i$ (for uses in
+  maths) and $j$ (for EE uses). As a consequence semantic authoring is more geared towards
+  creating reusable/shareable document fragments organized in central or federated
+  repositories and hubs. This is quite similar to the formal authoring system, where we
+  see a tendency towards massively shared math libraries in formal systems and package
+  hubs for programming libraries. As a consequence, semantic authoring support systems
+  should facilitate the logistics of using and curating shared libraries. 
+\end{newpart}
+
 \paragraph{Semantic Authoring and the Semantic Web}
 The phrase ``semantic authoring'' has also been used in the context of the semantic web with varying meanings.
 This includes ontology authoring, which we would classify as formal authoring,
@@ -486,7 +503,7 @@ so that all symbol/verbalizations are available in the \flams triple-store. Thus
 from the flexiformal content commons is just a simple SPARQL query and some postprocessing
 of the result (de-duplication, stemming, and pairing) away. Note that \flams works
 directly on FTML, which is generated from \sTeX input by \textsf{rus\TeX} and exported
-from annoated MS Word files via WOIDE.
+from annotated MS Word files via WOIDE.
 
 In local/private archives, the \snify harvester needs to work directly on the \sTeX
 sources. Here we have extended the \flams \textbf{linter} -- a simple \sTeX parser that
@@ -507,7 +524,7 @@ front-ends from that. These include
     CPoint and semantic wikis.}
 \end{compactenum}
 
-Note that implemented this broadly \snify can provide additionall logistic services: If a
+Note that implemented this broadly \snify can provide additional logistic services: If a
 pair is chosen in an annotation, \snify can then automatically download the corresponding
 archive so that the annotated file can be formatted with \texttt{pdflatex} or
 \textsf{rus\TeX} locally.
@@ -617,4 +634,4 @@ command-line tool that bridges the gap between informal text and formal symbols 
 
 % LocalWords:  tbw Aarne Ranta homostem pre hmmm Vre ar al sn ify TODO et Hutter Plivelic
 % LocalWords:  lang DHBKI FS Todo FTML lexiformal arkup anguage CICM RDF postprocessing
-% LocalWords:  de
+% LocalWords:  de maths EE CPoint SMD rus WOIDE linter LSP emacs
