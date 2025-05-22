@@ -11,7 +11,6 @@
 \usepackage{graphicx}
 \usepackage{stex-logo}
 \usepackage{paralist}
-\usepackage{wrapfig}
 \usepackage[hidelinks]{hyperref}
 \usepackage{orcidlink}
 %\usepackage{lststex} debug that the gray is not solid
@@ -509,6 +508,20 @@ This situation is familiar from software development and also from e.g. the \LaT
 ecosystem. Semantic authoring -- and thus the \snify utility -- inherits the requirements
 from both.
 
+To cope with this situation, we are working on extending the brand-new \flams system
+\cite{flams:on}\footnote{A paper on \flams is submitted to CICM 2025 and will be cited
+  here if accepted.} with functionality for handling definienda in the FTML2RDF harvester,
+so that all symbol/verbalizations are available in the \flams triple-store. Thus a harvest
+from the flexiformal content commons would be just a simple SPARQL query and some
+postprocessing of the result (de-duplication, stemming, and pairing) away. Note that
+\flams works directly on \FTML, which is generated from \sTeX input by \textsf{rus\TeX}
+and exported from annotated MS Word files via \WOIDE~\cite{KohKoh:woide24}. There are two
+more systems that could profit from this: The CPoint system that allows annotating MS
+PowerPoint presentations with the \sTeX ontology and can already generate a precursor of
+\FTML \cite{Kohlhase:SemanticInteractionDesignDiss:biblatex}, and a semantic extension of
+Markdown we are developing as a lightweight alternative to \sTeX; it also transforms into
+FTML instead of plain HTML.
+
 \begin{wrapfigure}r{5.5cm}\vspace*{-2em}
   \begin{tikzpicture}[scale=.7]
     \tikzstyle{doc}=[draw,thick,align=center,color=black,
@@ -536,19 +549,6 @@ from both.
   \end{tikzpicture}
   \caption{Architecture}\label{fig:arch}\vspace*{-1em}
 \end{wrapfigure}
-To cope with this situation, we are working on extending the brand-new \flams system
-\cite{flams:on}\footnote{A paper on \flams is submitted to CICM 2025 and will be cited
-  here if accepted.} with functionality for handling definienda in the FTML2RDF harvester,
-so that all symbol/verbalizations are available in the \flams triple-store. Thus a harvest
-from the flexiformal content commons would be just a simple SPARQL query and some
-postprocessing of the result (de-duplication, stemming, and pairing) away. Note that
-\flams works directly on \FTML, which is generated from \sTeX input by \textsf{rus\TeX}
-and exported from annotated MS Word files via \WOIDE~\cite{KohKoh:woide24}. There are two
-more systems that could profit from this: The CPoint system that allows annotating MS
-PowerPoint presentations with the \sTeX ontology and can already generate a precursor of
-\FTML \cite{Kohlhase:SemanticInteractionDesignDiss:biblatex}, and a semantic extension of
-Markdown we are developing as a lightweight alternative to \sTeX; it also transforms into
-FTML instead of plain HTML.
 
 In local/private archives, the \snify harvester needs to work directly on the \sTeX
 sources.
@@ -594,6 +594,10 @@ our situation with \sTeX/\ALeA: The domain ontology would be a fully formal targ
 possibly containing verbalizations -- while in our case the target is flexiformal.
 Furthermore, \sTeX has a module system, which requires dependency management during
 authoring.
+A similar application requiring semantic authoring
+are semantic wikis, which enrich regular/syntactic
+wikis with semantic information
+(see e.g.\ \cite{semmediawiki}).
 
 Another example of formal/informal authoring is code documentation.
 Often, the documentation is embedded in the code itself,
@@ -612,7 +616,7 @@ which step through documents and suggest corrections for misspelled words.
 The bulk annotation workflow for existing informal text is also relevant when creating
 machine learning datasets, e.g.\ for named entity recognition.  There are many (often
 browser-based) tools for this task; a prominent example is
-\textsf{brat}~\cite{brat:on}.\ednote{MK@FS: discuss semantic wikis}
+\textsf{brat}~\cite{brat:on}.
 
 In all cases, the setting, solution, and resulting workflows differ from the one presented
 in this paper. The WissKI system \cite{goerz2010adaptation} has a rudimentary text edition
