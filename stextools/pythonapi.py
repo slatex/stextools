@@ -35,43 +35,58 @@ def serialize_symbol(symbol: SimpleSymbol) -> str:
     archive = symbol.declaring_file.archive.name
     return f'[{archive}]{symb_path}'
 
-def interactive_symbol_search(verbalization: str, lang: str = 'en') -> Optional[str]:
+
+def _get_symbols_for_verbalization(verbalization: str, lang: str) -> list[SimpleSymbol]:
     vt = get_verb_trie(lang)
     stemmed = string_to_stemmed_word_sequence_simplified(verbalization, lang)
 
     subtrie = ([], vt.trie)
     for word in stemmed:
         if word not in subtrie[1]:
-            return None
+            return []
         subtrie = subtrie[1][word]
 
-    options: list[SimpleSymbol] = subtrie[0]
+    return subtrie[0]
 
-    if not options:
-        return None
-
-    for i, symbol in enumerate(options):
-        print(f'[{i}]', serialize_symbol(symbol))
-    print()
-    print('Available commands:')
-    print('  [q] - quit')
-    print('  [𝑖] - choose symbol 𝑖')
-    print('  [v𝑖] - view document for symbol 𝑖')
-    print()
-
+def interactive_symbol_search(verbalization: Optional[str] = None, lang: str = 'en') -> Optional[str]:
     while True:
-        command: str = input('>>> ').strip()
-        if command.isnumeric() and (i := int(command)) in range(len(options)):
-            return serialize_symbol(options[i])
-        elif command.startswith('v') and command[1:].isnumeric() and (i := int(command[1:])) in range(len(options)):
-            symbol = options[i]
-            click.echo_via_pager(
-                click.style(symbol.declaring_file.path, bold=True)
-                + '\n\n' +
-                latex_format(symbol.declaring_file.path.read_text())
-            )
-        elif command == 'q':
-            return None
-        else:
-            print(f'Invalid command: {command!r}.')
+        options = _get_symbols_for_verbalization(verbalization, lang)
+
+        if not options:
+            print('No symbols found for the given verbalization.')
+            print('Enter a new verbalization or "q" to quit.')
+            verbalization = input('verbalization: ').strip()
+            if verbalization.lower() == 'q':
+                return None
             continue
+
+        for i, symbol in enumerate(options):
+            print(f'[{i}]', serialize_symbol(symbol))
+
+        print()
+        print('Available commands:')
+        print('  [q] - quit')
+        print('  [𝑖] - choose symbol 𝑖')
+        print('  [v𝑖] - view document for symbol 𝑖')
+        print('  [e] - enter new verbalization')
+        print()
+
+        while True:
+            command: str = input('>>> ').strip()
+            if command.isnumeric() and (i := int(command)) in range(len(options)):
+                return serialize_symbol(options[i])
+            elif command.startswith('v') and command[1:].isnumeric() and (i := int(command[1:])) in range(len(options)):
+                symbol = options[i]
+                click.echo_via_pager(
+                    click.style(symbol.declaring_file.path, bold=True)
+                    + '\n\n' +
+                    latex_format(symbol.declaring_file.path.read_text())
+                )
+            elif command.startswith('e'):
+                verbalization = input('verbalization: ').strip()
+                break
+            elif command == 'q':
+                return None
+            else:
+                print(f'Invalid command: {command!r}.')
+                continue
