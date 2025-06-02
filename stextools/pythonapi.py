@@ -65,10 +65,10 @@ def interactive_symbol_search(verbalization: Optional[str] = None, lang: str = '
 
         print()
         print('Available commands:')
-        print('  [q] - quit')
+        print('  [s] - skip')
         print('  [𝑖] - choose symbol 𝑖')
         print('  [v𝑖] - view document for symbol 𝑖')
-        print('  [e] - enter new verbalization')
+        print('  [a] - search for alternative verbalization')
         print()
 
         while True:
@@ -82,10 +82,10 @@ def interactive_symbol_search(verbalization: Optional[str] = None, lang: str = '
                     + '\n\n' +
                     latex_format(symbol.declaring_file.path.read_text())
                 )
-            elif command.startswith('e'):
+            elif command.startswith('a'):
                 verbalization = input('verbalization: ').strip()
                 break
-            elif command == 'q':
+            elif command == 's':
                 return None
             else:
                 print(f'Invalid command: {command!r}.')
