@@ -9,6 +9,7 @@
 * `snify`'s `x𝑖` command now also shows the import path of symbols (if in scope)
 * Can quit in session dialog
 * You can override `snify`'s language detection with the `--lang` argument
+* Started Python API (currently supports searching for symbols by verbalization)
 
 **Other modifications/improvements:**
 

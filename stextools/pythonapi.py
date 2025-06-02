@@ -2,12 +2,14 @@ import functools
 import logging
 from typing import Optional
 
+import click
+
 from stextools.core.cache import Cache
 from stextools.core.linker import Linker
-from stextools.core.simple_api import get_linker
-from stextools.core.stexdoc import Symbol
+from stextools.core.simple_api import get_linker, SimpleSymbol
 from stextools.snify.selection import VerbTrie
 from stextools.snify.stemming import string_to_stemmed_word_sequence_simplified
+from stextools.utils.ui import latex_format
 
 
 @functools.cache
@@ -28,7 +30,7 @@ def setup_logging():
     logging.basicConfig(level=logging.INFO)
 
 
-def serialize_symbol(symbol: Symbol) -> str:
+def serialize_symbol(symbol: SimpleSymbol) -> str:
     symb_path = symbol.path_rel_to_archive
     archive = symbol.declaring_file.archive.name
     return f'[{archive}]{symb_path}'
@@ -43,20 +45,33 @@ def interactive_symbol_search(verbalization: str, lang: str = 'en') -> Optional[
             return None
         subtrie = subtrie[1][word]
 
-    options: list[Symbol] = subtrie[0]
+    options: list[SimpleSymbol] = subtrie[0]
 
     if not options:
         return None
 
     for i, symbol in enumerate(options):
         print(f'[{i}]', serialize_symbol(symbol))
+    print()
+    print('Available commands:')
+    print('  [q] - quit')
+    print('  [𝑖] - choose symbol 𝑖')
+    print('  [v𝑖] - view document for symbol 𝑖')
+    print()
 
     while True:
-        command: str = input('Command (number to select, "q" to quit): ').strip()
+        command: str = input('>>> ').strip()
         if command.isnumeric() and (i := int(command)) in range(len(options)):
             return serialize_symbol(options[i])
+        elif command.startswith('v') and command[1:].isnumeric() and (i := int(command[1:])) in range(len(options)):
+            symbol = options[i]
+            click.echo_via_pager(
+                click.style(symbol.declaring_file.path, bold=True)
+                + '\n\n' +
+                latex_format(symbol.declaring_file.path.read_text())
+            )
         elif command == 'q':
             return None
         else:
-            print(f'Invalid command: {command}. Please enter a number between 0 and {len(options) - 1} or "q" to quit.')
+            print(f'Invalid command: {command!r}.')
             continue
