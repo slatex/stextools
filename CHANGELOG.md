@@ -11,6 +11,12 @@
 * You can override `snify`'s language detection with the `--lang` argument
 * Started Python API (currently supports searching for symbols by verbalization)
 
+
+**Bugfixes:**
+
+* The explain (`x𝑖`) ignored the actual verbalization string of the selection
+
+
 **Other modifications/improvements:**
 
 * Factoring a `stepper` module out of `snify`

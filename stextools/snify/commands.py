@@ -113,7 +113,8 @@ class Explain_i_Command(Command):
         verb: Optional[Union[SimpleVerbalization, SimpleSymbol]] = None
         linker = symbol._linker
         lang = state.get_current_lang(linker)
-        stem = string_to_stemmed_word_sequence_simplified(symbol.name, lang)
+        # TODO: the following will not work if the selection has been modified by the user
+        stem = string_to_stemmed_word_sequence_simplified(state.get_selected_text(), lang)
         for v in symbol.get_verbalizations(lang=lang):
             if string_to_stemmed_word_sequence_simplified(v.verb_str, lang) == stem:
                 verb = v
@@ -125,7 +126,7 @@ class Explain_i_Command(Command):
         if verb is None:
             print(click.style('No matching verbalization found... this might be a bug...', bg='black', fg='bright_red'))
         elif isinstance(verb, SimpleSymbol):
-            print('There was no matchinb verbalization, but the symbol name matches:')
+            print('There was no matching verbalization, but the symbol name matches:')
             print_highlight_selection(
                 verb.declaring_file.path.read_text(),
                 verb.macro_range[0],
