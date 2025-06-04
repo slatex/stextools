@@ -1,7 +1,7 @@
 # Changelog
 
 
-## Upcoming release
+## Release 0.1.3 (2025-06-04)
 
 **New features:**
 
