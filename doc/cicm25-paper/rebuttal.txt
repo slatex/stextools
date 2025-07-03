@@ -2,7 +2,57 @@ We thank the reviewers for their thorough and thoughtful comments and suggestion
 
 We concur with the reviewers that the paper is somewhere between a research paper and a
 system description, and we have struggled with this in the paper writing process. Indeed
-we had started out as the former, and then realized that there is more to the topic than a
-system description could convey. We did not try to bloat the text to make it more suitable
+we had started out with the former, and then realized that there is more to the topic than a
+system description could convey.
+We did not try to bloat the text to make it more suitable
 to the category, but tried to layout the task of semantic authoring -- which we see as a
 novel category -- as a general problem to be addressed by the CICM community.
+Given reviewer 1's feedback, we will take hard look at the paper
+and see where we can shorten/streamline it.
+While writing, we assumed that not all readers would find the ideas as easy as reviewer 1 expressed, considering the broad range of backgrounds at CICM.
+
+We will, of course, incorporate the minor corrections suggested by the reviewers.
+
+
+To address a few questions/concerns:
+
+
+> While the whole project is a significant effort, the special tools described here  'snify' and 'defianno' seem to this reviewer not particularly able to scale up in the way desired. The measurement proposed for the increase of productivity seems very much subjective and the 'STEX/ALeA content commons' also seem specialized and not very `common', i.e. not shared by many. The problem with ambiguity of definitions and their contexts also seems not very easy to address with the tools proposed. 
+
+TODO: This summarizes the criticism of rev. 2... Not sure what to do with the first and last sentence.
+
+> 'STEX/ALeA content commons' also seem specialized and not very `common', i.e. not shared by many.
+
+True.
+Most content is about mathematics and computer science,
+but some other disciplines are represented to a lesser extent (e.g. law and linguistics).
+Calling it a 'commons' is somewhat aspirational.
+
+
+> be more precise and quantitative when you write "one order of magnitude more efficient"
+
+We agree.
+The efficiency gain cannot easily be quantified.
+It strongly depends on the familiarity of the author with the domain model.
+Also, authors tend to skip more technical terms during annotation
+if they are not using snify.
+We measured values 
+ranging from a factor of ?? (for an author who knows the domain model by heart),
+to a factor of ?? (for an author who has never annotated before).
+We will elaborate on this in the paper.
+
+
+> Why do symbolic technologies offer explainability "out of the box"?
+
+
+> where does [the 150,000 words] estimate come from?
+
+This is an estimate based on our own lecture materials (a combination of slides and
+notes), specifically two lectures on artificial intelligence.
+The concrete numbers will of course vary by course and by instructor,
+but we were trying to give an idea of the scale.
+We will clarify this in the paper.
+
+> Is there more related work?
+
+
