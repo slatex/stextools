@@ -1,0 +1,8 @@
+We thank the reviewers for their thorough and thoughtful comments and suggestions.
+
+We concur with the reviewers that the paper is somewhere between a research paper and a
+system description, and we have struggled with this in the paper writing process. Indeed
+we had started out as the former, and then realized that there is more to the topic than a
+system description could convey. We did not try to bloat the text to make it more suitable
+to the category, but tried to layout the task of semantic authoring -- which we see as a
+novel category -- as a general problem to be addressed by the CICM community.
