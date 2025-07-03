@@ -1,0 +1,110 @@
+**************** Rebuttal: Paper PAPER-ID ****************
+
+[... your response here ...]
+
+************************************************************
+
+Best regards,
+   Valeria and Peter
+
+SUBMISSION: 20
+TITLE: Semantic authoring in a flexiformal context — Bulk annotation of rigorous documents
+
+----------------------- REVIEW 1 ---------------------
+
+SUBMISSION: 20
+TITLE: Semantic authoring in a flexiformal context — Bulk annotation of rigorous documents
+AUTHORS: Michael Kohlhase and Jan Frederik Schaefer
+
+----------- Overall evaluation -----------
+SCORE: 1 (weak accept)
+----- TEXT:
+This is a report on tools in the ongoing work in the kwarc cosmos between informal and formal documents. The paper concentrates on a detailed motivation and description of the "snify" program to support annotation over an existing background corpus and of "defianno" to extract corpus information from informal definitions in mathematical (or similar?) texts.
+
+The particular work seems to be quite straightforward. snify is a handy tool, but it is questionable if it warrants a 12 page long, very detailed description at CICM. The papers appears like written for another, non-CICM audience, that needs explanations of simple ideas, yet should be impressed by the rich infrastructure created at kwarc.
+
+I recommend weak acceptance of the paper, as the overall project is important and should be regularly presented and discussed at CICMs.
+
+The paper needs to to be considerably shortened and streamlined. In some places one may even get the impression that the text has been artificially lengthened.
+- Paragraphs like "Overview & Contribution" are probably not needed is this straightforward presentation.
+- The "running example" is introduced like in secondary school: "We will use it to sharpen ..." is quite redundant.
+- Please remove the "Listing 1.1. ..." lines.
+- 2.3. Isn't it clear (to the CICM audience) that semantic authoring is distinct ... ? The paragraph on "Traditional, informal authoring" seems redundant.
+-  
+
+MINOR:
+- First line of text: "is a key factor" instead of "is one of the key factors"
+- Line 7: Why do symbolic technologies offer explainability "out of the box"? Symbolic material may be very hard to understand and explain.
+- Overview & Contribution: If this paragraph is kept, please replace "&" by "and"
+- middle of page 3: Something is wrong with the italization/spacing of "URI" after \sr
+- page 4: Fig. 2 should be closer to where it is refered to.
+- page 7, line 2: "aspect" instead of "aspects"
+- page 8 after Fig. 3: A full-stop or similar after Multilingual Documents
+- page 9: strange linebreak at top of page
+- page 9, bottom: the acronym "FL\forallM\int" is awful and does not typeset well
+- page 10, middle: "analog" instead of "analogon"
+- page 11, middle: snify's interface ...: "inspired by traditional" instead of "inspired traditional"
+
+
+----------------------- REVIEW 2 ---------------------
+
+SUBMISSION: 20
+TITLE: Semantic authoring in a flexiformal context — Bulk annotation of rigorous documents
+AUTHORS: Michael Kohlhase and Jan Frederik Schaefer
+
+----------- Overall evaluation -----------
+SCORE: 1 (weak accept)
+----- TEXT:
+Summary: The paper addresses the challenge of semantic authoring in documents that combine informal text with formal elements, described as a flexiformal context. The authors argue that semantic authoring is a problem distinct from traditional (informal) authoring and fully formal authoring (like programming or formalization). While it shares aspects of both, it requires specialized editing support facilities. The paper presents and evaluates a new tool called "snify" designed to support the bulk annotation of technical terms in STEX source files. "snify" functions like a spell checker, stepping through word occurrences in the document that match `verbalizations' from a harvested catalog of symbol-verbalization pairs derived from the content commons the group has been developing for a while. The main contribution is demonstrating that snify enhances annotation productivity significantly, making the process almost an order of magnitude more efficient than manual annotation, es
+pecially for annotators familiar with the domain model.
+
+While the whole project is a significant effort, the special tools described here  'snify' and 'defianno' seem to this reviewer not particularly able to scale up in the way desired. The measurement proposed for the increase of productivity seems very much subjective and the 'STEX/ALeA content commons' also seem specialized and not very `common', i.e. not shared by many. The problem with ambiguity of definitions and their contexts also seems not very easy to address with the tools proposed. 
+
+Minor issues:
+1. page 3 
+> Verbalizations can vary between between subdomains and communities of practice.
+one extra 'between'
+
+2. 'verbalization' is used in a very specific sense that maybe should be explained as it does not  seem the meaning usually ascribed to the word. From Google "Verbalization refers to the act of expressing thoughts, feelings, or ideas through spoken or written words. It involves translating internal mental processes into a verbal format, making them understandable to others.".
+
+3. page 4
+> At ca 150,000 words in a semester’s worth of lecture notes and ca. 10–15\% of technical terms a rather daunting task.
+I wonder where does this estimate comes from? a source would be appreciated.
+
+4. page 11
+> snify’s interface is inspired BY traditional spell checkers like ispell 
+
+5. In general it's bad form to start a sentence with a symbol or a made-up word.
+> snify is open source; the source and documentation are available from [sTt].
+The tool "snify" is open source; the source and documentation are available from [sTt].
+
+6. The related work section seems very limited. Are there not other work that could be cited?
+
+
+----------------------- REVIEW 3 ---------------------
+
+SUBMISSION: 20
+TITLE: Semantic authoring in a flexiformal context — Bulk annotation of rigorous documents
+AUTHORS: Michael Kohlhase and Jan Frederik Schaefer
+
+----------- Overall evaluation -----------
+SCORE: 2 (accept)
+----- TEXT:
+In this paper, the authors introduce and describe the snify utility, 
+a command-line tool for annotating mathematical terms
+with a semantic flexiformal content based on STEX source files.
+As they rightly advocate, the benefit of the tool is to improve 
+the productivity of the annotation workflow with a dedicated utility 
+based on an interface inspired by traditional spell checkers.
+
+I never used the adaptative learning assistant Alea not 
+the STEX corpus, and I found the paper well-written, pleasant
+to read and convincing.  The snify utility is a simple tool
+but it is very useful and the paper should clearly be of interest
+to the CICM audience.
+
+Comment to the authors:
+
+I would advise you to be more precise and quantitative when 
+you write "one order of magnitude more efficient than writing 
+the annotations and imports by hand".
