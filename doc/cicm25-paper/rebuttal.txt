@@ -4,17 +4,19 @@ We concur with the reviewers that the paper is somewhere between a research pape
 system description, and we have struggled with this in the paper writing process. Indeed
 we had started out with the former, and then realized that there is more to the topic than a
 system description could convey.
-We did not try to bloat the text to make it more suitable
-to the category, but tried to layout the task of semantic authoring -- which we see as a
-novel category -- as a general problem to be addressed by the CICM community.
-Given reviewer 1's feedback, we will take hard look at the paper
-and see where we can shorten/streamline it.
-While writing, we assumed that not all readers would find the ideas as easy as reviewer 1 expressed, considering the broad range of backgrounds at CICM.
 
-We will, of course, incorporate the minor corrections suggested by the reviewers.
+Howver, we did not try to bloat the text to make it more suitable to the category, but
+tried to layout the task of semantic authoring -- which we see as a novel task category --
+as a general problem to be addressed by the CICM community.  Given reviewer 1's feedback,
+we will take hard look at the paper and see where we can shorten/streamline it.  While
+writing, we assumed that not all readers would find the ideas as easy as reviewer 1
+expressed, considering the broad range of backgrounds at CICM.
+
+We will, of course, incorporate the minor corrections suggested by the reviewers; these
+are very helpful to us. 
 
 
-To address a few questions/concerns:
+To address a few other questions/concerns:
 
 
 > While the whole project is a significant effort, the special tools described here  'snify' and 'defianno' seem to this reviewer not particularly able to scale up in the way desired. The measurement proposed for the increase of productivity seems very much subjective and the 'STEX/ALeA content commons' also seem specialized and not very `common', i.e. not shared by many. The problem with ambiguity of definitions and their contexts also seems not very easy to address with the tools proposed. 
@@ -32,18 +34,26 @@ Calling it a 'commons' is somewhat aspirational.
 > be more precise and quantitative when you write "one order of magnitude more efficient"
 
 We agree.
-The efficiency gain cannot easily be quantified.
-It strongly depends on the familiarity of the author with the domain model.
-Also, authors tend to skip more technical terms during annotation
-if they are not using snify.
+The efficiency gain cannot easily be quantified and we have therefore kept the assertions
+about that intentionally vague.
+It strongly depends on the author's familiarity with the domain model (having to search
+for the system URI of a concept that "should be in the domain model" is so time-consuming
+that we get the efficiency gain of "one order of magnitude in this part alone") .
+Also, authors tend to skip more technical terms during annotation if they are not using
+snify; so they retain efficiency at the cost of lowering the quality of annotation.
 We measured values 
-ranging from a factor of ?? (for an author who knows the domain model by heart),
-to a factor of ?? (for an author who has never annotated before).
-We will elaborate on this in the paper.
-
+ranging from a factor of 3 (for an author who knows the domain model by heart),
+to a factor of 20 (for an author who has never annotated before).
+Given the reviewer questions we will elaborate on this in the paper.
 
 > Why do symbolic technologies offer explainability "out of the box"?
 
+This statement has to be read in the context of comparing with machine-learning or neural
+AI technologies, where the "context and inference" only exist in the form of a
+weight/parameter distribution over the network. In symbolic technolgies, the inferences
+(and/or transformation steps) can be traced and turned into argumentations or
+justifications. While this may not be technically be "out of the box" at least the
+necessary resources are all there. 
 
 > where does [the 150,000 words] estimate come from?
 
@@ -55,4 +65,4 @@ We will clarify this in the paper.
 
 > Is there more related work?
 
-
+XXXX not to our knowledge, otherwise we would have discussed it XXXX
