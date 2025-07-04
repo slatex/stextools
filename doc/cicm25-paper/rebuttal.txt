@@ -1,68 +1,81 @@
-We thank the reviewers for their thorough and thoughtful comments and suggestions.
+We thank the reviewers for their thorough and thoughtful comments and
+suggestions.
 
-We concur with the reviewers that the paper is somewhere between a research paper and a
-system description, and we have struggled with this in the paper writing process. Indeed
-we had started out with the former, and then realized that there is more to the topic than a
-system description could convey.
-
-Howver, we did not try to bloat the text to make it more suitable to the category, but
-tried to layout the task of semantic authoring -- which we see as a novel task category --
-as a general problem to be addressed by the CICM community.  Given reviewer 1's feedback,
-we will take hard look at the paper and see where we can shorten/streamline it.  While
-writing, we assumed that not all readers would find the ideas as easy as reviewer 1
-expressed, considering the broad range of backgrounds at CICM.
-
-We will, of course, incorporate the minor corrections suggested by the reviewers; these
-are very helpful to us. 
+We concur with the reviewers that the paper is somewhere between a research
+paper and a system description, and we have struggled with this in the paper
+writing process. Indeed we had started out with the former, and then realized
+that there is more to the topic than a system description could convey.
+However, we did not try to bloat the text to make it more suitable to the
+category, but tried to layout the task of semantic authoring -- which we see as
+a novel task category -- as a general problem to be addressed by the CICM
+community.  Given reviewer 1's feedback, we will take hard look at the paper
+and see where we can shorten/streamline it.  While writing, we assumed that not
+all readers would find the ideas as easy as reviewer 1 indicated, considering
+the broad range of backgrounds at CICM.
 
 
-To address a few other questions/concerns:
+Reviewer 2 is skeptical regarding the scalability. snify is by now the main
+tool for term annotation in sTeX and has been used for thousands (likely over
+10 000) annotations. Nevertheless, maintaining a catalog across the growing
+ecosystem is a challenge we are currently working on. It is true that the
+'sTeX/ALeA content commons' is mostly shared within our group (though across
+many different lectures), but we hope to grow the community and are in the
+early stages of collaboration with lecturers from IISc and Bath University.
+
+Reviewer 2 also mentions the problem of ambiguity. The annotations disambiguate
+the meaning of terms with the granularity of the domain model, which may be
+insufficient in some cases (e.g. if there is only one entry for natural
+numbers, regardless of whether they include 0 or not).
+
+Reviewer 3 rightfully points out that it would be better to state the
+efficiency gains more precisely. Unfortunately, the efficiency gain cannot
+easily be quantified in a number and have therefore kept the assertions vague.
+It strongly depends on the author's familiarity with the domain model (having
+to search for the system URI of a concept that "should be in the domain model"
+is very time-consuming). Also, authors tend to skip more technical terms
+during annotation if they are not using snify; so they retain efficiency at the
+cost of lowering the quality of annotation. We measured values ranging from a
+factor of 3 (for an author who knows the domain model by heart), to a factor of
+20 (for an author who has never annotated before). The focus mode of snify
+further improves the efficiency in terms of annotations per time. Given the
+reviewer questions we will elaborate on this in the paper.
 
 
-> While the whole project is a significant effort, the special tools described here  'snify' and 'defianno' seem to this reviewer not particularly able to scale up in the way desired. The measurement proposed for the increase of productivity seems very much subjective and the 'STEX/ALeA content commons' also seem specialized and not very `common', i.e. not shared by many. The problem with ambiguity of definitions and their contexts also seems not very easy to address with the tools proposed. 
+We will, of course, incorporate the minor corrections suggested by the
+reviewers; these are very helpful to us. 
 
-TODO: This summarizes the criticism of rev. 2... Not sure what to do with the first and last sentence.
+To address some of the minor questions/concerns:
 
-> 'STEX/ALeA content commons' also seem specialized and not very `common', i.e. not shared by many.
+> Reviewer 1 asks why symbolic technologies offer explainability "out of the
+> box"
 
-True.
-Most content is about mathematics and computer science,
-but some other disciplines are represented to a lesser extent (e.g. law and linguistics).
-Calling it a 'commons' is somewhat aspirational.
+This statement has to be read in the context of comparing with machine-learning
+or neural AI technologies, where the "context and inference" only exist in the
+form of a weight/parameter distribution over the network. In symbolic
+technologies, the inferences (and/or transformation steps) can be traced and
+turned into argumentations or justifications. While this may not be technically
+be "out of the box" at least the necessary resources are all there. We will
+improve the formulation.
 
 
-> be more precise and quantitative when you write "one order of magnitude more efficient"
+> Reviewer 2 asks where the 150,000 words/10-15% estimate comes from
 
-We agree.
-The efficiency gain cannot easily be quantified and we have therefore kept the assertions
-about that intentionally vague.
-It strongly depends on the author's familiarity with the domain model (having to search
-for the system URI of a concept that "should be in the domain model" is so time-consuming
-that we get the efficiency gain of "one order of magnitude in this part alone") .
-Also, authors tend to skip more technical terms during annotation if they are not using
-snify; so they retain efficiency at the cost of lowering the quality of annotation.
-We measured values 
-ranging from a factor of 3 (for an author who knows the domain model by heart),
-to a factor of 20 (for an author who has never annotated before).
-Given the reviewer questions we will elaborate on this in the paper.
+This is an estimate based on our own lecture materials (a combination of slides
+and notes), specifically our (admittedly rather large) lecture on artificial
+intelligence. The concrete numbers will of course vary by course and by
+instructor, but we were trying to give an idea of the scale. We will clarify
+this in the paper.
 
-> Why do symbolic technologies offer explainability "out of the box"?
 
-This statement has to be read in the context of comparing with machine-learning or neural
-AI technologies, where the "context and inference" only exist in the form of a
-weight/parameter distribution over the network. In symbolic technolgies, the inferences
-(and/or transformation steps) can be traced and turned into argumentations or
-justifications. While this may not be technically be "out of the box" at least the
-necessary resources are all there. 
+> Reviewer 2 asks if there is more related work
 
-> where does [the 150,000 words] estimate come from?
+To our knowledge, we have covered the spectrum of related work, but we would be
+grateful for pointers to any work we may have missed.
 
-This is an estimate based on our own lecture materials (a combination of slides and
-notes), specifically two lectures on artificial intelligence.
-The concrete numbers will of course vary by course and by instructor,
-but we were trying to give an idea of the scale.
-We will clarify this in the paper.
 
-> Is there more related work?
+> Reviewer 2 suggests that our use of "verbalization" should be explained
 
-XXXX not to our knowledge, otherwise we would have discussed it XXXX
+For us, the verbalization of a symbol is its rendering in (written) natural
+language. For example, "integer" and "whole number" are English verbalizations
+of the symbol for integers. We will clarify this in the paper.
+
