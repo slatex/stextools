@@ -1,17 +1,17 @@
 We thank the reviewers for their thorough and thoughtful comments and
 suggestions.
 
-We concur with the reviewers that the paper is somewhere between a research
-paper and a system description, and we have struggled with this in the paper
-writing process. Indeed we had started out with the former, and then realized
-that there is more to the topic than a system description could convey.
-However, we did not try to bloat the text to make it more suitable to the
-category, but tried to layout the task of semantic authoring -- which we see as
-a novel task category -- as a general problem to be addressed by the CICM
-community.  Given reviewer 1's feedback, we will take hard look at the paper
-and see where we can shorten/streamline it.  While writing, we assumed that not
-all readers would find the ideas as easy as reviewer 1 indicated, considering
-the broad range of backgrounds at CICM.
+We admit that the paper is somewhere between a research paper and a system
+description, and we have struggled with this in the paper writing process.
+Indeed we had started out with the former, and then realized that there is more
+to the topic than a system description could convey. However, we did not try to
+bloat the text to make it more suitable to the category, but tried to layout
+the task of semantic authoring -- which we see as a novel task category -- as a
+general problem to be addressed by the CICM community.  Given reviewer 1's
+feedback, we will take hard look at the paper and see where we can
+shorten/streamline it.  While writing, we assumed that not all readers would
+find the ideas as easy as reviewer 1 indicated, considering the broad range of
+backgrounds at CICM.
 
 
 Reviewer 2 is skeptical regarding the scalability. snify is by now the main
@@ -22,23 +22,18 @@ ecosystem is a challenge we are currently working on. It is true that the
 many different lectures), but we hope to grow the community and are in the
 early stages of collaboration with lecturers from IISc and Bath University.
 
-Reviewer 2 also mentions the problem of ambiguity. The annotations disambiguate
-the meaning of terms with the granularity of the domain model, which may be
-insufficient in some cases (e.g. if there is only one entry for natural
-numbers, regardless of whether they include 0 or not).
-
 Reviewer 3 rightfully points out that it would be better to state the
 efficiency gains more precisely. Unfortunately, the efficiency gain cannot
-easily be quantified in a number and have therefore kept the assertions vague.
-It strongly depends on the author's familiarity with the domain model (having
-to search for the system URI of a concept that "should be in the domain model"
-is very time-consuming). Also, authors tend to skip more technical terms
+easily be quantified in a number and we have therefore kept the assertions
+vague. It strongly depends on the author's familiarity with the domain model
+(having to search for the system URI of a concept that "should be in the domain
+model" is very time-consuming). Also, authors tend to skip more technical terms
 during annotation if they are not using snify; so they retain efficiency at the
 cost of lowering the quality of annotation. We measured values ranging from a
-factor of 3 (for an author who knows the domain model by heart), to a factor of
-20 (for an author who has never annotated before). The focus mode of snify
-further improves the efficiency in terms of annotations per time. Given the
-reviewer questions we will elaborate on this in the paper.
+factor of 3 (for an IDE-supported expert who knows the domain model by heart),
+to a factor of 13 (for an inexperienced annotator with IDE support). The focus
+mode of snify further improves the efficiency in terms of annotations per time.
+Given the reviewer questions we will elaborate on this in the paper.
 
 
 We will, of course, incorporate the minor corrections suggested by the
@@ -55,7 +50,7 @@ form of a weight/parameter distribution over the network. In symbolic
 technologies, the inferences (and/or transformation steps) can be traced and
 turned into argumentations or justifications. While this may not be technically
 be "out of the box" at least the necessary resources are all there. We will
-improve the formulation.
+improve the formulation in the paper.
 
 
 > Reviewer 2 asks where the 150,000 words/10-15% estimate comes from
