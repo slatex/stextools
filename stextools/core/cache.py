@@ -23,14 +23,9 @@ class Cache:
     @classmethod
     @functools.cache
     def get_stextools_version(cls) -> str:
-        """For now, we will use the last modification time of the stextools package.
-
-        We could also use the git hash, but that would require that the package is installed from git.
-        In the future, a version number should be used."""
-        last_modified = -math.inf
-        for file in Path(__file__).parent.rglob('**/*.py'):
-            last_modified = max(last_modified, file.stat().st_mtime)
-        return str(last_modified)
+        """Returns the version number of the presently installed stextools"""
+        from stextools import __version__
+        return __version__
 
     @classmethod
     def get_mathhub(cls, update_all: bool = False) -> MathHub:
