@@ -29,6 +29,8 @@
 \usetikzlibrary{shapes}
 \usetikzlibrary{arrows}
 \usetikzlibrary{docicon}
+\usepackage{soul}
+\def\edited#1{\hl{#1}}
 
 % I do not want to annotate just yet.
 
@@ -40,14 +42,17 @@
 \newcommand\WOIDE{\textsf{WOIDE}\xspace}
 \def\llangle{\langle\kern-.2em\langle}
 \def\rrangle{\rangle\kern-.2em\rangle}
+\def\flams{\textsf{FLAMS}\xspace}
+
+\lstset{literate=--1}
 
 \title{
     % Semantic Authoring in the \sTeX/\ALeA World
     % \ednote{Find better title. Was ``Bulk Semantic Annotation with a Partially Known Knowledge Base''}
-Semantic authoring in a flexiformal context --- Bulk annotation of rigorous documents
+        Semantic Authoring in a Flexiformal Context --- Bulk Annotation of Rigorous Documents
 }
 \titlerunning{
-    Semantic authoring in a flexiformal context \textellipsis
+    Semantic Authoring in a Flexiformal Context \textellipsis
 }
 
 \author{Michael Kohlhase\orcidlink{0000-0002-9859-6337} \and Jan Frederik Schaefer\orcidlink{0000-0003-2545-4626}}
@@ -79,19 +84,21 @@ Semantic authoring in a flexiformal context --- Bulk annotation of rigorous docu
   while sharing aspects of classical (informal) authoring and formal authoring, it is a
   problem of its own that needs special editing support facilities.  We present and
   evaluate a simple utility that supports the process of annotating technical terms with
-  semantic references to a flexiformal content commons that enhances annotation
+    semantic references to a flexiformal content commons \edited{and increases} annotation
   productivity by almost an order of magnitude.
 \end{abstract}
 % \setcounter{tocdepth}{3}
 % \tableofcontents
 
 \section{Introduction}
-Arguably, dealing with large document collections is one of the key factors in the knowledge-driven society and economy.
-There are currently two main contenders for machine support in this area.
-Symbolic/logic-based technologies and sub-symbolic/machine-learning-based AI, e.g.\ via LLMs or chatbots.
+Arguably, handling large document collections is a key factor in our knowledge-driven society and economy.
+There are two main contenders for machine support in this area:
+symbolic/logic-based technologies and \edited{statistical}/machine-learning-based AI, e.g.\ via LLMs or chatbots.
 They have complementary strengths and challenges:
 ML-based approaches can be trained on all data of the Internet, but face challenges in precision and explainability. 
-Symbolic technologies, on the other hand, offer precision and explainability out of the box, but face scalability challenges
+Symbolic technologies, on the other hand, \edited{offer precision and explainability%
+%out of the box%
+, but face scalability challenges}
 -- in particular because of the cost of semantic authoring, which we discuss in this paper.
 
 As a case study, we will use adaptive learning assistants for STEM subjects in higher education, concretely the \ALeA system \cite{BerBetChu:lssmkm23}.
@@ -131,7 +138,7 @@ semantically annotated lecture slides and 4000 problems
 %     Related work: ``User Interfaces for Semantic Authoring of Textual Content: A Systematic Literature Review.''
 % }
 
-\paragraph{Overview \& Contribution}
+\paragraph{Overview and Contribution}
 In this paper, we argue that semantic/flexiformal authoring shares aspects with both informal and fully formal authoring,
 but is nevertheless a distinct problem requiring special tool support (\Cref{sec:semauth}).
 Using \sTeX/\ALeA as an exemplary case study,
@@ -150,9 +157,8 @@ grant 16DHBKI089.
 
 \section{Semantic Authoring in a Content Commons}\label{sec:semauth}
 
-Before we discuss semantic authoring in general, let us introduce a concrete example from
-the \sTeX/\ALeA world. We will use it to sharpen our intuitions of the challenges
-involved and to ground the solution we propose.
+Before we discuss semantic authoring in general, let us introduce a concrete example from the \sTeX/\ALeA world.
+    % We will use it to sharpen our intuitions of the challenges involved and to ground the solution we propose.
 
 \subsection{Running Example: Annotating ``terminal''}
 With \sTeX, authors can add semantic references to technical terms,
@@ -162,57 +168,12 @@ about the content/prerequisites of a learning object.
 Adding these references is a key practical problem when converting presentational {\LaTeX}
 course materials into semantic documents.
 
-\begin{figure}[ht]\centering
+\begin{figure}[h]\centering
   \fbox{\includegraphics[width=10cm]{../img/minimax-remarks.pdf}}
   \caption{An annotated learning object from an AI lecture}\label{fig:lo}
 \end{figure}
 
-Take for instance a learning object like the paragraph in \Cref{fig:lo}, where we want to
-annotate the term ``terminal'' with the (semantic) concept of ``a goal state of a search
-problem''. The latter can either be defined earlier in the course or in the domain model
-(or both). Concretely this is about converting the {\LaTeX} string
-
-\begin{lstlisting}[numbers=left,firstnumber=3,
-caption=The unannotated {\LaTeX} sources of \Cref{fig:lo},label=lst:los]
-\item \blue{Note:} Depth-limited minimax requires an evaluation for every
-cut-off state $s$. If $s$ is terminal, we use its utility,
-and otherwise an estimate.
-\end{lstlisting}
-into the partially annotated item:
-\begin{lstlisting}[morekeywords={sr,importmodule},numbers=left,
-caption=Annotating ``terminal'' in \Cref{lst:los},label=lst:losa]
-\importmodule[smglom/search]{mod?search-problem}
-[...]
-\item \blue{Note:} Depth-limited minimax requires an evaluation for every
-cut-off state $s$. If $s$ is \sr{goal state}{terminal}, we use its utility,
-and otherwise an estimate.
-\end{lstlisting}
-In the latter, the author has annotated the word ``terminal'' with the concept it refers
-to with via the \sTeX macro
-\lstinline[mathescape]|\sr{$\llangle URI \rrangle$}{$\llangle verbalization\rrangle$}|.
-
-In \sTeX, objects and concepts are represented by \textbf{symbols}, which are identified
-globally and unambiguously by a URI that includes a \textbf{namespace}, a \textbf{module
-  name}, and a \textbf{symbol name}. Every symbol can have one or more
-\textbf{verbalizations}: words of the domain jargon used to refer to the concept or
-object.  Verbalizations can vary between between subdomains and communities of
-practice. In our example, the verbalization -- i.e. the natural language phrase used to
-express the symbol in English -- ``terminal [state]'' was annotated with the symbol with
-name \lstinline|goal state|. It comes from the module with name \lstinline|search-problem|
-in the namespace \lstinline|smglom/search/mod| imported via the \lstinline|\importmodule|
-macro in line 1. As the symbol name \lstinline|goal state| is unique in the imports here
-it suffices as a relative URI in the \lstinline|\sr| annotation. If the symbol name and
-the desired verbalization coincide (as they often do in English), the short-hand macro
-\lstinline|\sn| can be used (e.g. as \lstinline|\sn{utility}| for ``utility'' in
-\Cref{lst:losa}).
-
-The annotation refers to a definition in the domain model module shown in
-\Cref{fig:state-space}.  The \lstinline|\definame| and \lstinline|\definiendum| in lines
-5--6 introduce the verbalizations ``goal state'' and ``terminal state'' for the symbol
-\lstinline|search-problem?goal state| introduced by \lstinline|\symdecl*| declaration in
-line 3.
-
-\begin{figure}[ht]\centering
+\begin{figure}[h]\centering
   \fbox{\includegraphics[width=12cm]{../img/search-problem.en.pdf}}
 \begin{lstlisting}[morekeywords={definame,symdecl,definiendum},numbers=left,
 escapechar=!]
@@ -228,6 +189,58 @@ escapechar=!]
   \caption{Simplified definition of ``goal state'' from the domain model}\label{fig:state-space}
 \end{figure}
 
+
+Take for instance a learning object like the paragraph in \Cref{fig:lo}, where we want to
+annotate the term ``terminal'' with the (semantic) concept of ``a goal state of a search
+problem''. The latter can either be defined earlier in the course or in the domain model
+(or both). Concretely this is about converting the unannotated {\LaTeX} string
+
+\begin{lstlisting}[numbers=left,firstnumber=3,
+% caption=The unannotated {\LaTeX} sources of \Cref{fig:lo},label=lst:los
+]
+\item \blue{Note:} Depth-limited minimax requires an evaluation for every
+cut-off state $s$. If $s$ is terminal, we use its utility,
+and otherwise an estimate.
+\end{lstlisting}
+into the partially annotated item
+\begin{lstlisting}[morekeywords={sr,importmodule},numbers=left,
+% caption=Annotating ``terminal'' in \Cref{lst:los},label=lst:losa
+]
+\importmodule[smglom/search]{mod?search-problem}
+[...]
+\item \blue{Note:} Depth-limited minimax requires an evaluation for every
+cut-off state $s$. If $s$ is \sr{goal state}{terminal}, we use its utility,
+and otherwise an estimate.
+\end{lstlisting}
+\edited{
+where the author has annotated the word ``terminal'' with the concept it refers
+to via} the \sTeX macro
+\lstinline[mathescape]|\sr{$\llangle \mathit{symbol} \rrangle$}{$\llangle \mathit{verbalization}\rrangle$}|.
+In \sTeX, \edited{concepts} are represented by \textbf{symbols}, which are identified
+globally and unambiguously by a URI that includes a \textbf{namespace}, a \textbf{module name}, and a \textbf{symbol name}.
+ % Every symbol can have one or more verbalizations. %: words of the domain jargon used to refer to the concept or
+\edited{
+A \textbf{verbalization} is the natural language rendering of a concept.
+% object.
+Verbalizations are, of course, language-dependent and can vary between subdomains and communities of
+practice.
+}
+In our example, the verbalization ``terminal [state]'' was annotated with the symbol with
+name \lstinline|goal state|. It comes from the module with name \lstinline|search-problem|
+in the namespace \lstinline|smglom/search/mod| imported via the \lstinline|\importmodule|
+macro in line 1. As the symbol name \lstinline|goal state| is unique in the imports here
+it suffices as a relative URI in the \lstinline|\sr| annotation. If the symbol name and
+the desired verbalization coincide (as they often do in English), the short-hand macro
+\lstinline|\sn| can be used (e.g. as \lstinline|\sn{utility}| for ``utility'').
+% in \Cref{lst:losa}).
+
+
+The annotation refers to a definition in the domain model module shown in
+\Cref{fig:state-space}.  The \lstinline|\definame| and \lstinline|\definiendum| in lines
+5--6 introduce the verbalizations ``goal state'' and ``terminal state'' for the symbol
+\lstinline|search-problem?goal state| introduced by the \lstinline|\symdecl*| declaration in
+line 3.
+
 \subsection{Annotation Workflows and Requirements}\label{sec:workflows}
 
 To annotate the word ``terminal'' in the document, the author has to 
@@ -240,8 +253,16 @@ technical term,
   directive if it is not already (recursively) implied and possibly removing directives
   that become redundant by the new one.
 \end{inparaenum}
-At ca 150,000 words in a semester's worth of lecture notes and ca. 10--15\% of technical
-terms a rather daunting task.
+\edited{A rather daunting task for a lecture with 50,000 -- 100,000 words in notes and slides and ca. 10--15\,\% of them technical terms.\footnote{
+    \edited{
+        Estimates based on some of our own lectures materials
+        ranging from a small introductory lecture (ca. 30,000 words)
+        to a large two-semester lecture on AI (ca. 140,000 words).
+        The 10--15\,\% estimate appears to be relatively consistent across our lectures
+        but depends on the author's intuition about what a technical term is.
+        Other lecturers or lectures on other topics may have very different values.
+    }
+}}
 
 While annotation needs to happen during authoring and curation of documents, the majority
 of annotation tasks in practice concern the semantic augmentation of existing documents
@@ -262,32 +283,32 @@ This catalog can be harvested from the \textbf{formal declarations}
 \lstinline|\importmodule|, etc.) of the domain model and existing documents in the
 semantic corpus.
 
-For documents in a language $L$,
-where $L$ is not English, the annotation practices are a bit
-more complex still, in particular because the annotation catalog is usually incomplete.
-
-Note that for $L$-annotation, we need an $L$-specific annotation catalog. 
+\edited{The annotation catalog is language-specific.}
+% For documents in a language $L$,
+% where $L$ is not English, the annotation practices are a bit
+% more complex still, in particular because the annotation catalog is usually incomplete \edited{for $L$}.
+% Note that for $L$-annotation, we need an $L$-specific annotation catalog. 
 \sTeX already supports multilinguality:
 \begin{itemize}
 \item Documents have explicit language annotations (usually in form of the file extension
   \lstinline[mathescape]|.$\llangle lang\rrangle$.tex| where $\llangle lang\rrangle$ is the
   ISO-639 language identifier).
-\item Modules in the domain model allow $L$-translations that share the formal
-  declarations with another module. In particular all definienda in $L$-modules are
-  $L$-specific.
+\item \edited{Modules in the domain model allow translations that share the formal
+    declarations with another module.}
+        % In particular all definienda in $L$-modules are $L$-specific.
 \end{itemize}
-
-But still, $L$-annotation catalogs are usually inadequate for $L$-annotation tasks in
-practice, as
+% But still, $L$-annotation catalogs are usually inadequate for $L$-annotation tasks in
+\edited{In practice, the annotation catalog for languages other than English is often inadequate as}
 \begin{enumerate}[\em i\rm)]
-\item $L$-verbalizations and symbol names do not often coincide and
-\item the domain model may not even have $L$-modules -- especially for the ``smaller''
-  languages.
+    \item \edited{the domain model may not have translations in that language -- especially for the ``smaller'' languages, and}
+    \item \edited{symbol names, usually English words, cannot be used as a verbalizations.}
 \end{enumerate}
- In this situation, we usually have to invest in
-establishing a suitable catalog e.g. by providing $L$-translations (or at least dictionary
-information) in the domain model or delineating modules and annotating definienda that the
+\edited{In this situation, we usually have to invest in
+establishing a suitable catalog -- e.g. by providing translations (or at least dictionary
+information) in the domain model or
+delineating modules and annotating definienda that the
 domain model does not cover in the documents to be annotated.
+}
 
 \subsection{Semantic Authoring as a Distinct Problem}
 We contend that semantic authoring is a problem that is distinct from traditional
@@ -312,7 +333,7 @@ support for now.
 
 \paragraph{Formal Authoring}
 In programming, the content commons is given formally in the form of the libraries of the
-respective programming language, correspondingly the authored content -- a program -- is
+respective programming language. Correspondingly the authored content -- a program -- is
 also formal and intended for processing by a computer, for which the formality is a
 prerequisite. Formal authoring is usually supported by an integrated development
 environment (IDE) that makes use of the fully formal content and offers services like
@@ -353,7 +374,7 @@ $j$ (for EE uses). As a consequence semantic authoring is more geared towards cr
 reusable/shareable document fragments organized in central or federated repositories and
 hubs. This is quite similar to the formal authoring arena, where we see a tendency towards
 massively shared math libraries in formal systems and package/library hubs for programming
-libraries. As a consequence, semantic authoring support systems should facilitate the
+libraries. Semantic authoring support systems should therefore facilitate the
 logistics of using and curating shared libraries.
 
 \section{Tool Support for Semantic Authoring in \sTeX/\ALeA}\label{sec:tools}
@@ -368,7 +389,7 @@ On the formal side, there is a custom VSCode IDE plugin for \sTeX \cite{sTeX-IDE
 analyzes annotations on the fly, displays the underlying reference semantics, reports
 errors and redundancies, and even offers a concept search interface.  But such features
 only support existing annotations and are, therefore, of limited use when creating new
-annotations, which arguably is the most time consuming aspects of semantic authoring.
+annotations, which arguably is the most time consuming aspect of semantic authoring.
 % \ednote{also: SPARQL API}
 
 How the annotation process can be supported depends on the particular semantic framework,
@@ -392,7 +413,7 @@ has been elusive so far.
 The \snify\footnote{ From ``\texttt{\textbackslash sn}-ify''; ``\texttt{\textbackslash
     sn}'' is a frequently used \sTeX short-hand macro for term annotations.}  utility
 \cite{stextools:git} is a simple command-line tool that creates a catalog of
-symbol-verbalization pairs, analyzes \sTeX source files, and then steps through all word
+symbol-verbalization pairs (see also \Cref{sec:workflows}), analyzes \sTeX source files, and then steps through all word
 occurrences in the document that match a verbalization in the catalog.  Matching is based
 on word stems using off-the-shelf stemmers, which allows us to e.g.\ match ``utilities''
 with ``utility''.  For each matched word, the user is presented with an annotation choice
@@ -424,13 +445,13 @@ or view/edit the file introducing one of the choices.
 together form a \textbf{session}, which can be interrupted and resumed without having to
 re-do all the \lstinline|s| skips. Alternatively, \snify can be called e.g. on the
 top-level lecture notes; then the session consists of all (transitively) included
-files. Other productivity features include a focus mode that can be used to only annotate
+files. Another productivity feature is a focus mode that can be used to only annotate
 a particular word in the rest of the file, session, or the whole \sTeX/\ALeA corpus before
 resuming regular annotation. This reduces the cognitive overhead from switching between
 different words and symbol lists.
 % Of course the include management still needs to be done locally.
 
-\paragraph{\defianno: Definition Handling as a Pre-process for Multilingual Documents}
+\paragraph{\defianno: Definition Handling as a Pre-process for Multilingual Documents.}
 As a companion to \snify, we have \defianno, a prototype tool for annotating definienda in
 documents that were originally authored without semantic annotations.  It can be
 configured to consider different \LaTeX\ macros to identify definienda (e.g.\
@@ -444,14 +465,31 @@ model (i.e.\ not English).
 \paragraph{Evaluation}
 % \section{Practical Evaluation and Future Work}\label{sec:eval}
 \begin{wrapfigure}{r}{0.4\textwidth}
+    \vskip-1.2cm
   \centering
   \includegraphics[width=0.4\textwidth]{../img/annocounts.pdf}
+    \vskip-0.2cm
   \caption{Number of annotated terms in the \sTeX/\ALeA commons over time.}\label{fig:annocounts}
+  \vskip-0.7cm
 \end{wrapfigure}
-In our experience, \snify's step-through workflow for annotating term references for symbols
-from the domain model is almost an order of magnitude more efficient than writing the
-annotations and imports by hand, even for annotators who are familiar with the domain
-model.
+In our experience, \snify's step-through workflow for annotating term references 
+% for symbols from the domain model 
+is almost an order of magnitude more efficient than writing the
+annotations and imports by hand.\footnote{
+    \edited{
+        The precise productivity gain depends on the annotator's
+        familiarity with the domain model (for the right symbol
+        is time-consuming) but also on other factors like
+        the typing speed.
+        Measurements are complicated by the fact that
+        authors tend to annotate more terms when using \snify.
+        We have observed speed-ups over IDE-based annotation
+        ranging from 3 (for an expert knowing the domain model by heart)
+        to 13 (for a beginner).
+        The focus mode further increases productivity.
+    }
+}
+% , even for annotators who are familiar with the domain model.
 Given the sheer number of term annotations (see \Cref{fig:annocounts}),
 this results in a considerable productivity gain.
 For annotators unfamiliar with the domain model, the unassisted annotation task is
@@ -482,18 +520,18 @@ Finally, the current interface is not well-suited for on-the-fly annotation whil
 authoring.
 For that, the underlying information (the symbol/verbalization pairs harvested
 from the domain model) can be integrated into any IDE. In fact we plan to do this for the
-next version of the sTeX plugin for VSCode \cite{sTeX-IDE:git}.
+next version of the \sTeX plugin for VSCode \cite{sTeX-IDE:git}.
 For now, the typical workflow of early adopters is to first write the document (e.g.\ a set of quiz questions) without annotations, and then run \snify to annotate the new content.
 
 \section{Scaling \snify to the Flexiformal Content Commons }\label{sec:scaling}
-One practical problem with \snify system as presented so far is that it only harvests
+One practical problem with the \snify system as presented so far is that it only harvests
 symbol/verbalization pairs from \sTeX files on the local file system. This means that, for
 effective annotation, users (have to) download the whole content commons and keep it
 updated -- an assumption/requirement that becomes increasingly impractical as the \sTeX
 ecosystem grows.
 
 The general situation is that on the one hand there is a constantly growing, shared
-\textbf{content commons} of public math archives -- currently 200 with about 14.000 \sTeX
+\textbf{content commons} of public math archives -- currently 200 with about 14\;000 \sTeX
 files -- that are regularly converted to \FTML (\underline{F}lexiformal \underline{T}ext
 \underline{M}arkup \underline{L}anguage) and served on \url{https://MathHub.info}. On the
 other hand, authors are working on
@@ -508,19 +546,23 @@ This situation is familiar from software development and also from e.g. the \LaT
 ecosystem. Semantic authoring -- and thus the \snify utility -- inherits the requirements
 from both.
 
-To cope with this situation, we are working on extending the brand-new \flams system
-\cite{flams:on}\footnote{A paper on \flams is submitted to CICM 2025 and will be cited
-  here if accepted.} with functionality for handling definienda in the FTML2RDF harvester,
-so that all symbol/verbalizations are available in the \flams triple-store. Thus a harvest
-from the flexiformal content commons would be just a simple SPARQL query and some
-postprocessing of the result (de-duplication, stemming, and pairing) away. Note that
+% To cope with this situation, we are working on extending the brand-new \flams system
+% \cite{flams:on}\footnote{A paper on \flams is submitted to CICM 2025 and will be cited
+%   here if accepted.} with functionality for handling definienda in the FTML2RDF harvester,
+% so that all symbol/verbalizations are available in the \flams triple-store. Thus a harvest
+% from the flexiformal content commons would be just a simple SPARQL query and some
+% postprocessing of the result (de-duplication, stemming, and pairing) away.
+\edited{To cope with this situation, we are planning to extend the brand-new} \flams \edited{system, which among other things powers} \url{https://MathHub.info},
+\edited{so that it provides the data necessary to create a
+symbol/verbalization catalog.}
+Note that
 \flams works directly on \FTML, which is generated from \sTeX input by \textsf{rus\TeX}
 and exported from annotated MS Word files via \WOIDE~\cite{KohKoh:woide24}. There are two
 more systems that could profit from this: The CPoint system that allows annotating MS
 PowerPoint presentations with the \sTeX ontology and can already generate a precursor of
 \FTML \cite{Kohlhase:SemanticInteractionDesignDiss:biblatex}, and a semantic extension of
 Markdown we are developing as a lightweight alternative to \sTeX; it also transforms into
-FTML instead of plain HTML.
+\FTML instead of plain HTML.
 
 \begin{wrapfigure}r{5.5cm}\vspace*{-2em}
   \begin{tikzpicture}[scale=.7]
@@ -537,8 +579,8 @@ FTML instead of plain HTML.
     \node[draw] (id) at (2.5,5) {IDE};
     \node[draw] (wo) at (5,4.5) {\WOIDE};
     \draw[draw,fill=black!10] (-1.3,.5) rectangle ++ (6.4,1); 
-    \node (f) at (-.5,.9) {\flams};
-    \draw[include]  (cc) -- node[left] {\tiny F2RDF} (db);
+    \node (f) at (-0.3,1.0) {\flams};
+      \draw[include]  (cc) -- node[left] {\tiny \begin{tabular}{c}RDF\\exp.\end{tabular}} (db);
     \draw[includeleft] (pl) -- node[right] {\tiny linter} (db);
     \draw[->] (db) -- (sn);
     \draw[->] (db) -- (id);
@@ -553,13 +595,9 @@ FTML instead of plain HTML.
 In local/private archives, the \snify harvester needs to work directly on the \sTeX
 sources.
 Currently, \snify uses a custom Python implementation for harvesting the verbalization cache,
-but we are working on a implementation based on the new \flams \textbf{linter} -- a simple \sTeX parser that
-drives the LSP functionality \sTeX IDE plugins for \textsf{VSCode} and \textsf{emacs}.
-% Here we have extended the \flams \textbf{linter} -- a simple \sTeX parser that
-% drives the LSP functionality the VSCode and \texttt{emacs} \sTeX IDE plugins use to deal
-% with definienda. This is much more efficient (and robust) than the initial regex-based
-% python parser).
-The analogon for this on the \WOIDE side is still under development; it
+but we are working on a implementation based on the new \textbf{\flams linter} -- a simple \sTeX parser that
+drives the LSP functionality of the \sTeX IDE plugins for \textsf{VSCode} and \textsf{emacs}.
+The analog for this on the \WOIDE side is still under development; it
 could be based on \FTML generated by \WOIDE, or \WOIDE could directly export symbol/verbalization
 pairs into the \snify verbalization cache.
 
@@ -609,7 +647,7 @@ and by extending refactoring support
 to (the machine-readable parts of) the documentation
 like parameter names and types.
 
-\snify's interface is inspired traditional spell checkers
+\snify's interface is inspired by traditional spell checkers
 like \lstinline|ispell|~\cite{ispellman},
 which step through documents and suggest corrections for misspelled words.
 
@@ -633,7 +671,7 @@ formal symbols in \sTeX.  Given the impact of \snify on the authoring process, w
 currently working on a deeper integration of \snify into the \sTeX ecosystem and content
 commons as described in \Cref{sec:scaling}. 
 
-\snify is open source; the source and documentation are available from
+The \snify code is open source; the source and documentation are available from
 \cite{stextools:git}.
 
 \paragraph{Future Work}
