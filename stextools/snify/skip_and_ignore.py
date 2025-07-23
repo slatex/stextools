@@ -1,126 +1,124 @@
 import dataclasses
+import functools
 import itertools
 import re
-from pathlib import Path
 
-from stextools.snify.commands import StateSkipOutcome
-from stextools.stepper.command_outcome import CommandOutcome, TextRewriteOutcome, SetNewCursor
-from stextools.stepper.commands import CommandInfo, Command
-from stextools.stepper.state import State, SelectionCursor, PositionCursor
-from stextools.snify.stemming import string_to_stemmed_word_sequence_simplified
+from stextools.config import CONFIG_DIR
+from stextools.snify.snifystate import SnifyCursor, SnifyState
+from stextools.snify.stemming import string_to_stemmed_word_sequence_simplified, mystem
+from stextools.stepper.command import Command, CommandInfo, CommandOutcome
+from stextools.stepper.document_stepper import TextRewriteOutcome
+from stextools.stepper.stepper import Modification
+from stextools.stepper.stepper_extensions import SetCursorOutcome
 
 
-class SkipOnceCommand(Command):
-    def __init__(self):
+class SkipCommand(Command):
+    def __init__(self, state: SnifyState):
         super().__init__(CommandInfo(
-            pattern_presentation='s',
-            pattern_regex='^s$',
-            description_short='kip once',
-            description_long='Skips to the next possible annotation')
+            pattern_presentation = 's',
+            description_short = 'kip once',
+            description_long = 'Skips to the next possible annotation')
         )
+        self.state = state
 
-    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
-        assert isinstance(state.cursor, SelectionCursor)
-        return [SetNewCursor(PositionCursor(state.cursor.file_index, state.cursor.selection_start + 1))]
+    def execute(self, call: str) -> list[CommandOutcome]:
+        assert isinstance(self.state.cursor.selection, tuple)
+        return [
+            SetCursorOutcome(
+                new_cursor=SnifyCursor(self.state.cursor.document_index, self.state.cursor.selection[-1] + 1)
+            )
+        ]
+
+
+class StateSkipOutcome(CommandOutcome, Modification[SnifyState]):
+    def __init__(self, word: str, is_stem: bool, session_wide: bool, lang: str, current_document_index: int):
+        self.word = word
+        self.is_stem = is_stem
+        self.session_wide = session_wide
+        self.lang = lang
+        self.current_document_index = current_document_index
+
+    def _get_key_and_dict(self, state: SnifyState):
+        if self.session_wide:
+            return self.lang, state.skip_stem if self.is_stem else state.skip
+        else:
+            return (self.lang, self.current_document_index), \
+                state.skip_stem_by_docid if self.is_stem else state.skip_by_docid
+
+    def apply(self, state: SnifyState):
+        k, d = self._get_key_and_dict(state)
+        if k not in d:
+            d[k] = set()
+        d[k].add(self.word)
+
+    def unapply(self, state: SnifyState):
+        k, d = self._get_key_and_dict(state)
+        assert k in d, f"Key {k} not found in dictionary {d}"
+        d[k].remove(self.word)
 
 
 class SkipUntilFileEnd(Command):
-    def __init__(self):
+    def __init__(self, state: SnifyState):
         super().__init__(CommandInfo(
             show=False,
             pattern_presentation='s!',
-            pattern_regex='^s!$',
             description_short='kip until end of file',
-            description_long='Do not propose any occurrences of the selected phrase in this file anymore (until end of session).')
+            description_long='Skip all occurrences of the selected phrase in this file (until end of session).')
         )
+        self.state = state
 
-    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
-        assert isinstance(state.cursor, SelectionCursor)
+    def execute(self, call: str) -> list[CommandOutcome]:
         return [
             StateSkipOutcome(
-                word=state.get_current_file_text()[state.cursor.selection_start:state.cursor.selection_end],
+                word=self.state.get_selected_text(),
                 is_stem=False,
-                session_wide=False
+                session_wide=False,
+                lang=self.state.get_current_document().language,
+                current_document_index=self.state.cursor.document_index
             ),
-            SetNewCursor(PositionCursor(state.cursor.file_index, state.cursor.selection_start)),
+            SetCursorOutcome(SnifyCursor(self.state.cursor.document_index, self.state.cursor.selection[0])),
         ]
 
-
 class SkipForRestOfSession(Command):
-    def __init__(self):
+    def __init__(self, state: SnifyState):
         super().__init__(CommandInfo(
             show=False,
             pattern_presentation='s!!',
-            pattern_regex='^s!!$',
             description_short='kip until end of session',
-            description_long='Do not propose any occurrences of the selected phrase anymore in this session.')
+            description_long='Skip all occurrences of the selected phrase in this session.')
         )
+        self.state = state
 
-    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
-        assert isinstance(state.cursor, SelectionCursor)
+    def execute(self, call: str) -> list[CommandOutcome]:
         return [
             StateSkipOutcome(
-                word=state.get_current_file_text()[state.cursor.selection_start:state.cursor.selection_end],
+                word=self.state.get_selected_text(),
                 is_stem=False,
-                session_wide=True
+                session_wide=True,
+                lang=self.state.get_current_document().language,
+                current_document_index=self.state.cursor.document_index
             ),
-            SetNewCursor(PositionCursor(state.cursor.file_index, state.cursor.selection_start)),
+            SetCursorOutcome(SnifyCursor(self.state.cursor.document_index, self.state.cursor.selection[0])),
         ]
 
 
-class AddWordToSrSkip(Command):
-    def __init__(self):
-        super().__init__(CommandInfo(
-            show=False,
-            pattern_presentation='S',
-            pattern_regex='^S$',
-            description_short='kip word in this file forever',
-            description_long='Adds the selected word to the `% srskip` comments of this file\nthat list words that should always be skipped.')
-        )
-
-    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
-        assert isinstance(state.cursor, SelectionCursor)
-        srskipped = SrSkipped(state.files[state.cursor.file_index].read_text())
-        srskipped.add_literal(state.get_selected_text())
-        return [
-            TextRewriteOutcome(srskipped.to_new_text(), requires_reparse=False),
-            # note: this is risky (position would change if there are, for weird reasons, early % srskip comments)
-            SetNewCursor(PositionCursor(state.cursor.file_index, state.cursor.selection_start + 1))
-        ]
-
-
-class AddStemToSrSkip(Command):
-    def __init__(self, lang: str):
-        self.lang = lang
-        super().__init__(CommandInfo(
-            show=False,
-            pattern_presentation='SS',
-            pattern_regex='^SS$',
-            description_short='kip stem (i.e. all words with the same stem) in this file forever',
-            description_long='Adds the stem of the selected word to the `% srskip` comments of this file.')
-        )
-
-    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
-        assert isinstance(state.cursor, SelectionCursor)
-        srskipped = SrSkipped(state.files[state.cursor.file_index].read_text())
-        word = state.get_selected_text()
-        stem = ' '.join(string_to_stemmed_word_sequence_simplified(word, self.lang))
-        srskipped.add_stem(stem)
-        return [
-            TextRewriteOutcome(srskipped.to_new_text()),
-            SetNewCursor(PositionCursor(state.cursor.file_index, state.cursor.selection_start + 1))
-        ]
 
 
 @dataclasses.dataclass
-class IgnoreWordOutcome(CommandOutcome):
+class IgnoreWordOutcome(CommandOutcome, Modification[SnifyState]):
     lang: str
     word: str
 
+    def apply(self, state: SnifyState):
+        IgnoreList.add_word(lang=self.lang, word=self.word)
+
+    def unapply(self, state: SnifyState):
+        IgnoreList.remove_word(lang=self.lang, word=self.word)
+
 
 class IgnoreCommand(Command):
-    def __init__(self, lang: str):
-        self.lang = lang
+    def __init__(self, state: SnifyState):
+        self.state = state
         super().__init__(CommandInfo(
             show=False,
             pattern_presentation='i',
@@ -129,22 +127,64 @@ class IgnoreCommand(Command):
             description_long=f'''
 The word gets put into the ignore list and will never be proposed for annotation again,
 unless removed from that list.
-You can find the ignore list at {IgnoreList.file_path_string(lang)}.
+You can find the ignore list at {IgnoreList.file_path_string(self.state.get_current_document().language)}.
 '''.strip())
         )
 
-    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
-        assert isinstance(state.cursor, SelectionCursor)
+    def execute(self, call: str) -> list[CommandOutcome]:
+        state = self.state
         return [
-            IgnoreWordOutcome(lang=self.lang, word=state.get_selected_text()),
-            SetNewCursor(PositionCursor(state.cursor.file_index, state.cursor.selection_start + 1))
+            IgnoreWordOutcome(lang=state.get_current_document().language,
+                              word=re.sub(r'\s+', ' ', state.get_selected_text()).strip()),
+            SetCursorOutcome(SnifyCursor(state.cursor.document_index, state.cursor.selection[0] + 1))
+        ]
+
+
+class AddWordToSrSkip(Command):
+    def __init__(self, state: SnifyState):
+        super().__init__(CommandInfo(
+            show=False,
+            pattern_presentation='S',
+            description_short='kip word in this file forever',
+            description_long='Adds the selected word to the `% srskip` comments of this file\nthat list words that should always be skipped.')
+        )
+        self.state = state
+
+    def execute(self, call: str) -> list[CommandOutcome]:
+        srskipped = SrSkipped(self.state.get_current_document().get_content())
+        srskipped.add_literal(self.state.get_selected_text())
+        return [
+            TextRewriteOutcome(srskipped.to_new_text()),
+            SetCursorOutcome(SnifyCursor(self.state.cursor.document_index, self.state.cursor.selection[0] + 1))
+        ]
+
+
+class AddStemToSrSkip(Command):
+    def __init__(self, state: SnifyState):
+        self.state = state
+        super().__init__(CommandInfo(
+            show=False,
+            pattern_presentation='SS',
+            description_short='kip stem (i.e. all words with the same stem) in this file forever',
+            description_long='Adds the stem of the selected word to the `% srskip` comments of this file.')
+        )
+
+    def execute(self, call: str) -> list[CommandOutcome]:
+        state = self.state
+        srskipped = SrSkipped(self.state.get_current_document().get_content())
+        word = state.get_selected_text()
+        stem = mystem(word, self.state.get_current_document().language)
+        srskipped.add_stem(stem)
+        return [
+            TextRewriteOutcome(srskipped.to_new_text()),
+            SetCursorOutcome(SnifyCursor(state.cursor.document_index, state.cursor.selection[0] + 1))
         ]
 
 
 class _IgnoreList:
     def __init__(self, lang: str):
         self.lang = lang
-        self.path = Path(f'~/.config/stextools/srify_ignore.{self.lang}.txt').expanduser()
+        self.path = CONFIG_DIR / 'srify_ignore.{self.lang}.txt'
         self.path.parent.mkdir(parents=True, exist_ok=True)
         if not self.path.exists():
             self.path.write_text('')
@@ -194,8 +234,18 @@ class IgnoreList:
     def contains(cls, *, lang: str, word: str) -> bool:
         return word in cls._get(lang).word_set
 
+    @classmethod
+    def get_word_set(cls, lang: str) -> set[str]:
+        if lang not in cls._instances:
+            cls._get(lang)
+        return cls._get(lang).word_set
+
 
 class SrSkipped:
+    """
+    class for managing the `% srskip` comment lines in STeX documents.
+    (they keep track of stems and literal phrases that should not be suggested for annotation in the file)
+    """
     def __init__(self, text: str):
         self.text = text
         self.skipped_stems_ordered: list[str] = []
@@ -252,10 +302,9 @@ class SrSkipped:
             if current_line != '% srskip':
                 new_lines.append(current_line[:-1] + '\n')
 
-        # have_added = False
         for line in self.text.splitlines(keepends=True):
             if line.startswith('% srskip '):
-                continue    # if we put them in the end, we don't have to re-run the linker
+                continue    # easier to put them in the end (no need to update offsets etc.)
                 # if have_added:
                 #     continue
                 # have_added = True
@@ -267,3 +316,9 @@ class SrSkipped:
         _add_rskip()
 
         return ''.join(new_lines)
+
+
+@functools.lru_cache(maxsize=1)
+def get_srskipped_cached(text: str) -> SrSkipped:
+    """ typically, we repeatedly check for the same file """
+    return SrSkipped(text)

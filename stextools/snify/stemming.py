@@ -1,7 +1,13 @@
 import functools
 import re
+from logging import getLogger
 
 from stextools.utils.linked_str import LinkedStr
+from stextools.utils.warnonce import warn_once
+
+logger = getLogger(__name__)
+
+SUPPORTED_LANGUAGES = {'en', 'de', 'fr'}
 
 
 @functools.cache
@@ -12,6 +18,12 @@ def get_stem_fun(lang: str):
     elif lang == 'de':
         from nltk.stem import SnowballStemmer
         return SnowballStemmer('german').stem
+    elif lang == 'fr':
+        from nltk.stem import FrenchStemmer
+        return FrenchStemmer().stem
+    warn_once(logger, f'Unsupported language for stemming: {lang}. No stemming will be applied.')
+    return lambda word: word
+    # raise ValueError(f"Unsupported language: {lang}")
 
 
 @functools.cache  # note: caching results in a huge speedup
@@ -28,7 +40,7 @@ def mystem(word: str, lang: str) -> str:
     elif lang == 'de':
         return ' '.join(stem_fun(w) for w in word.split())
     else:
-        raise ValueError(f"Unsupported language: {lang}")
+        return ' '.join(stem_fun(w) for w in word.split())
 
 
 def string_to_stemmed_word_sequence(lstr: LinkedStr, lang: str) -> list[LinkedStr]:
@@ -47,7 +59,7 @@ def string_to_stemmed_word_sequence(lstr: LinkedStr, lang: str) -> list[LinkedSt
 
 
 def string_to_stemmed_word_sequence_simplified(string: str, lang: str) -> list[str]:
-    # same as above, but without linked strings (more efficient
+    # same as above, but without linked strings (more efficient)
     words: list[str] = []
     for match in re.finditer(r'\b\w+\b', string):
         words.append(mystem(match.group(), lang))

@@ -7,15 +7,14 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-import click
-
-from stextools.stepper.command_outcome import CommandOutcome, Exit
-from stextools.stepper.commands import CommandInfo, Command, CommandCollection, QuitSubdialogCommand, QuitProgramCommand
-from stextools.stepper.state import State
-from stextools.utils.ui import option_string, standard_header
+from stextools.config import CONFIG_DIR
+from stextools.stepper.command import CommandOutcome, Command, CommandInfo, CommandCollection
+from stextools.stepper.interface import interface
+from stextools.stepper.stepper import State
+from stextools.stepper.stepper_extensions import QuitOutcome, QuitCommand
 
 # TODO: move this somewhere else?
-PATH = Path('~/.config/stextools/sessions').expanduser()
+PATH = CONFIG_DIR / 'sessions'
 
 
 def format_past_timestamp(time: datetime) -> str:
@@ -75,17 +74,16 @@ class PickSessionCommand(Command):
             description_long='Resume the existing session 𝑖')
         )
 
-    def standard_display(self, *, state: State) -> str:
-        lines: list[str] = ['Resume an existing session:']
+    def standard_display(self):
+        interface.write_text('Resume an existing session:\n')
         for i, session in enumerate(self.sessions):
-            line = option_string(
+            interface.write_command_info(
                 str(i),
-                '  ' + format_past_timestamp(datetime.fromtimestamp(session.metadata['timestamp'])) + ' – ' + session.metadata['description']
+                '  ' + format_past_timestamp(datetime.fromtimestamp(session.metadata['timestamp'])) + \
+                ' – ' + session.metadata['description']
             )
-            lines.append(line)
-        return '\n'.join(lines)
 
-    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
+    def execute(self, call: str) -> list[CommandOutcome]:
         return [SessionChoiceOutcome(int(call), 'resume')]
 
 
@@ -100,7 +98,7 @@ class DeleteSessionCommand(Command):
             description_long='Delete the existing session 𝑖')
         )
 
-    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
+    def execute(self, call: str) -> list[CommandOutcome]:
         return [SessionChoiceOutcome(int(call[1:]), 'delete')]
 
 
@@ -110,12 +108,11 @@ class DeleteAllSessionsCommand(Command):
         super().__init__(CommandInfo(
             show=True,
             pattern_presentation='D',
-            pattern_regex='^D$',
             description_short='elete all sessions',
             description_long='Delete all existing sessions')
         )
 
-    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
+    def execute(self, call: str) -> list[CommandOutcome]:
         return [SessionChoiceOutcome(0, 'delete') for _ in range(len(self.sessions))]
 
 
@@ -129,12 +126,11 @@ class ContinueWithoutSession(Command):
         super().__init__(CommandInfo(
             show=True,
             pattern_presentation='c',
-            pattern_regex='^c$',
             description_short='ontinue (ignore old sessions)',
             description_long='Continue and do not resume any session')
         )
 
-    def execute(self, *, state: State, call: str) -> list[CommandOutcome]:
+    def execute(self, call: str) -> list[CommandOutcome]:
         return [IgnoreSessions()]
 
 
@@ -161,40 +157,40 @@ class SessionStorage:
             self.sessions.remove(self.loaded_session)
             self.loaded_session.delete()
 
-    def get_session_dialog(self) -> State | Exit | IgnoreSessions:
+    def get_session_dialog(self) -> State | QuitOutcome | IgnoreSessions:
         if not self.have_ongoing_session():
             return IgnoreSessions()
 
         while self.sessions:
-            click.clear()
-            standard_header('Session management', bg='bright_cyan')
-            print()
-            print('You have multiple existing sessions. What would you like to do?')
+            interface.clear()
+            interface.write_header('Session management')
+            interface.newline()
+            interface.write_text('You have multiple existing sessions. What would you like to do?')
             outcomes = CommandCollection(
                 name='session management',
                 commands=[
                     ContinueWithoutSession(self.sessions),
-                    QuitProgramCommand(),
+                    QuitCommand('quit the program'),
                     DeleteSessionCommand(self.sessions),
                     DeleteAllSessionsCommand(self.sessions),
                     PickSessionCommand(self.sessions),
                 ],
                 have_help=True,
-            ).apply(state=None)    # type: ignore
+            ).apply()
 
             for outcome in outcomes:
                 if isinstance(outcome, IgnoreSessions):
                     return outcome
-                elif isinstance(outcome, Exit):
+                elif isinstance(outcome, QuitOutcome):
                     return outcome
                 elif isinstance(outcome, SessionChoiceOutcome):
                     if outcome.action == 'resume':
                         session = self.sessions[outcome.session_number]
                         if session.metadata['srifytimestamp'] < self.srify_timestamp:
-                            if not click.confirm(
-                                'This session was created with an older version of snify. '
-                                'Resuming it may lead to unexpected behavior. '
-                                'Are you sure you want to resume it?'
+                            if not interface.ask_yes_no(
+                                    'This session was created with an older version of snify. '
+                                    'Resuming it may lead to unexpected behavior. '
+                                    'Are you sure you want to resume it?'
                             ):
                                 continue
                         self.loaded_session = session
@@ -210,18 +206,19 @@ class SessionStorage:
         return IgnoreSessions()
 
     def store_session_dialog(self, state: State):
-        print('\n\n')
-        if not click.confirm('Would you like to save the current session?'):
+        interface.write_text('\n\n')
+        if not interface.ask_yes_no('Would you like to save the current session?'):
             return
         if self.loaded_session:
-            print('You are in a session that was loaded from a file.')
-            print('  Description:', self.loaded_session.metadata['description'])
-            print('  Timestamp:', self.loaded_session.metadata['timestamp'])
-            if click.confirm('Would you like to overwrite this session?'):
+            interface.write_text('You are in a session that was loaded from a file.\n')
+            interface.write_text('  Description: ' + self.loaded_session.metadata['description'] + '\n')
+            interface.write_text('  Timestamp: ' + self.loaded_session.metadata['timestamp'] + '\n')
+            if interface.ask_yes_no('Would you like to overwrite this session?'):
                 self.loaded_session.write(state)
                 return
 
-        description = click.prompt('Brief description of the session (optional)', default='no description')
+        interface.write_text('Brief description of the session (optional): ')
+        description = interface.get_input() or 'no description'
         session = Session(
             identifier=str(uuid.uuid4()),
             metadata={

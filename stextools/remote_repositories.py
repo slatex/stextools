@@ -1,9 +1,20 @@
+import os
 import subprocess
+from pathlib import Path
 
 import gitlab
 from gitlab.v4.objects import Group
 
-from stextools.core.mathhub import get_mathhub_path
+
+def get_mathhub_path() -> Path:
+    path = os.environ.get("MATHHUB")
+    if path is None:
+        raise RuntimeError("MATHHUB environment variable not set")
+    path = Path(path).expanduser().resolve()
+    if not path.exists():
+        raise RuntimeError(f"MATHHUB path {path} does not exist")
+    return path
+
 
 URL = 'https://gl.mathhub.info'
 
