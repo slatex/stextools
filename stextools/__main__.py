@@ -4,8 +4,6 @@ from pathlib import Path
 import click
 
 from stextools.config import get_config, CACHE_DIR
-from stextools.lexicon.lexgen import lexgen
-from stextools.snify.snify import snify
 from stextools.stepper.interface import set_interface, DEFAULT_INTERFACES
 
 logger = logging.getLogger(__name__)
@@ -33,6 +31,7 @@ def cli(log_file):
 )
 @interface_option
 def snify_command(files, interface):
+    from stextools.snify.snify import snify
     set_interface(interface)
     if not files:
         click.echo('No files specified. Please provide paths to files or directories to snify.')
@@ -45,6 +44,7 @@ def snify_command(files, interface):
 )
 @interface_option
 def lexgen_command(files, interface):
+    from stextools.lexicon.lexgen import lexgen
     set_interface(interface)
     if not files:
         click.echo('No files specified. Please provide paths to files or directories to snify.')
