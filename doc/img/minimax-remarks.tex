@@ -15,10 +15,15 @@
 \usemodule[smglom/search]{mod?search-problem}
 \usestructure{searchprob}
 \usemodule[smglom/ai]{mod?decision-theory}
+% \begin{minipage}[t]{8.5cm}
+%   \blue{Note:} \sr{depth limit}{Depth-limited} \sn{minimax} requires an \sr{evaluation
+%     function}{evaluation} for every \sn{cut-off state} $s$.  If $s$ is terminal, we use
+%   its \sn{utility}, and otherwise an estimate.
+% \end{minipage}
 \begin{minipage}[t]{8.5cm}
-  \blue{Note:} \sr{depth limit}{Depth-limited} \sn{minimax} requires an \sr{evaluation
-    function}{evaluation} for every \sn{cut-off state} $s$.  If $s$ is terminal, we use
-  its \sn{utility}, and otherwise an estimate.
+  \blue{Note:} Depth-limited minimax requires an 
+    evaluation for every cut-off state $s$.  If $s$ is terminal, we use
+  its utility, and otherwise an estimate.
 \end{minipage}
 \hskip 0.5cm
 \scalebox{0.35}{
