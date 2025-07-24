@@ -75,46 +75,50 @@
 %   order of magnitude.
 
   Semantic annotations enable services that make the knowledge in documents more
-  accessible.  In the case of \ALeA, a learning assistant we use as a case study, they
+  accessible.  In the case of \ALeA, an adaptive learning assistant we use as a case study, they
   enable, for example, guided tours and practice problems tailored to the learner's
   competencies.  However, the cost of semantic authoring is substantial and tool support
   is limited.
 
   In this paper we discuss the nature of the semantic authoring problem and argue that,
-  while sharing aspects of classical (informal) authoring and formal authoring, it is a
-  problem of its own that needs special editing support facilities.  We present and
+  while sharing aspects of both classical (informal) authoring and formal authoring, it is
+  a problem of its own that needs special editing support facilities.  We present and
   evaluate a simple utility that supports the process of annotating technical terms with
-    semantic references to a flexiformal content commons \edited{and increases} annotation
+  semantic references to a flexiformal content commons and increases annotation
   productivity by almost an order of magnitude.
 \end{abstract}
 % \setcounter{tocdepth}{3}
 % \tableofcontents
 
 \section{Introduction}
-Arguably, handling large document collections is a key factor in our knowledge-driven society and economy.
-There are two main contenders for machine support in this area:
-symbolic/logic-based technologies and \edited{statistical}/machine-learning-based AI, e.g.\ via LLMs or chatbots.
-They have complementary strengths and challenges:
-ML-based approaches can be trained on all data of the Internet, but face challenges in precision and explainability. 
-Symbolic technologies, on the other hand, \edited{offer precision and explainability%
-%out of the box%
-, but face scalability challenges}
--- in particular because of the cost of semantic authoring, which we discuss in this paper.
+Arguably, handling large document collections is a key factor in our knowledge-driven
+society and economy.  There are two main contenders for machine support in this area:
+symbolic/logic-based technologies and statistical/machine-learning-based AI, e.g.\ via
+LLMs or chatbots.  They have complementary strengths and challenges: ML-based approaches
+can be trained on all data of the Internet, but face challenges in precision and
+explainability.  Symbolic technologies, on the other hand, offer precision and
+explainability, but face scalability challenges -- in particular because of the cost of
+semantic authoring, which we discuss in this paper.
 
-As a case study, we will use adaptive learning assistants for STEM subjects in higher education, concretely the \ALeA system \cite{BerBetChu:lssmkm23}.
-We contend that machine-learning based technologies are largely unsuitable for this task -- at least until they reach the
-precision and explainability required by the ethics of teaching --
-while the scope of specific domains is just narrow enough that symbolic approaches are viable.
-Conventional (\LaTeX-based) lecture materials can essentially be directly imported into \ALeA,
-but its ability to generate learner-adaptive learning objects -- instrumented with learning support interactions --
-depends on semantic annotations.
-These can be embedded in \LaTeX\ documents using the \sTeX package~\cite{MueKo:sdstex22,sTeX:github:on}.
-In this paper, we will mostly focus on annotating terms with the semantic concepts they refer to,
-but \sTeX supports a much wider range of annotations, such as annotating problems with the learning objectives
-or annotating the defining phrase (definiens) in concept definitions,
-and could, in principle, even be used for full formalization.
-As \sTeX supports the spectrum from informal (un-annotated) to fully formalized content,
-we say that \sTeX content is \textbf{flexiformal}.
+As a case study, we will use adaptive learning assistants for STEM subjects in higher
+education, concretely the \ALeA system \cite{BerBetChu:lssmkm23}.  We contend that
+machine-learning based technologies are largely unsuitable for this task -- at least until
+they reach the precision and explainability required by the ethics of
+teaching\edited{\footnote{Incidentally, the AI Act of the European Union \cite{EUAIAct:on}
+    classifies education as a high-risk area and thus mandates high requirements of
+    explainability, accountability, and human oversight for educational AI applications.}}
+-- while the scope of specific domains is just narrow enough that symbolic approaches are
+viable.  Conventional (\LaTeX-based) lecture materials can essentially be directly
+imported into \ALeA, but its ability to generate learner-adaptive learning objects --
+instrumented with learning support interactions -- depends on semantic annotations.  These
+can be embedded in \LaTeX\ documents using the \sTeX
+package~\cite{MueKo:sdstex22,sTeX:github:on}.  In this paper, we will mostly focus on
+annotating terms with the semantic concepts they refer to, but \sTeX supports a much wider
+range of annotations, such as annotating problems with the learning \edited{prerequisites
+  and} objectives or annotating the defining phrase (definiens) in concept definitions,
+and could, in principle, even be used for full formalization.  As \sTeX supports the
+spectrum from informal (un-annotated) to fully formalized content, we say that \sTeX
+content is \textbf{flexiformal}.
 
 The \textbf{\sTeX/\ALeA content commons} consists of \SMGloM~\cite{GinIanJuc:spsttom16},
 a glossary acting as the domain model for semantic annotations,
@@ -152,13 +156,20 @@ The paper ends with a brief discussion of related work (\Cref{sec:relwork}) and 
 
 \paragraph{Acknowledgments}
 The work reported in this article was conducted as part of the VoLL-KI project (see
-\url{https://voll-ki.de}) funded by the German Research/Education Ministry (BMBF) under
+\url{https://voll-ki.de}) funded by the German Research/Education Ministry (BMFTR) under
 grant 16DHBKI089.
 
 \section{Semantic Authoring in a Content Commons}\label{sec:semauth}
 
-Before we discuss semantic authoring in general, let us introduce a concrete example from the \sTeX/\ALeA world.
-    % We will use it to sharpen our intuitions of the challenges involved and to ground the solution we propose.
+Before we discuss semantic authoring in general, let us introduce a concrete example from
+the \sTeX/\ALeA world.
+% We will use it to sharpen our intuitions of the challenges involved and to ground the
+% solution we propose.
+
+\begin{figure}[h]\centering
+  \fbox{\includegraphics[width=10cm]{../img/minimax-remarks.pdf}}
+  \caption{An annotated learning object from an AI lecture}\label{fig:lo}
+\end{figure}
 
 \subsection{Running Example: Annotating ``terminal''}
 With \sTeX, authors can add semantic references to technical terms,
@@ -167,12 +178,6 @@ showing the definition of a term, but also informs the system
 about the content/prerequisites of a learning object.
 Adding these references is a key practical problem when converting presentational {\LaTeX}
 course materials into semantic documents.
-
-\begin{figure}[h]\centering
-  \fbox{\includegraphics[width=10cm]{../img/minimax-remarks.pdf}}
-  \caption{An annotated learning object from an AI lecture}\label{fig:lo}
-\end{figure}
-
 \begin{figure}[h]\centering
   \fbox{\includegraphics[width=12cm]{../img/search-problem.en.pdf}}
 \begin{lstlisting}[morekeywords={definame,symdecl,definiendum},numbers=left,
@@ -189,48 +194,43 @@ escapechar=!]
   \caption{Simplified definition of ``goal state'' from the domain model}\label{fig:state-space}
 \end{figure}
 
-
-Take for instance a learning object like the paragraph in \Cref{fig:lo}, where we want to
-annotate the term ``terminal'' with the (semantic) concept of ``a goal state of a search
-problem''. The latter can either be defined earlier in the course or in the domain model
-(or both). Concretely this is about converting the unannotated {\LaTeX} string
+Take for instance a learning object like the paragraph in \Cref{fig:lo}\ednote{MK: in
+  diesem Bild sollten keine blauen/annotierten Wörter sein}, where we want to annotate the
+term ``terminal'' with the (semantic) concept of ``a goal state of a search problem''. The
+latter can either be defined earlier in the course or in the domain model (or
+both). Concretely this is about converting the unannotated {\LaTeX} string
 
 \begin{lstlisting}[numbers=left,firstnumber=3,
 % caption=The unannotated {\LaTeX} sources of \Cref{fig:lo},label=lst:los
 ]
-\item \blue{Note:} Depth-limited minimax requires an evaluation for every
+\blue{Note:} Depth-limited minimax requires an evaluation for every
 cut-off state $s$. If $s$ is terminal, we use its utility,
 and otherwise an estimate.
 \end{lstlisting}
-into the partially annotated item
+into the partially annotated 
 \begin{lstlisting}[morekeywords={sr,importmodule},numbers=left,
 % caption=Annotating ``terminal'' in \Cref{lst:los},label=lst:losa
 ]
 \importmodule[smglom/search]{mod?search-problem}
 [...]
-\item \blue{Note:} Depth-limited minimax requires an evaluation for every
+\blue{Note:} Depth-limited minimax requires an evaluation for every
 cut-off state $s$. If $s$ is \sr{goal state}{terminal}, we use its utility,
 and otherwise an estimate.
 \end{lstlisting}
-\edited{
-where the author has annotated the word ``terminal'' with the concept it refers
-to via} the \sTeX macro
+where the author has annotated the word ``terminal'' with the concept it refers to via the
+\sTeX macro
 \lstinline[mathescape]|\sr{$\llangle \mathit{symbol} \rrangle$}{$\llangle \mathit{verbalization}\rrangle$}|.
-In \sTeX, \edited{concepts} are represented by \textbf{symbols}, which are identified
-globally and unambiguously by a URI that includes a \textbf{namespace}, a \textbf{module name}, and a \textbf{symbol name}.
- % Every symbol can have one or more verbalizations. %: words of the domain jargon used to refer to the concept or
-\edited{
-A \textbf{verbalization} is the natural language rendering of a concept.
-% object.
-Verbalizations are, of course, language-dependent and can vary between subdomains and communities of
-practice.
-}
-In our example, the verbalization ``terminal [state]'' was annotated with the symbol with
-name \lstinline|goal state|. It comes from the module with name \lstinline|search-problem|
-in the namespace \lstinline|smglom/search/mod| imported via the \lstinline|\importmodule|
+In \sTeX, concepts are represented by \textbf{symbols}, which are identified globally and
+unambiguously by a URI that includes a \textbf{namespace}, a \textbf{module name}, and a
+\textbf{symbol name}.  A \textbf{verbalization} is the natural language rendering of a
+concept.  Verbalizations are, of course, language-dependent and can vary between
+subdomains and communities of practice, even if the underlying symbol is the same.  In our
+example, the verbalization ``terminal [state]'' was annotated with the symbol with name
+\lstinline|goal state|. It comes from the module with name \lstinline|search-problem| in
+the namespace \lstinline|smglom/search/mod| imported via the \lstinline|\importmodule|
 macro in line 1. As the symbol name \lstinline|goal state| is unique in the imports here
-it suffices as a relative URI in the \lstinline|\sr| annotation. If the symbol name and
-the desired verbalization coincide (as they often do in English), the short-hand macro
+it suffices to use a relative URI in the \lstinline|\sr| annotation. If the symbol name
+and the desired verbalization coincide (as they often do in English), the short-hand macro
 \lstinline|\sn| can be used (e.g. as \lstinline|\sn{utility}| for ``utility'').
 % in \Cref{lst:losa}).
 
@@ -715,4 +715,5 @@ involved.
 
 % LocalWords:  tbw Aarne Ranta homostem pre hmmm Vre ar al sn ify TODO et Hutter Plivelic
 % LocalWords:  lang DHBKI FS Todo FTML lexiformal arkup anguage CICM RDF postprocessing
-% LocalWords:  de maths EE CPoint SMD rus WOIDE linter LSP emacs Prot BMBF
+% LocalWords:  de maths EE CPoint SMD rus WOIDE linter LSP emacs Prot BMBF diesem Bild
+% LocalWords:  sollten keine blauen annotierten Wörter sein
