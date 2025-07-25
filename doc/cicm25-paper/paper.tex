@@ -20,6 +20,7 @@
 \lstset{numberstyle=\tiny}
 \lstset{language={[LaTeX]TeX}}
 \usepackage[style=alphabetic,hyperref=auto,defernumbers=true,backend=bibtex,firstinits=true,maxbibnames=9,maxcitenames=3,isbn=false]{biblatex}
+\usepackage{xurl}
 \addbibresource{kwarcpubs.bib}
 \addbibresource{extpubs.bib}
 \addbibresource{kwarccrossrefs.bib}
@@ -31,7 +32,8 @@
 \usetikzlibrary{arrows}
 \usetikzlibrary{docicon}
 \usepackage{soul}
-\def\edited#1{\hl{#1}}
+% \def\edited#1{\hl{#1}}
+\def\edited#1{#1}
 
 % I do not want to annotate just yet.
 
@@ -43,7 +45,7 @@
 \newcommand\WOIDE{\textsf{WOIDE}\xspace}
 \def\llangle{\langle\kern-.2em\langle}
 \def\rrangle{\rangle\kern-.2em\rangle}
-\def\flams{\textsf{FLAMS}\xspace}
+% \def\flams{\textsf{FLAMS}\xspace}
 
 \lstset{literate=--1}
 
@@ -120,15 +122,6 @@ semantically annotated lecture slides and 4000 problems
 -- mostly from the area of computer science.
 % grep -R --include='*.tex' -F -e '\begin{frame}' | wc -l
 
-% \ednote{
-%     \textbf{Related work: semantic web authoring}
-%     \emph{semantic authoring} already used in context of semantic web (RDFa).
-%     Tools exist and it doesn't have exactly the same challenges as we face, though there is some overlap.
-%     We have a module system and need more dependency management, something else?
-%     This has to be described somewhere.
-% 
-%     Related work: ``User Interfaces for Semantic Authoring of Textual Content: A Systematic Literature Review.''
-% }
 
 \paragraph{Overview and Contribution}
 In this paper, we argue that semantic/flexiformal authoring shares aspects with both informal and fully formal authoring,
@@ -154,7 +147,7 @@ the \sTeX/\ALeA world.
 % We will use it to sharpen our intuitions of the challenges involved and to ground the
 % solution we propose.
 
-\begin{figure}[h]\centering
+\begin{figure}\centering
   \fbox{\includegraphics[width=10cm,trim=0.8cm 0 0 0]{../img/minimax-remarks.pdf}}
   \caption{An unannotated learning object from an AI lecture}\label{fig:lo}
 \end{figure}
@@ -166,28 +159,12 @@ showing the definition of a term, but also informs the system
 about the content/prerequisites of a learning object.
 Adding these references is a key practical problem when converting presentational {\LaTeX}
 course materials into semantic documents.
-\begin{figure}[h]\centering
-  \fbox{\includegraphics[width=12cm]{../img/search-problem.en.pdf}}
-\begin{lstlisting}[morekeywords={definame,symdecl,definiendum},numbers=left,
-escapechar=!]
-\begin{smodule}[title=Search Problem]{search-problem}
-[... some imports ...]
-\symdecl*{goal state}
-\begin{sdefinition}
-  [...] Certain \sns{state} are [...] \definame[post=s]{goal state} [...]
-  (also called \definiendum{goal state}{terminal states}).
-\end{sdefinition}
-\end{smodule}
-\end{lstlisting}
-  \caption{Simplified definition of ``goal state'' from the domain model}\label{fig:state-space}
-\end{figure}
 
-Take for instance a learning object like the paragraph in \Cref{fig:lo}\ednote{MK: in
-  diesem Bild sollten keine blauen/annotierten Wörter sein}, where we want to annotate the
+Take for instance a learning object like the paragraph in \Cref{fig:lo},
+    where we want to annotate the
 term ``terminal'' with the (semantic) concept of ``a goal state of a search problem''. The
 latter can either be defined earlier in the course or in the domain model (or
 both). Concretely this is about converting the unannotated {\LaTeX} string
-
 \begin{lstlisting}[numbers=left,firstnumber=3,
 % caption=The unannotated {\LaTeX} sources of \Cref{fig:lo},label=lst:los
 ]
@@ -225,9 +202,25 @@ and the desired verbalization coincide (as they often do in English), the short-
 
 The annotation refers to a definition in the domain model module shown in
 \Cref{fig:state-space}.  The \lstinline|\definame| and \lstinline|\definiendum| in lines
-5--6 introduce the verbalizations ``goal state'' and ``terminal state'' for the symbol
-\lstinline|search-problem?goal state| introduced by the \lstinline|\symdecl*| declaration in
+5--6 introduce the verbalizations ``goal state'' and ``terminal state'' for the
+\lstinline|goal state| symbol introduced by the \lstinline|\symdecl*| declaration in
 line 3.
+
+\begin{figure}\centering
+  \fbox{\includegraphics[width=12cm]{../img/search-problem.en.pdf}}
+\begin{lstlisting}[morekeywords={definame,symdecl,definiendum},numbers=left,
+escapechar=!]
+\begin{smodule}[title=Search Problem]{search-problem}
+[... some imports ...]
+\symdecl*{goal state}
+\begin{sdefinition}
+  [...] Certain \sns{state} are [...] \definame[post=s]{goal state} [...]
+  (also called \definiendum{goal state}{terminal states}).
+\end{sdefinition}
+\end{smodule}
+\end{lstlisting}
+  \caption{Simplified definition of ``goal state'' from the domain model}\label{fig:state-space}
+\end{figure}
 
 \subsection{Annotation Workflows and Requirements}\label{sec:workflows}
 
@@ -312,10 +305,8 @@ payload content of the article -- the knowledge the article or textbook intends 
 gap. Tool support for traditional authoring is minimal and usually restricted to
 spell/grammar-checkers and online thesauri if we disregard LLM-based writing/formulation
 support for now.
-\edited{
 In our experience, LLM-based authoring support is less helpful in technical documents
 than in everyday writing.
-}
 
 \paragraph{Formal Authoring}
 In programming, the content commons is given formally in the form of the libraries of the
@@ -347,6 +338,9 @@ IDE functionality by the formal syntax, as the authored content is -- so far -- 
 and the content commons (the target of the annotations) is itself only flexiformal. In a
 way, we need a local flexiformalization workflow that helps authors bridge the
 informal-formal gap.
+We have experimented with LLM-based generation of annotated (\sTeX) content,
+but the results have been disappointing so far.
+
 
 A distinctive feature of semantic authoring that is not apparent at the first glance is
 that the added investment in annotation moves the sweet spot in the re-use/customize
@@ -392,7 +386,7 @@ authors can pick the correct reading in a graphical user interface that visualiz
 different abstract syntax trees.
 
 Efficient support for the annotation of technical terms in natural language
-has been elusive so far.
+has been elusive so far -- we will address this in the next section.
 
 
 \section{The \snify System}\label{sec:snify}
@@ -452,16 +446,9 @@ with verbalizations relevant to the document, making subsequent \snify runs more
 effective, especially for documents in languages that are not well covered by the domain
 model (i.e.\ not English).
 
+% \newpage
 \paragraph{Evaluation}
 % \section{Practical Evaluation and Future Work}\label{sec:eval}
-\begin{wrapfigure}{r}{0.4\textwidth}
-    \vskip-1.2cm
-  \centering
-  \includegraphics[width=0.4\textwidth]{../img/annocounts.pdf}
-    \vskip-0.2cm
-  \caption{Number of annotated terms in the \sTeX/\ALeA commons over time.}\label{fig:annocounts}
-  \vskip-0.7cm
-\end{wrapfigure}
 In our experience, \snify's step-through workflow for annotating term references 
 % for symbols from the domain model 
 is almost an order of magnitude more efficient than writing the
@@ -482,6 +469,14 @@ annotations and imports by hand.\footnote{
 Given the sheer number of term annotations (see \Cref{fig:annocounts}),
 this results in a considerable productivity gain.
 For annotators unfamiliar with the domain model, the unassisted annotation task is
+\begin{wrapfigure}{r}{0.4\textwidth}
+    \vskip-0.7cm
+  \centering
+  \includegraphics[width=0.4\textwidth]{../img/annocounts.pdf}
+    % \vskip-0.2cm
+  \caption{Number of annotated terms in the \sTeX/\ALeA commons over time.}\label{fig:annocounts}
+  \vskip-0.7cm
+\end{wrapfigure}
 almost infeasible, and the average unfamiliarity naturally grows with the domain
 model. The symbol disambiguation process -- on average a word induces 4.1 choices
 % \ednote{
@@ -580,6 +575,7 @@ Markdown we are developing as a lightweight alternative to \sTeX; it also transf
     \draw[includeleft] (pl) to[bend right=10] (wo);
   \end{tikzpicture}
   \caption{Architecture}\label{fig:arch}\vspace*{-1em}
+  \vskip-0.5cm
 \end{wrapfigure}
 
 In local/private archives, the \snify harvester needs to work directly on the \sTeX
