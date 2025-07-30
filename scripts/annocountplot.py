@@ -72,7 +72,7 @@ def cumulative_plots():
 
 def diff_plots():
     plot_diff(filtered('smglom/*'), 'smglom')
-    plot_diff(filtered('courses/*/course'), 'course')
+    plot_diff(filtered('courses/*/course'), 'courses')
     plot_diff(filtered('*/problems'), 'problems')
 
 

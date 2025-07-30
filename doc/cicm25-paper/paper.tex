@@ -1,8 +1,3 @@
-% KEY TODOs:
-%  * better title
-%  * turn overview into combined overview and contribution
-%  * Finish tool support section
-%  *  -> reduce future work paragraph in conclusion accordingly
 
 \documentclass[runningheads]{llncs}
 \usepackage[show]{ed}
@@ -21,10 +16,11 @@
 \lstset{language={[LaTeX]TeX}}
 \usepackage[style=alphabetic,hyperref=auto,defernumbers=true,backend=bibtex,firstinits=true,maxbibnames=9,maxcitenames=3,isbn=false]{biblatex}
 \usepackage{xurl}
-\addbibresource{kwarcpubs.bib}
-\addbibresource{extpubs.bib}
-\addbibresource{kwarccrossrefs.bib}
-\addbibresource{extcrossrefs.bib}
+% \addbibresource{kwarcpubs.bib}
+% \addbibresource{extpubs.bib}
+% \addbibresource{kwarccrossrefs.bib}
+% \addbibresource{extcrossrefs.bib}
+\addbibresource{kwarc.bib}
 \addbibresource{otherrefs.bib}
 \usepackage[noabbrev]{cleveref}
 \usepackage{tikz}
@@ -35,7 +31,6 @@
 % \def\edited#1{\hl{#1}}
 \def\edited#1{#1}
 
-% I do not want to annotate just yet.
 
 \newcommand\ALeA{\textsf{ALeA}\xspace}
 \newcommand\SMGloM{\textsf{SMGloM}\xspace}
@@ -276,7 +271,7 @@ The annotation catalog is naturally language-specific.
 In practice, the annotation catalog for languages other than English is often inadequate as
 \begin{enumerate}[\em i\rm)]
     \item the domain model may not have translations in that language -- especially for the ``smaller'' languages, and
-    \item symbol names, usually English words, cannot be used as a verbalizations.
+    \item symbol names, usually English words, cannot be used as verbalizations.
 \end{enumerate}
 In this situation, we usually have to invest in
 establishing a suitable catalog -- e.g. by providing translations (or at least dictionary
@@ -530,12 +525,7 @@ This situation is familiar from software development and also from e.g. the \LaT
 ecosystem. Semantic authoring -- and thus the \snify utility -- inherits the requirements
 from both.
 
-% To cope with this situation, we are working on extending the brand-new \flams system
-% \cite{flams:on}\footnote{A paper on \flams is submitted to CICM 2025 and will be cited
-%   here if accepted.} with functionality for handling definienda in the FTML2RDF harvester,
-% so that all symbol/verbalizations are available in the \flams triple-store. Thus a harvest
-% from the flexiformal content commons would be just a simple SPARQL query and some
-% postprocessing of the result (de-duplication, stemming, and pairing) away.
+
 \edited{To cope with this situation, we are planning to extend the brand-new} \flams
 system~\cite{flamsongithub}, \edited{which, among other things, powers} \url{https://MathHub.info},
 \edited{so that it provides the data necessary to create a
@@ -684,20 +674,6 @@ distinction between technical terms and ordinary noun phrases to be practical on
 its own.  A combination with \snify's catalog-based approach might change the trade-offs
 involved.
 
-
-
-% In an earlier attempt to support semantic annotation in IDEs, we tried named-entity
-% recognition (NER) for classification of ``likely annotation candidate words''
-% \cite{hutterer:msc23}, however this classification was not precise enough in the
-% distinction in ``technical terms'' and ordinary English noun phrases and named entities --
-% the relevant task for annotation, and so made it impractical, especially, since it could
-% not enter the actual annotations and import directives automatically. But maybe using the
-% NER-based approach, after the \snify annotation process might change the trade-offs
-% involved. In any case, the overall workflow suggested by the NER-based approach --
-% especially after the verbalizations covered by the existing domain model\ednote{introduce
-%   in the definition above that the domain model is all definitions, not only in the
-%   smglom?} -- is geared towards adding modules and symbols -- the ones discovered by NER
-% -- to the domain model. 
 
 
 
