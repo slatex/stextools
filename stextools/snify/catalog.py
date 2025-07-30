@@ -57,6 +57,9 @@ class Catalog(Generic[Symb, Verb]):
     def symb_iter(self) -> Iterable[Symb]:
         yield from self.symb_to_verb.keys()
 
+    def get_symb_verbs(self, symb: Symb) -> list[Verb]:
+        return self.symb_to_verb.get(symb, [])
+
     def add_symbverb(self, symb: Symb, verb: Verb):
         self.symb_to_verb.setdefault(symb, []).append(verb)
         key = string_to_stemmed_word_sequence_simplified(verb.verb, self.lang)
