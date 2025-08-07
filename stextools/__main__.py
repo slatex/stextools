@@ -1,4 +1,5 @@
 import logging
+import shutil
 from pathlib import Path
 
 import click
@@ -53,7 +54,7 @@ def lexgen_command(files, interface):
 
 @cli.command(help='Clear the cache. The cache is automatically cleared whenever stextools is updated.')
 def clear_cache():
-    CACHE_DIR.unlink(missing_ok=True)
+    shutil.rmtree(CACHE_DIR)
     click.echo('Cache cleared.')
 
 
