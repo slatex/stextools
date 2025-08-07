@@ -49,7 +49,11 @@ void free_string(char* s);
         filepath_c = self.ffi.new('char[]', str(filepath).encode('utf-8'))
         self.lib.load_file(filepath_c)
 
-    def get_file_annotations(self, filepath: str | Path):
+    def get_file_annotations(self, filepath: str | Path, load: bool = True):
+        if load:
+            # note: if not explicitly loading, the file may only be partially loaded
+            # i.e. some annotations may not be available
+            self.load_file(filepath)
         filepath_c = self.ffi.new('char[]', str(filepath).encode('utf-8'))
         c_str = self.lib.get_file_annotations(filepath_c)
         py_str = self.ffi.string(c_str).decode('utf-8')
@@ -76,7 +80,7 @@ if __name__ == '__main__':
 
     print('Getting file json')
     # path = str(Path('/home/jfs/MMT/MMT-content/smglom/mv/source/mod/constant.en.tex').relative_to(Path.cwd(), walk_up=True)).encode('utf-8')
-    path = str(Path('/home/jfs/MMT/MMT-content/smglom/mv/source/mod/expression.de.tex'))
+    path = str(Path('/home/jfs/MMT/MMT-content/smglom/algebra/source/mod/subgroup.en.tex'))
     print(orjson.dumps(FLAMS.get_file_annotations(path)).decode('utf-8'))
     # relpath = str(Path('/home/jfs/MMT/MMT-content/smglom/mv/source/mod/constant.en.tex')).encode('utf-8')
 

@@ -65,7 +65,7 @@ def _verb_and_symb_extraction(j, opened_file: OpenedStexFLAMSFile) -> Iterable[R
         for k, v in j.items():
             # TODO: add more keys to filter (optimization)
             if k in {'full_range', 'val_range', 'key_range', 'Sig', 'smodule_range', 'Title', 'path_range',
-                     'archive_range', 'UseModule'}:
+                     'archive_range', 'UseModule', 'ImportModule'}:
                 continue
             if k in {'Symdef', 'Symdecl'}:
                 yield v['uri']['uri']
@@ -158,6 +158,7 @@ def local_flams_stex_catalogs() -> dict[str, LocalFlamsCatalog]:
 
     if deletions + len(todo_list) > 100:
         with timelogger(logger, f'Saving local sTeX verbalizations to {CACHE_FILE}'):
+            CACHE_DIR.mkdir(parents=True, exist_ok=True)
             with gzip.open(CACHE_FILE, 'w') as f:
                 f.write(orjson.dumps(cache))
 
