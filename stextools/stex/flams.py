@@ -1,6 +1,7 @@
 import functools
 from pathlib import Path
 from typing import Any
+import os
 
 import orjson
 from cffi import FFI
@@ -23,7 +24,7 @@ void free_string(char* s);
 
     @functools.cached_property
     def lib(self):
-        path = '/home/jfs/git/github.com/KWARC/FLAMS/target/release/libflams_ffi.so'
+        path = os.getenv('FLAMS_LIB_PATH') or raise RuntimeError('FLAMS_LIB_PATH environment variable not set')
         lib: Any = self.ffi.dlopen(path)
         lib.initialize()
         return lib
