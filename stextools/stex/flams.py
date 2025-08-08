@@ -24,7 +24,9 @@ void free_string(char* s);
 
     @functools.cached_property
     def lib(self):
-        path = os.getenv('FLAMS_LIB_PATH') or raise RuntimeError('FLAMS_LIB_PATH environment variable not set')
+        path = os.getenv('FLAMS_LIB_PATH')
+        if not path:
+            raise RuntimeError('FLAMS_LIB_PATH environment variable not set')
         lib: Any = self.ffi.dlopen(path)
         lib.initialize()
         return lib
