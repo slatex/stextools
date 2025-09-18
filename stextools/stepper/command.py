@@ -109,10 +109,15 @@ class CommandSectionLabel:
 @dataclasses.dataclass
 class CommandCollection:
     name: str
-    commands: list[Command | CommandSectionLabel]
+
+    # None entries will be deleted - this can be convenient for flexible construction
+    commands: list[Command | CommandSectionLabel | None]
+
     have_help: bool = True
 
     def __post_init__(self):
+        self.commands = [c for c in self.commands if c is not None]
+
         if self.have_help:
             self.commands = [_HelpCommand(self)] + self.commands
 

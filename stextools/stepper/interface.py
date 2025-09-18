@@ -1,24 +1,38 @@
 """
 User interfaces for the stepper module.
 """
+import _thread
 import dataclasses
 import functools
+import json
 import shutil
 import subprocess
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
+from queue import Queue
 from typing import Literal, Optional, TypeAlias, Callable, Any
 
 import click
 from pygments import highlight
+from pygments.formatters.html import HtmlFormatter
 from pygments.formatters.terminal import TerminalFormatter
 from pygments.formatters.terminal256 import TerminalTrueColorFormatter
 from pygments.lexers.markup import TexLexer, MarkdownLexer
+from pygments.lexers.special import TextLexer
 
 from stextools.config import get_config
 
 _Color: TypeAlias = str | tuple[int, int, int]
 
+HEADER_STYLE_MAP = {
+    'default': 'highlight1',
+    'error': 'error',
+    'warning': 'warning',
+    'subdialog': 'bold',
+    'section': 'bold',
+}
 
 def _get_lines_around(text: str, start: int, end: int, n_lines: int = 7) -> tuple[str, str, str, int]:
     """
@@ -44,6 +58,17 @@ def _get_lines_around(text: str, start: int, end: int, n_lines: int = 7) -> tupl
     end_index += 1
 
     return text[start_index:start], text[start:end], text[end:end_index], text[:start_index].count('\n') + 1
+
+
+def get_pygments_lexer(format):
+    if format in {'tex', 'sTeX', 'wdTeX'}:
+        return TexLexer(stripnl=False, stripall=False, ensurenl=False)
+    elif format == 'myst':
+        return MarkdownLexer(stripnl=False, stripall=False, ensurenl=False)
+    elif format == 'txt' or format is None:
+        return TextLexer(stripnl=False, stripall=False, ensurenl=False)
+    else:
+        raise ValueError(f"Unknown format: {format!r}. Supported formats are 'tex', 'sTeX', and 'myst'.")
 
 
 class interface:
@@ -280,6 +305,201 @@ class Interface(ABC):
         if not code.endswith('\n'):
             self.newline()
 
+
+def html_escape(text: str) -> str:
+    return (
+        text
+        .replace('&', '&amp;')
+        .replace('<', '&lt;')
+        .replace('>', '&gt;')
+    )
+
+
+class BrowserInterface(Interface):
+    """
+        A quick-and-dirty web interface (experimental).
+        Uses a simple HTTP server.
+        There is an output queue.
+        Writing etc. appends to the queue.
+        The web page frequently requests updates from the queue and displays them.
+
+        I thought using the standard library would be sufficient,
+        as the http interface is very simple. Not sure if that was smart.
+    """
+
+    class QueueElement:
+        pass
+
+    @dataclasses.dataclass
+    class HtmlQueueElement(QueueElement):
+        html: str
+
+    @dataclasses.dataclass
+    class InputElement(QueueElement):
+        pass
+
+    @dataclasses.dataclass
+    class ClearScreenElement(QueueElement):
+        pass
+
+    def __init__(self, port: int = 8080):
+        self.port = port
+
+        write_queue = Queue()
+        self.write_queue: Queue = write_queue
+        input_queue = Queue()
+        self.input_queue: Queue = input_queue
+
+        formatter = HtmlFormatter(style='vs')
+        self.formatter = formatter
+
+        # write_queue.put()
+
+        class MyHandler(BaseHTTPRequestHandler):
+            def do_POST(self):
+                match self.path:
+                    case '/input':
+                        content_length = int(self.headers['Content-Length'])
+                        post_data = self.rfile.read(content_length)
+                        self.my_header('text/plain')
+                        self.wfile.write(b'OK')
+                        input_queue.put(post_data.decode())
+                    case _:
+                        self.my_header("text/plain", 404)
+                        self.wfile.write(b'Not found')
+
+            def do_GET(self):
+                match self.path:
+                    case '/':
+                        self.my_header('text/html')
+                        self.wfile.write(f'''<!DOCTYPE html>
+<html lang="en">
+<head>
+<script src="http://localhost:{port}/static/browser_interface.js"></script>
+<link rel="stylesheet" href="http://localhost:{port}/static/browser_interface.css">
+<link rel="stylesheet" href="http://localhost:{port}/static/pygments.css">
+</head>
+<body>
+    <div id="content">
+        <span>Loading...</span>
+    </div>
+</body>
+</html>
+'''.encode('utf-8'))
+                    case '/fetch':
+                        self.my_header('application/json')
+                        elements = []
+                        while not write_queue.empty():
+                            element = write_queue.get()
+                            if isinstance(element, BrowserInterface.HtmlQueueElement):
+                                elements.append({
+                                    'type': 'html',
+                                    'html': element.html,
+                                })
+                            elif isinstance(element, BrowserInterface.InputElement):
+                                elements.append({
+                                    'type': 'input',
+                                })
+                            elif isinstance(element, BrowserInterface.ClearScreenElement):
+                                elements.append({
+                                    'type': 'clear',
+                                })
+                            else:
+                                raise ValueError(f"Unknown queue element type: {type(element)}")
+                        self.wfile.write(json.dumps({'elements': elements}).encode('utf-8'))
+                    case '/static/browser_interface.js':
+                        self.my_header('application/javascript')
+                        with open(Path(__file__).parent / 'resources' / 'browser_interface.js', 'rb') as f:
+                            self.wfile.write(f.read())
+                    case '/static/browser_interface.css':
+                        self.my_header('text/css')
+                        with open(Path(__file__).parent / 'resources' / 'browser_interface.css', 'rb') as f:
+                            self.wfile.write(f.read())
+                    case '/static/pygments.css':
+                        self.my_header('text/css')
+                        self.wfile.write(formatter.get_style_defs().encode('utf-8'))
+                    case _:
+                        self.my_header("text/plain", 404)
+                        self.wfile.write(b'Not found')
+
+            def my_header(self, content_type: str, code: int = 200):
+                self.send_response(code)
+                self.send_header("Content-type", content_type)
+                self.end_headers()
+
+        server = HTTPServer(('localhost', port), MyHandler)
+        _thread.start_new_thread(server.serve_forever, ())
+        def open_in_browser():
+            import time
+            time.sleep(0.3)   # wait a bit for the server to start (TODO: clean solution)
+            import webbrowser
+            webbrowser.open(f'http://localhost:{self.port}/')
+        _thread.start_new_thread(open_in_browser, ())
+
+    def apply_style(self, text: str, style: str) -> str:
+        return f'<span class="{style}">{html_escape(text)}</span>'   # styles can be defined in browser_interface.css
+
+    def write_text(self, text: str, style: str = 'default', *, prestyled: bool = False):
+        if not prestyled:
+            text = self.apply_style(text, style)
+        self.write_queue.put(BrowserInterface.HtmlQueueElement(text.replace('\n', '<br>\n')))
+
+    def clear(self) -> None:
+        self.write_queue.put(self.ClearScreenElement())
+
+    @contextmanager
+    def big_infopage(self):
+        self.clear()
+        yield
+        self.await_confirmation()
+        self.clear()
+
+    def get_input(self) -> str:
+        self.write_queue.put(self.InputElement())
+        return self.input_queue.get()
+
+    def write_header(
+            self, text: str, style: Literal['default', 'error', 'warning', 'subdialog', 'section'] = 'default'
+    ):
+        style = HEADER_STYLE_MAP[style]
+        self.write_text(f'<div class="{style} header">{text}</div>', prestyled=True)
+
+    def show_code(
+            self,
+            code: str,
+            format: Optional[Literal['tex', 'sTeX', 'myst']] = None,
+            *,
+            highlight_range: Optional[tuple[int, int]] = None,
+            limit_range: Optional[int] = None,    # only shows this many lines before/after the highlight_range
+            show_line_numbers: bool = True,
+    ):
+        lexer = get_pygments_lexer(format or 'txt')
+
+        def code_format(string: str) -> str:
+            result = highlight(string, lexer, self.formatter)
+            result = result.strip()
+            result = result[len('<div class="highlight"><pre>'):-len('</pre></div>')]
+            print(repr(result))
+            return result
+
+        a, b, c, line_no = self._code_highlight_prep(code, highlight_range, limit_range)
+
+
+        # formatted_code = code_format(a) + self.apply_style(b, 'highlight') + code_format(c)
+        formatted_code = code_format(a) + self.apply_style(b, 'highlight') + code_format(c)
+
+        result = []
+        for i, line in enumerate(formatted_code.splitlines(keepends=True), line_no):
+            result.append(self.apply_style(f'{i:4} ', 'pale'))
+            result.append(line)
+
+        self.write_queue.put(BrowserInterface.HtmlQueueElement(
+            '<span class="code-block"><pre>' + ''.join(result) + '\n</pre></span>'
+        ))
+
+
+
+
 class MinimalInterface(Interface):
     """A minimal interface that only prints text to the console."""
 
@@ -337,9 +557,6 @@ class ConsoleInterface(Interface):
         }  # ansi codes are apparently stripped in the fzf output
         return lookup[selected]
 
-
-
-
     def width(self):
         return shutil.get_terminal_size().columns
 
@@ -367,14 +584,7 @@ class ConsoleInterface(Interface):
     def write_header(
             self, text: str, style: Literal['default', 'error', 'warning', 'subdialog', 'section'] = 'default'
     ):
-        style = {
-            'default': 'highlight1',
-            'error': 'error',
-            'warning': 'warning',
-            'subdialog': 'bold',
-            'section': 'bold',
-        }[style]
-        self.write_text(f'{text:^{self.width()}}', style=style)
+        self.write_text(f'{text:^{self.width()}}', style=HEADER_STYLE_MAP[style])
         self.newline()
 
     def apply_style(self, text: str, style: str) -> str:
@@ -445,12 +655,7 @@ class ConsoleInterface(Interface):
             else:
                 formatter = TerminalFormatter(style=style)
 
-            if format in {'tex', 'sTeX'}:
-                lexer = TexLexer(stripnl=False, stripall=False, ensurenl=False)
-            elif format == 'myst':
-                lexer = MarkdownLexer(stripnl=False, stripall=False, ensurenl=False)
-            else:
-                raise ValueError(f"Unknown format: {format!r}. Supported formats are 'tex', 'sTeX', and 'myst'.")
+            lexer = get_pygments_lexer(format or 'txt')
 
             return highlight(string, lexer, formatter)
 
@@ -497,6 +702,7 @@ DEFAULT_INTERFACES: dict[str, Callable[[], Interface]] = {
     'console-light': lambda: ConsoleInterface(light_mode=True, true_color=False),
     'console-true-dark': lambda: ConsoleInterface(light_mode=True, true_color=True),
     'console-true-light': lambda: ConsoleInterface(light_mode=True, true_color=True),
+    'browser': lambda: BrowserInterface(),
 }
 
 def set_interface(new_interface: Interface | str):

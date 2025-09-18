@@ -1,0 +1,18 @@
+.bold { font-weight: bold; }
+.highlight { background-color: yellow; }
+.highlight1 { background-color: lightgreen; }
+.highlight2 { background-color: cyan; }
+.highlight3 { background-color: lightblue; }
+.error { background-color: red; }
+.error-weak { color: red; }
+.success-weak { color: green; }
+.warning { background-color: yellow; }
+
+#content {
+    font-family: monospace;
+}
+
+.header {
+    margin: 10px 0;
+    text-align: center;
+}

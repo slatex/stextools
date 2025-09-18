@@ -9,7 +9,13 @@ from stextools.snify.snifystepper import SnifyStepper
 from stextools.stepper.session_storage import SessionStorage, IgnoreSessions
 
 
-def snify(files: list[Path]):
+def snify(
+        files: list[Path],
+        anno_format: str = 'stex'
+):
+    if anno_format not in {'stex', 'wikidata'}:
+        raise ValueError(f"Unknown annotation format: {anno_format}")
+
     session_storage = SessionStorage('snify2')
     result = session_storage.get_session_dialog()
     if isinstance(result, Exit):
@@ -23,7 +29,10 @@ def snify(files: list[Path]):
                 document_index=0,
                 selection=0,
             ),
-            documents=documents_from_paths(files)
+            documents=documents_from_paths(
+                files,
+                tex_format='wdTeX' if anno_format=='wikidata' else 'sTeX'
+            )
         )
 
     stepper = SnifyStepper(state)

@@ -38,16 +38,14 @@ class Document(abc.ABC):
         return []
 
 
-class STeXDocument(Document):
-    """ A local stex document. """
+class LocalFileDocument(Document, abc.ABC):
     _content: Optional[str] = None
-    _latex_walker: Optional[LatexWalker] = None
 
-    def __init__(self, path: Path, language: str):
+    def __init__(self, path: Path, language: str, format: str):
         self.path = path
         super().__init__(
             identifier=str(path.resolve().absolute()),
-            format='sTeX',
+            format=format,
             language=language
         )
 
@@ -58,6 +56,22 @@ class STeXDocument(Document):
 
     def set_content(self, content: str):
         self.write_content(content)
+
+    def write_content(self, content: str) -> None:
+        """ Writes the content to the file. """
+        self.path.write_text(content)
+        self._content = content
+
+
+class STeXDocument(LocalFileDocument):
+    """ A local stex document. """
+    _latex_walker: Optional[LatexWalker] = None
+
+    def __init__(self, path: Path, language: str):
+        super().__init__(path, language, 'sTeX')
+
+    def set_content(self, content: str):
+        super().set_content(content)
         self._latex_walker = None
         FLAMS.load_file(self.identifier)
 
@@ -69,12 +83,6 @@ class STeXDocument(Document):
             self._latex_walker = LatexWalker(content, latex_context=STEX_CONTEXT_DB)
         return self._latex_walker
 
-    def write_content(self, content: str) -> None:
-        """ Writes the content to the file. """
-        self.path.write_text(content)
-        self._content = content
-        self._latex_walker = None
-
     def get_annotatable_plaintext(self) -> Iterable[LinkedStr[None]]:
         return get_annotatable_plaintext(
             self.get_latex_walker()
@@ -84,8 +92,27 @@ class STeXDocument(Document):
         return get_plaintext_approx(self.get_latex_walker())
 
 
+class WdAnnoTexDocument(LocalFileDocument):
+    """ A local tex document that is supposed to be annotated with WikiData annotations (not sTeX). """
+
+    _latex_walker: Optional[LatexWalker] = None
+
+    def __init__(self, path: Path, language: str):
+        super().__init__(path, language, 'wdTeX')
+
+    def set_content(self, content: str):
+        super().set_content(content)
+        self._latex_walker = None
+
+    # copy everything else from STeXDocument (it's just a prototype, if successful, we can improve it)
+    get_latex_walker = STeXDocument.get_latex_walker
+    get_annotatable_plaintext = STeXDocument.get_annotatable_plaintext
+    get_plaintext_approximation = STeXDocument.get_plaintext_approximation
+
+
 def documents_from_paths(
-        paths: list[Path]
+        paths: list[Path],
+        tex_format: str = 'sTeX',    # or 'wdTeX' to use wikidata annotation format
 ) -> list[Document]:
     included_paths: set[Path] = set()
 
@@ -103,6 +130,8 @@ def documents_from_paths(
     # Step 2: create Document objects for each file
     documents = [
         STeXDocument(path=path, language=lang_from_path(path))
+        if tex_format == 'sTeX' else
+        WdAnnoTexDocument(path=path, language=lang_from_path(path))
         for path in file_paths
     ]
 

@@ -89,6 +89,7 @@ STANDARD_MACRO_SPECS: list = [
 
     # less standard
     MacroSpec('ednote', '{'),
+    MacroSpec('wdalign', '{{')   # wikidata alignment
 ]
 
 STANDARD_ENV_SPECS: list = [

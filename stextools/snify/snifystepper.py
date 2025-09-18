@@ -11,8 +11,9 @@ from stextools.snify.snify_commands import View_i_Command, ViewCommand, ExitFile
     StemFocusCommandPlus, PreviousWordShouldBeIncluded, FirstWordShouldntBeIncluded, NextWordShouldBeIncluded, \
     LastWordShouldntBeIncluded
 from stextools.snify.snifystate import SnifyState, SnifyCursor
+from stextools.snify.wikidata import get_wd_catalog, WdAnnotateCommand
 from stextools.stepper.command import CommandCollection, CommandSectionLabel, CommandOutcome
-from stextools.stepper.document import STeXDocument, Document
+from stextools.stepper.document import STeXDocument, Document, WdAnnoTexDocument
 from stextools.stepper.document_stepper import DocumentModifyingStepper
 from stextools.stepper.interface import interface
 from stextools.stepper.stepper import Stepper, StopStepper, Modification
@@ -30,7 +31,7 @@ class SnifyStepper(DocumentModifyingStepper, QuittableStepper, CursorModifyingSt
     def get_stex_catalogs(self) -> dict[str, LocalFlamsCatalog]:
         return local_flams_stex_catalogs()
 
-    def get_catalog_for_document(self, doc: Document) -> Optional[LocalFlamsCatalog]:
+    def get_catalog_for_document(self, doc: Document) -> Optional[Catalog]:
         error_message: Optional[str] = None
         catalog: Optional[Catalog] = None
 
@@ -48,6 +49,8 @@ class SnifyStepper(DocumentModifyingStepper, QuittableStepper, CursorModifyingSt
                 )
             else:
                 catalog = catalogs[doc.language]
+        elif isinstance(doc, WdAnnoTexDocument):
+            return get_wd_catalog(doc.language)
         else:
             raise ValueError(f'Unsupported document type {type(doc)}')
 
@@ -58,7 +61,7 @@ class SnifyStepper(DocumentModifyingStepper, QuittableStepper, CursorModifyingSt
             catalog = catalog.sub_catalog_for_stem(self.state.stem_focus)
         return catalog
 
-    def get_catalog_for_current_document(self) -> Optional[LocalFlamsCatalog]:
+    def get_catalog_for_current_document(self) -> Optional[Catalog]:
         """ Get the catalog for the currently selected document."""
         doc = self.state.get_current_document()
         return self.get_catalog_for_document(doc)
@@ -160,6 +163,8 @@ class SnifyStepper(DocumentModifyingStepper, QuittableStepper, CursorModifyingSt
         catalog = self.get_catalog_for_current_document()
         document = self.state.get_current_document()
         assert catalog is not None
+        is_stex = isinstance(document, STeXDocument)
+        is_wdtex = isinstance(document, WdAnnoTexDocument)
         return CommandCollection(
             'snify',
             [
@@ -169,8 +174,10 @@ class SnifyStepper(DocumentModifyingStepper, QuittableStepper, CursorModifyingSt
                 RedoCommand(is_possible=bool(self.modification_future)),
 
                 CommandSectionLabel('\nAnnotation'),
-                STeXAnnotateCommand(self.state, self.current_annotation_choices, catalog, self),
-                STeXLookupCommand(self.state, catalog, self),
+                STeXAnnotateCommand(self.state, self.current_annotation_choices, catalog, self) if is_stex else None,
+                WdAnnotateCommand(self.state, self.current_annotation_choices, catalog) if is_wdtex else None,
+                STeXLookupCommand(self.state, catalog, self) if is_stex else None,
+
 
                 CommandSectionLabel('\nSelection modification'),
                 PreviousWordShouldBeIncluded(self.state),
