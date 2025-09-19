@@ -13,9 +13,9 @@ from stextools.snify.snify_commands import View_i_Command, ViewCommand, ExitFile
 from stextools.snify.snifystate import SnifyState, SnifyCursor
 from stextools.snify.wikidata import get_wd_catalog, WdAnnotateCommand
 from stextools.stepper.command import CommandCollection, CommandSectionLabel, CommandOutcome
-from stextools.stepper.document import STeXDocument, Document, WdAnnoTexDocument
+from stextools.stepper.document import STeXDocument, Document, WdAnnoTexDocument, WdAnnoHtmlDocument
 from stextools.stepper.document_stepper import DocumentModifyingStepper
-from stextools.stepper.interface import interface
+from stextools.stepper.interface import interface, BrowserInterface
 from stextools.stepper.stepper import Stepper, StopStepper, Modification
 from stextools.stepper.stepper_extensions import QuittableStepper, QuitCommand, CursorModifyingStepper, UndoCommand, \
     RedoCommand, UndoableStepper
@@ -49,7 +49,7 @@ class SnifyStepper(DocumentModifyingStepper, QuittableStepper, CursorModifyingSt
                 )
             else:
                 catalog = catalogs[doc.language]
-        elif isinstance(doc, WdAnnoTexDocument):
+        elif isinstance(doc, WdAnnoTexDocument) or isinstance(doc, WdAnnoHtmlDocument):
             return get_wd_catalog(doc.language)
         else:
             raise ValueError(f'Unsupported document type {type(doc)}')
@@ -151,12 +151,33 @@ class SnifyStepper(DocumentModifyingStepper, QuittableStepper, CursorModifyingSt
         interface.write_header(
             doc.identifier
         )
-        interface.show_code(
-            doc.get_content(),
-            doc.format,  # type: ignore
-            highlight_range=self.state.cursor.selection if isinstance(self.state.cursor.selection, tuple) else None,
-            limit_range=5,
-        )
+        if isinstance(interface.get_object(), BrowserInterface) and isinstance(doc, WdAnnoHtmlDocument):
+            # render the HTML, rather than its source
+            if isinstance(self.state.cursor.selection, tuple):
+                a, b = self.state.cursor.selection
+                content = (
+                        doc.get_content()[doc.get_body_range()[0]:a] +
+                        '<span class="highlight" id="snifyhighlight">' +
+                        doc.get_content()[a:b] +
+                        '</span>' +
+                        doc.get_content()[b:doc.get_body_range()[1]]
+                )
+            else:
+                content = doc.get_body_content()
+            interface.write_text(
+                '<div style="border: 1px solid black; padding: 5px; margin: 5px; max-height: 400px; overflow: auto;">' +
+                 content +
+                '</div>' + r'''
+                ''',
+                prestyled=True,
+            )
+        else:
+            interface.show_code(
+                doc.get_content(),
+                doc.format,  # type: ignore
+                highlight_range=self.state.cursor.selection if isinstance(self.state.cursor.selection, tuple) else None,
+                limit_range=5,
+            )
         interface.newline()
 
     def get_current_command_collection(self) -> CommandCollection:
@@ -164,7 +185,7 @@ class SnifyStepper(DocumentModifyingStepper, QuittableStepper, CursorModifyingSt
         document = self.state.get_current_document()
         assert catalog is not None
         is_stex = isinstance(document, STeXDocument)
-        is_wdtex = isinstance(document, WdAnnoTexDocument)
+        is_wdanno = isinstance(document, WdAnnoTexDocument) or isinstance(document, WdAnnoHtmlDocument)
         return CommandCollection(
             'snify',
             [
@@ -175,7 +196,7 @@ class SnifyStepper(DocumentModifyingStepper, QuittableStepper, CursorModifyingSt
 
                 CommandSectionLabel('\nAnnotation'),
                 STeXAnnotateCommand(self.state, self.current_annotation_choices, catalog, self) if is_stex else None,
-                WdAnnotateCommand(self.state, self.current_annotation_choices, catalog) if is_wdtex else None,
+                WdAnnotateCommand(self.state, self.current_annotation_choices, catalog) if is_wdanno else None,
                 STeXLookupCommand(self.state, catalog, self) if is_stex else None,
 
 

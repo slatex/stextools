@@ -89,7 +89,7 @@ def lang_from_path(path: str | Path) -> str:
     else:
         segments = path.split('/')[-1].split('.')
     lang = 'en'   # default
-    if len(segments) > 2 and len(segments[-2]) < 5:
+    if len(segments) > 2 and len(segments[-2]) < 4:
         lang = segments[-2]
     return lang
 

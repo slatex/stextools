@@ -7,6 +7,11 @@ async function fetchUpdates() {
             const span = document.createElement('span');
             span.innerHTML = element.html;
             contentDiv.appendChild(span);
+            // TODO: snify-specific code shouldn't be here
+            const target = document.getElementById("snifyhighlight")
+            if (target) {
+                target.scrollIntoView({behavior: "smooth", block: "center"});
+            }
         } else if (element.type === 'input') {
             const input = document.createElement('input');
             input.type = 'text';

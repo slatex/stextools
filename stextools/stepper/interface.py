@@ -19,6 +19,7 @@ from pygments import highlight
 from pygments.formatters.html import HtmlFormatter
 from pygments.formatters.terminal import TerminalFormatter
 from pygments.formatters.terminal256 import TerminalTrueColorFormatter
+from pygments.lexers.html import HtmlLexer
 from pygments.lexers.markup import TexLexer, MarkdownLexer
 from pygments.lexers.special import TextLexer
 
@@ -67,6 +68,8 @@ def get_pygments_lexer(format):
         return MarkdownLexer(stripnl=False, stripall=False, ensurenl=False)
     elif format == 'txt' or format is None:
         return TextLexer(stripnl=False, stripall=False, ensurenl=False)
+    elif format == 'wdHTML':
+        return HtmlLexer(stripnl=False, stripall=False, ensurenl=False)
     else:
         raise ValueError(f"Unknown format: {format!r}. Supported formats are 'tex', 'sTeX', and 'myst'.")
 
@@ -79,6 +82,10 @@ class interface:
     An alternative would be to use __getattr__,
     but that would prevent static type checking.
     """
+    @staticmethod
+    def get_object() -> 'Interface':
+        return actual_interface
+
     @staticmethod
     def clear():
         actual_interface.clear()
@@ -356,6 +363,9 @@ class BrowserInterface(Interface):
         # write_queue.put()
 
         class MyHandler(BaseHTTPRequestHandler):
+            def log_message(self, format, *args):
+                pass
+
             def do_POST(self):
                 match self.path:
                     case '/input':
@@ -437,12 +447,15 @@ class BrowserInterface(Interface):
         _thread.start_new_thread(open_in_browser, ())
 
     def apply_style(self, text: str, style: str) -> str:
-        return f'<span class="{style}">{html_escape(text)}</span>'   # styles can be defined in browser_interface.css
+        return f'<span class="{style}">{html_escape(text.replace('\n', '<br>\n'))}</span>'   # styles can be defined in browser_interface.css
 
     def write_text(self, text: str, style: str = 'default', *, prestyled: bool = False):
         if not prestyled:
             text = self.apply_style(text, style)
-        self.write_queue.put(BrowserInterface.HtmlQueueElement(text.replace('\n', '<br>\n')))
+        self.write_queue.put(BrowserInterface.HtmlQueueElement(text))
+
+    def newline(self):
+        self.write_queue.put(BrowserInterface.HtmlQueueElement('<br>\n'))
 
     def clear(self) -> None:
         self.write_queue.put(self.ClearScreenElement())

@@ -5,6 +5,7 @@ from typing import Iterable, Optional
 
 from pylatexenc.latexwalker import LatexWalker
 
+from stextools.stepper.html_support import MyHtmlParser
 from stextools.stex.local_stex import lang_from_path
 from stextools.stex.stex_py_parsing import STEX_CONTEXT_DB, get_annotatable_plaintext, get_plaintext_approx
 from stextools.stex.flams import FLAMS
@@ -110,9 +111,39 @@ class WdAnnoTexDocument(LocalFileDocument):
     get_plaintext_approximation = STeXDocument.get_plaintext_approximation
 
 
+class WdAnnoHtmlDocument(LocalFileDocument):
+    """ A (local) HTML document that is supposed to be annotated with WikiData annotations (not sTeX/FLAMS). """
+    def __init__(self, path: Path, language: str):
+        super().__init__(path, language, 'wdHTML')
+
+        self.html_parser: Optional[MyHtmlParser] = None
+
+    def set_content(self, content: str):
+        super().set_content(content)
+        self.html_parser = None
+
+    def _get_html_parser(self) -> MyHtmlParser:
+        if self.html_parser is None:
+            self.html_parser = MyHtmlParser(self.get_content())
+            self.html_parser.feed(self.get_content())
+        return self.html_parser
+
+    def get_body_range(self) -> tuple[int, int]:
+        html_parser = self._get_html_parser()
+        return html_parser.body_start, html_parser.body_end
+
+    def get_body_content(self) -> str:
+        a, b = self.get_body_range()
+        return self.get_content()[a:b]
+
+    def get_annotatable_plaintext(self) -> Iterable[LinkedStr[None]]:
+        return iter(self._get_html_parser().annotatable_plaintext_ranges)
+
+
 def documents_from_paths(
         paths: list[Path],
         tex_format: str = 'sTeX',    # or 'wdTeX' to use wikidata annotation format
+        html_format: Optional[str] = None,  # 'wdHTML' to use wikidata annotation format for HTML files
 ) -> list[Document]:
     included_paths: set[Path] = set()
 
@@ -121,18 +152,30 @@ def documents_from_paths(
     for path in paths:
         if not path.exists():
             raise FileNotFoundError(f"Path {path} does not exist.")
-        files = [path] if path.is_file() else path.rglob('*.tex')
+        if path.is_file():
+            files = [path]
+        else:
+            files = list(path.rglob('*.tex'))
+            if html_format is not None:
+                for html_path in path.rglob('*.html'):
+                    files.append(html_path)
+
         for path in files:
             if path not in included_paths:
                 file_paths.append(path)
                 included_paths.add(path)
 
     # Step 2: create Document objects for each file
-    documents = [
-        STeXDocument(path=path, language=lang_from_path(path))
-        if tex_format == 'sTeX' else
-        WdAnnoTexDocument(path=path, language=lang_from_path(path))
-        for path in file_paths
-    ]
+    documents: list[Document] = []
+
+    for path in file_paths:
+        if tex_format == 'sTeX' and path.suffix == '.tex':
+            documents.append(STeXDocument(path=path, language=lang_from_path(path)))
+        elif tex_format == 'wdTeX' and path.suffix == '.tex':
+            documents.append(WdAnnoTexDocument(path=path, language=lang_from_path(path)))
+        elif html_format == 'wdHTML' and path.suffix == '.html':
+            documents.append(WdAnnoHtmlDocument(path=path, language=lang_from_path(path)))
+        else:
+            raise ValueError(f"Unsupported file format for path {path} with suffix {path.suffix}")
 
     return documents

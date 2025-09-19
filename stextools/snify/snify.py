@@ -31,7 +31,8 @@ def snify(
             ),
             documents=documents_from_paths(
                 files,
-                tex_format='wdTeX' if anno_format=='wikidata' else 'sTeX'
+                tex_format='wdTeX' if anno_format=='wikidata' else 'sTeX',
+                html_format='wdHTML' if anno_format=='wikidata' else None
             )
         )
 
