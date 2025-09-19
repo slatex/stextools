@@ -45,7 +45,7 @@ class SnifyStepper(DocumentModifyingStepper, QuittableStepper, CursorModifyingSt
             elif doc.language not in catalogs:
                 error_message = (
                     f'Error when processing {doc.identifier}:\n'
-                    'No STeX catalogs available for language {doc.language}.'
+                    f'No STeX catalogs available for language {doc.language!r}.'
                 )
             else:
                 catalog = catalogs[doc.language]
