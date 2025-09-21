@@ -1,5 +1,5 @@
 .bold { font-weight: bold; }
-.highlight { background-color: yellow; }
+.highlight { background-color: orange; }
 .highlight1 { background-color: lightgreen; }
 .highlight2 { background-color: cyan; }
 .highlight3 { background-color: lightblue; }
@@ -15,4 +15,8 @@
 .header {
     margin: 10px 0;
     text-align: center;
+}
+
+[data-wd-align] {
+    color: #0bb;
 }

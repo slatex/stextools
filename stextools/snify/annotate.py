@@ -19,6 +19,19 @@ from stextools.stex.flams import FLAMS
 from stextools.utils.json_iter import json_iter
 
 
+class AnnotationChoices:
+    pass
+
+
+@dataclasses.dataclass(frozen=True)
+class TextAnnotationChoices(AnnotationChoices):
+    choices: list[tuple[Any, Verbalization]]
+
+
+@dataclasses.dataclass(frozen=True)
+class MathAnnotationChoices(AnnotationChoices):
+    choices: list[Any]
+
 class AnnotationAborted(Exception):
     pass
 
@@ -238,11 +251,11 @@ class STeXAnnotateCommand(STeXAnnotateBase, Command):
     def __init__(
             self,
             state: SnifyState,
-            options: list[tuple[LocalStexSymbol, Verbalization]],
+            options: TextAnnotationChoices,
             catalog: LocalFlamsCatalog,
             stepper,
     ):
-        self.options = options
+        self.options = options.choices
         STeXAnnotateBase.__init__(self, state, catalog, stepper)
         Command.__init__(
             self,

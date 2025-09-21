@@ -1,15 +1,20 @@
 import abc
 import dataclasses
+import itertools
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Iterable, Optional, TypeAlias, Literal, cast
 
-from pylatexenc.latexwalker import LatexWalker
+from pylatexenc.latexwalker import LatexWalker, LatexMathNode, LatexCommentNode, LatexSpecialsNode, LatexMacroNode, \
+    LatexEnvironmentNode, LatexGroupNode, LatexCharsNode
 
 from stextools.stepper.html_support import MyHtmlParser
 from stextools.stex.local_stex import lang_from_path
-from stextools.stex.stex_py_parsing import STEX_CONTEXT_DB, get_annotatable_plaintext, get_plaintext_approx
+from stextools.stex.stex_py_parsing import STEX_CONTEXT_DB, get_annotatable_plaintext, get_plaintext_approx, \
+    PLAINTEXT_EXTRACTION_MACRO_RECURSION, PLAINTEXT_EXTRACTION_ENVIRONMENT_RULES
 from stextools.stex.flams import FLAMS
-from stextools.utils.linked_str import LinkedStr
+from stextools.utils.linked_str import LinkedStr, string_to_lstr
+
+MODE: TypeAlias = Literal['text', 'math']
 
 
 @dataclasses.dataclass
@@ -27,10 +32,21 @@ class Document(abc.ABC):
         pass
 
     def get_annotatable_plaintext(self) -> Iterable[LinkedStr[None]]:
-        raise NotImplementedError()
+        raise NotImplementedError(f'get_annotatable_plaintext not implemented for {self.format} documents.')
+
+    def get_annotatable_formulae(self) -> Iterable[LinkedStr[None]]:
+        raise NotImplementedError(f'{type(self)}.get_annotatable_formulae not implemented.')
+
+    def get_all_annotatable(self) -> Iterable[tuple[MODE, LinkedStr[None]]]:
+        l: list[tuple[MODE, LinkedStr[None]]] = list(itertools.chain(
+            (( cast(MODE, 'text'), lstr) for lstr in self.get_annotatable_plaintext()),
+            ((cast(MODE, 'math'), lstr) for lstr in self.get_annotatable_formulae())
+        ))
+        l.sort(key=lambda x: x[1].get_start_ref())
+        return l
 
     def get_plaintext_approximation(self) -> LinkedStr:
-        raise NotImplementedError()
+        raise NotImplementedError(f'get_plaintext_approximation not implemented for {self.format} documents.')
 
     def get_inputted_documents(self) -> Iterable['Document']:
         r""" Returns the documents that were inputted to this document.
@@ -105,6 +121,42 @@ class WdAnnoTexDocument(LocalFileDocument):
         super().set_content(content)
         self._latex_walker = None
 
+    def get_annotatable_formulae(self) -> Iterable[LinkedStr[None]]:
+        result: list[LinkedStr] = []
+        walker = self.get_latex_walker()
+        # walker = LatexWalker(latex_text, latex_context=STEX_CONTEXT_DB)
+        latex_text = walker.s
+
+        def _recurse(nodes):
+            for node in nodes:
+                if node is None or node.nodeType() in {LatexCommentNode, LatexSpecialsNode}:
+                    continue
+                if node.nodeType() == LatexMathNode:
+                    result.append(string_to_lstr(latex_text[node.pos:node.pos+node.len], node.pos))
+                elif node.nodeType() == LatexMacroNode:
+                    if node.macroname in PLAINTEXT_EXTRACTION_MACRO_RECURSION:
+                        for arg_idx in PLAINTEXT_EXTRACTION_MACRO_RECURSION[node.macroname]:
+                            _recurse([node.nodeargd.argnlist[arg_idx]])
+                elif node.nodeType() == LatexEnvironmentNode:
+                    if node.envname in PLAINTEXT_EXTRACTION_ENVIRONMENT_RULES:
+                        recurse_content, recurse_args = PLAINTEXT_EXTRACTION_ENVIRONMENT_RULES[node.envname]
+                    else:
+                        recurse_content, recurse_args = True, []
+                    for arg_idx in recurse_args:
+                        _recurse([node.nodeargd.argnlist[arg_idx]])
+                    if recurse_content:
+                        _recurse(node.nodelist)
+                elif node.nodeType() == LatexGroupNode:
+                    _recurse(node.nodelist)
+                elif node.nodeType() == LatexCharsNode:
+                    result.append(string_to_lstr(node.chars, node.pos))
+                else:
+                    raise RuntimeError(f"Unexpected node type: {node.nodeType()}")
+
+        _recurse(walker.get_latex_nodes()[0])
+
+        return result
+
     # copy everything else from STeXDocument (it's just a prototype, if successful, we can improve it)
     get_latex_walker = STeXDocument.get_latex_walker
     get_annotatable_plaintext = STeXDocument.get_annotatable_plaintext
@@ -121,6 +173,8 @@ class WdAnnoHtmlDocument(LocalFileDocument):
     def set_content(self, content: str):
         super().set_content(content)
         self.html_parser = None
+        with open('/tmp/test2.html', 'w') as fp:
+            fp.write(content)
 
     def _get_html_parser(self) -> MyHtmlParser:
         if self.html_parser is None:
@@ -138,6 +192,12 @@ class WdAnnoHtmlDocument(LocalFileDocument):
 
     def get_annotatable_plaintext(self) -> Iterable[LinkedStr[None]]:
         return iter(self._get_html_parser().annotatable_plaintext_ranges)
+
+
+    def get_annotatable_formulae(self) -> Iterable[LinkedStr[None]]:
+        content = self.get_content()
+        for start, end in self._get_html_parser().formula_ranges:
+            yield string_to_lstr(content[start:end], start)
 
 
 def documents_from_paths(

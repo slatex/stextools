@@ -1,18 +1,23 @@
 import dataclasses
 import functools
 import gzip
+import html
 import itertools
 import logging
-from typing import Sequence
+import re
+from typing import Sequence, Optional
 
 import orjson
 import requests
 
 
 from stextools.config import CACHE_DIR
-from stextools.snify.catalog import Catalog, Verbalization
+from stextools.snify.annotate import AnnotationChoices, TextAnnotationChoices, MathAnnotationChoices
+from stextools.snify.catalog import Catalog, Verbalization, Symb
+from stextools.snify.math_catalog import MathCatalog
 from stextools.snify.snifystate import SnifyState, SnifyCursor
 from stextools.stepper.command import Command, CommandInfo, CommandOutcome
+from stextools.stepper.document import WdAnnoTexDocument, WdAnnoHtmlDocument
 from stextools.stepper.document_stepper import SubstitutionOutcome
 from stextools.stepper.interface import interface
 from stextools.stepper.stepper_extensions import SetCursorOutcome
@@ -37,12 +42,22 @@ def send_query(query: str):
     return r.json()
 
 class QueryFragments:
-    item_is_math_concept = r'''
-      {?item wdt:P2579/wdt:P31 wd:Q20026918 . } UNION
+    item_is_math_concept_small = r'''
+      { ?item wdt:P2579/wdt:P31 wd:Q20026918 . } UNION
       { ?item wdt:P2579/wdt:P31 wd:Q1936384 . } UNION
-      {  ?item wdt:P279/wdt:P2579/wdt:P31 wd:Q1936384 . } UNION
-      {?item wdt:P2579 wd:Q395 .}.
+      { ?item wdt:P279/wdt:P2579/wdt:P31 wd:Q1936384 . } UNION
+      { ?item wdt:P2579 wd:Q395 . }.
     '''
+    item_is_math_concept = r'''
+    { ?item wdt:P6104 wd:Q8487137 .
+        FILTER NOT EXISTS {?item wdt:P31 wd:Q28920044. } .
+        FILTER NOT EXISTS {?item wdt:P31 wd:Q5 }.
+        FILTER NOT EXISTS {?item wdt:P31 wd:Q10376408 }.
+    } UNION {VALUES ?item { wd:Q204 wd:Q199 wd:Q200 }}. 
+    '''
+
+    item_has_unicode_notation = r'?item wdt:P913?/wdt:P487 ?notation'
+    item_has_tex_notation = r'?item wdt:P913?/wdt:P1993 ?notation'
 
     @classmethod
     def item_label_in_lang(cls, lang: str) -> str:
@@ -66,6 +81,7 @@ class WdSymbol:
 
 
 def _get_cached_verbs(lang: str):
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
     cache_file = CACHE_DIR / f'wd_labels_{lang}.json.gz'
     if cache_file.exists():
         with gzip.open(cache_file, 'rb') as fp:
@@ -81,7 +97,7 @@ def _get_cached_verbs(lang: str):
     ''')
     akas = send_query(f'''
     SELECT DISTINCT ?item ?aka WHERE {{
-      {QueryFragments.item_is_math_concept}
+      {QueryFragments.item_is_math_concept_small}   # bigger set of items result in timeout
       {QueryFragments.aka_in_lang(lang)}
     }}
     ''')
@@ -102,6 +118,30 @@ def _get_cached_verbs(lang: str):
 
     return verb_data
 
+def _get_cached_symbols(format: str):
+    assert format in {'tex', 'unicode'}
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    cache_file = CACHE_DIR / f'wd_notations_{format}.json.gz'
+    if cache_file.exists():
+        with gzip.open(cache_file, 'rb') as fp:
+            return orjson.loads(fp.read())
+
+    logger.info(f'Downloading {format} notations from wikidata')
+    notations = send_query(f'''
+    SELECT DISTINCT ?item ?notation WHERE {{
+      {QueryFragments.item_is_math_concept}
+      { {'unicode': QueryFragments.item_has_unicode_notation, 'tex': QueryFragments.item_has_tex_notation}[format] }
+    }}
+    ''')
+    notation_data = {}
+    for binding in notations['results']['bindings']:
+        notation_data[binding['item']['value']] = binding['notation']['value']
+
+    with gzip.open(cache_file, 'wb') as fp:
+        fp.write(orjson.dumps(notation_data))
+
+    return notation_data
+
 
 @functools.cache
 def get_wd_catalog(lang: str) -> Catalog[WdSymbol, Verbalization]:
@@ -114,13 +154,24 @@ def get_wd_catalog(lang: str) -> Catalog[WdSymbol, Verbalization]:
     return catalog
 
 
+@functools.cache
+def get_notation_table(format: str) -> dict[str, list[str]]:
+    notation_data = _get_cached_symbols(format)
+    notation_table: dict[str, list[str]] = {}
+    for uri, notation in notation_data.items():
+        symbol_id = uri.split('/')[-1]
+        if notation not in notation_table:
+            notation_table[notation] = []
+        notation_table[notation].append(symbol_id)
+    return notation_table
+
 
 class WdAnnotateCommand(Command):
     def __init__(
             self,
             state: SnifyState,
-            options: list[tuple[WdSymbol, Verbalization]],
-            catalog: Catalog[WdSymbol, Verbalization]
+            options: AnnotationChoices,
+            catalog: Catalog[WdSymbol, Verbalization] | MathCatalog,
     ):
         self.state = state
         self.options = options
@@ -137,27 +188,99 @@ class WdAnnotateCommand(Command):
         )
 
     def standard_display(self):
-        for i, (symb, verb) in enumerate(self.options):
-            interface.write_command_info(
-                str(i),
-                f' {symb.uri}: {", ".join(v.verb for v in self.catalog.get_symb_verbs(symb))}'
-            )
+        if isinstance(self.options, TextAnnotationChoices):
+            for i, (symb, verb) in enumerate(self.options.choices):
+                interface.write_command_info(
+                    str(i),
+                    f' {symb.uri}: {", ".join(v.verb for v in self.catalog.get_symb_verbs(symb))}'
+                )
+        else:
+            for i, symb in enumerate(self.options.choices):
+                assert isinstance(symb, WdSymbol)
+                interface.write_command_info(
+                    str(i),
+                    f' {symb.uri}: {", ".join(v.verb for v in get_wd_catalog("en").get_symb_verbs(symb))}'
+                )
 
     def annotate_symbol(self, symbol: WdSymbol) -> Sequence[CommandOutcome]:
         cursor = self.state.cursor
+        if isinstance(self.state.get_current_document(), WdAnnoTexDocument):
+            if isinstance(self.options, TextAnnotationChoices):
+                new_string = f'\\wdalign{{{symbol.identifier}}}{{{self.state.get_selected_text()}}}'
+            else:
+                new_string = f'\\mwdalign{{{symbol.identifier}}}{{{self.state.get_selected_text()}}}'
+        elif isinstance(self.state.get_current_document(), WdAnnoHtmlDocument):
+            if isinstance(self.options, TextAnnotationChoices):
+                new_string = f'<span data-wd-align="{symbol.identifier}">{self.state.get_selected_text()}</span>'
+            else:
+                st = self.state.get_selected_text()
+                gtpos = st.find('>')
+                assert gtpos != -1
+                new_string = st[:gtpos] + f' data-wd-align="{symbol.identifier}"' + st[gtpos:]
+        else:
+            raise ValueError("Document type not supported for Wikidata annotation.")
         return [
             SubstitutionOutcome(
-                f'\\wdalign{{{symbol.identifier}}}{{{self.state.get_selected_text()}}}',
+                new_string,
                 cursor.selection[0], cursor.selection[1]
             ),
-            SetCursorOutcome(SnifyCursor(cursor.document_index, cursor.selection[1]))
+            SetCursorOutcome(SnifyCursor(cursor.document_index, cursor.selection[0] + len(new_string)))
         ]
 
     def execute(self, call: str) -> Sequence[CommandOutcome]:
-        if int(call) >= len(self.options):
+        if int(call) >= len(self.options.choices):
             interface.write_text('Invalid annotation number', style='error')
             interface.await_confirmation()
             return []
 
-        symbol, _ = self.options[int(call)]
+        if isinstance(self.options, TextAnnotationChoices):
+            symbol, _ = self.options.choices[int(call)]
+        else:
+            assert isinstance(self.options, MathAnnotationChoices)
+            symbol = self.options.choices[int(call)]
         return self.annotate_symbol(symbol)
+
+
+class WikidataMathMLCatalog(MathCatalog):
+    def __init__(self):
+        self.lookup: dict[str, list[str]] = get_notation_table('unicode')
+
+    def find_first_match(
+            self,
+            string: str,
+    ) -> Optional[tuple[int, int, list[Symb]]]:
+        for match in re.finditer(r'<m[ino][^>]*>(?P<symbol>[^<]*)</m[ino]>', string):
+            if 'data-wd-align' in match.group():
+                continue
+            identifiers = self.lookup.get(html.unescape(match.group('symbol')), [])
+            if identifiers:
+                return match.start(), match.end(), [WdSymbol(identifier) for identifier in identifiers]
+        return None
+
+
+class WikidataMathTexCatalog(MathCatalog):
+    def __init__(self):
+        self.lookup: dict[str, list[str]] = get_notation_table('tex')
+
+    def find_first_match(
+            self,
+            string: str,
+    ) -> Optional[tuple[int, int, list[Symb]]]:
+        # TODO: this won't scale - use trie
+        order = sorted(self.lookup.keys(), key=len, reverse=True)
+        i = 0
+        while i < len(string):
+            s = string[i:]
+            if s.startswith('\\mwdalign{'):
+                # continue after next two closing braces
+                brace_count = 0
+                while brace_count < 2 and i < len(string):
+                    if string[i] == '}':
+                        brace_count += 1
+                    i += 1
+            for notation in order:
+                if s.startswith(notation):
+                    identifiers = self.lookup[notation]
+                    return i, i + len(notation), [WdSymbol(identifier) for identifier in identifiers]
+            i += 1
+        return None

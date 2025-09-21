@@ -1,31 +1,34 @@
 import functools
-from typing import Optional, Any
+from typing import Optional, Iterable, cast
 
-from stextools.snify.annotate import STeXAnnotateCommand, STeXLookupCommand
-from stextools.snify.catalog import Catalog, Verbalization
+from stextools.snify.annotate import STeXAnnotateCommand, STeXLookupCommand, AnnotationChoices, MathAnnotationChoices, \
+    TextAnnotationChoices
+from stextools.snify.catalog import Catalog
 from stextools.snify.local_stex_catalog import local_flams_stex_catalogs, \
     LocalFlamsCatalog
+from stextools.snify.math_catalog import MathCatalog
 from stextools.snify.skip_and_ignore import SkipCommand, SkipUntilFileEnd, SkipForRestOfSession, IgnoreCommand, \
     AddWordToSrSkip, AddStemToSrSkip
 from stextools.snify.snify_commands import View_i_Command, ViewCommand, ExitFileCommand, RescanOutcome, StemFocusCommand, \
     StemFocusCommandPlus, PreviousWordShouldBeIncluded, FirstWordShouldntBeIncluded, NextWordShouldBeIncluded, \
     LastWordShouldntBeIncluded
 from stextools.snify.snifystate import SnifyState, SnifyCursor
-from stextools.snify.wikidata import get_wd_catalog, WdAnnotateCommand
+from stextools.snify.wikidata import get_wd_catalog, WdAnnotateCommand, WikidataMathMLCatalog, WikidataMathTexCatalog
 from stextools.stepper.command import CommandCollection, CommandSectionLabel, CommandOutcome
-from stextools.stepper.document import STeXDocument, Document, WdAnnoTexDocument, WdAnnoHtmlDocument
+from stextools.stepper.document import STeXDocument, Document, WdAnnoTexDocument, WdAnnoHtmlDocument, MODE
 from stextools.stepper.document_stepper import DocumentModifyingStepper
 from stextools.stepper.interface import interface, BrowserInterface
 from stextools.stepper.stepper import Stepper, StopStepper, Modification
 from stextools.stepper.stepper_extensions import QuittableStepper, QuitCommand, CursorModifyingStepper, UndoCommand, \
     RedoCommand, UndoableStepper
+from stextools.utils.linked_str import LinkedStr
 
 
 class SnifyStepper(DocumentModifyingStepper, QuittableStepper, CursorModifyingStepper, UndoableStepper, Stepper[SnifyState]):
     def __init__(self, state: SnifyState):
         super().__init__(state)
         self.state = state
-        self.current_annotation_choices: Optional[list[tuple[Any, Verbalization]]] = None
+        self.current_annotation_choices: Optional[AnnotationChoices] = None
 
     @functools.cache
     def get_stex_catalogs(self) -> dict[str, LocalFlamsCatalog]:
@@ -66,6 +69,16 @@ class SnifyStepper(DocumentModifyingStepper, QuittableStepper, CursorModifyingSt
         doc = self.state.get_current_document()
         return self.get_catalog_for_document(doc)
 
+    def get_math_catalog_for_document(self, doc: Document) -> Optional[MathCatalog]:
+        if isinstance(doc, STeXDocument):
+            raise NotImplementedError("Math catalog for STeX not implemented yet.")
+        elif isinstance(doc, WdAnnoHtmlDocument):
+            return WikidataMathMLCatalog()
+        elif isinstance(doc, WdAnnoTexDocument):
+            return WikidataMathTexCatalog()
+        else:
+            raise ValueError(f'Unsupported document type {type(doc)}')
+
     def ensure_state_up_to_date(self):
         """ If cursor is a position, rather than a range, we updated it to the next relevant range."""
         cursor = self.state.cursor
@@ -75,18 +88,29 @@ class SnifyStepper(DocumentModifyingStepper, QuittableStepper, CursorModifyingSt
             # So we need to ensure that the annotation choices are up to date.
             # TODO: This is a bit annoying and repetitive - is there a better way?
             doc = self.state.documents[cursor.document_index]
-            catalog = self.get_catalog_for_document(doc)
-            first_match = catalog.find_first_match(
-                string=doc.get_content()[cursor.selection[0]:cursor.selection[1]],
-                stems_to_ignore=self.state.get_skip_stems(doc.language, cursor.document_index),
-                words_to_ignore=self.state.get_skip_words(doc.language, cursor.document_index),
-                symbols_to_ignore=set(),
-            )
+            # catalog = self.get_catalog_for_document(doc) if isinstance(self.current_annotation_choices, TextAnnotationChoices) else self.get_catalog_for_document(doc)
+            if isinstance(self.current_annotation_choices, TextAnnotationChoices):
+                catalog = self.get_catalog_for_document(doc)
+                first_match = catalog.find_first_match(
+                    string=doc.get_content()[cursor.selection[0]:cursor.selection[1]],
+                    stems_to_ignore=self.state.get_skip_stems(doc.language, cursor.document_index),
+                    words_to_ignore=self.state.get_skip_words(doc.language, cursor.document_index),
+                    symbols_to_ignore=set(),
+                )
+            else:
+                assert isinstance(self.current_annotation_choices, MathAnnotationChoices)
+                catalog = self.get_math_catalog_for_document(doc)
+                first_match = catalog.find_first_match(
+                    doc.get_content()[cursor.selection[0]:cursor.selection[1]],
+                )
             if first_match is None:
-                self.current_annotation_choices = []
+                self.current_annotation_choices = TextAnnotationChoices([])
             else:
                 start, stop, options = first_match
-                self.current_annotation_choices = options
+                if isinstance(catalog, MathCatalog):
+                    self.current_annotation_choices = MathAnnotationChoices(options)
+                else:
+                    self.current_annotation_choices = TextAnnotationChoices(options)
             return
 
         while cursor.document_index < len(self.state.documents):
@@ -97,33 +121,59 @@ class SnifyStepper(DocumentModifyingStepper, QuittableStepper, CursorModifyingSt
                 continue
 
             print(f'Processing document {doc.identifier} at index {cursor.document_index}...')
-            annotatable_segments = doc.get_annotatable_plaintext()
+            annotatable_segments: Iterable[tuple[MODE, LinkedStr[None]]]
+            match self.state.mode:
+                case 'text':
+                    annotatable_segments = ((cast(MODE, 'text'), segment) for segment in doc.get_annotatable_plaintext())
+                case 'math':
+                    annotatable_segments = ((cast(MODE, 'math'), segment) for segment in doc.get_annotatable_formulae())
+                case 'both':
+                    annotatable_segments = doc.get_all_annotatable()
+                case _:
+                    raise RuntimeError(f'Unknown mode {self.state.mode!r}')
 
-            catalog = self.get_catalog_for_document(doc)
-            if catalog is None:
-                cursor = SnifyCursor(cursor.document_index + 1, 0)
-                continue
+            # catalog = self.get_catalog_for_document(doc)
+            # if catalog is None:
+            #     cursor = SnifyCursor(cursor.document_index + 1, 0)
+            #     continue
 
-            for segment in annotatable_segments:
+            for mode, segment in annotatable_segments:
                 if segment.get_end_ref() <= cursor.selection:
                     continue  # segment is before cursor
 
                 if cursor.selection >= segment.get_start_ref():
                     segment = segment[segment.get_indices_from_ref_range(cursor.selection, segment.get_end_ref())[0]:]
 
-                first_match = catalog.find_first_match(
-                    string=str(segment),
-                    stems_to_ignore=self.state.get_skip_stems(doc.language, cursor.document_index),
-                    words_to_ignore=self.state.get_skip_words(doc.language, cursor.document_index),
-                    symbols_to_ignore=set(),
-                )
+
+                if mode == 'text':
+                    catalog = self.get_catalog_for_document(doc)
+                    if catalog is None:
+                        continue
+                    first_match = catalog.find_first_match(
+                        string=str(segment),
+                        stems_to_ignore=self.state.get_skip_stems(doc.language, cursor.document_index),
+                        words_to_ignore=self.state.get_skip_words(doc.language, cursor.document_index),
+                        symbols_to_ignore=set(),
+                    )
+                else:
+                    assert mode == 'math'
+                    catalog = self.get_math_catalog_for_document(doc)
+                    if catalog is None:
+                        continue
+                    first_match = catalog.find_first_match(
+                        string=str(segment),
+                    )
+
 
                 if first_match is None:
                     continue
 
                 start, stop, options = first_match
                 subsegment = segment[start:stop]
-                self.current_annotation_choices = options
+                if isinstance(catalog, MathCatalog):
+                    self.current_annotation_choices = MathAnnotationChoices(options)
+                else:
+                    self.current_annotation_choices = TextAnnotationChoices(options)
                 self.state.cursor = SnifyCursor(
                     cursor.document_index,
                     selection=(subsegment.get_start_ref(), subsegment.get_end_ref())
@@ -157,7 +207,7 @@ class SnifyStepper(DocumentModifyingStepper, QuittableStepper, CursorModifyingSt
                 a, b = self.state.cursor.selection
                 content = (
                         doc.get_content()[doc.get_body_range()[0]:a] +
-                        '<span class="highlight" id="snifyhighlight">' +
+                        '<span class="highlight" id="snifyhighlight">' +  # TODO: in MathML, this works but is not ideal
                         doc.get_content()[a:b] +
                         '</span>' +
                         doc.get_content()[b:doc.get_body_range()[1]]
@@ -186,6 +236,8 @@ class SnifyStepper(DocumentModifyingStepper, QuittableStepper, CursorModifyingSt
         assert catalog is not None
         is_stex = isinstance(document, STeXDocument)
         is_wdanno = isinstance(document, WdAnnoTexDocument) or isinstance(document, WdAnnoHtmlDocument)
+        # is_html = isinstance(document, WdAnnoHtmlDocument)
+        # is_tex = isinstance(document, WdAnnoTexDocument) or isinstance(document, STeXDocument)
         return CommandCollection(
             'snify',
             [
@@ -195,7 +247,9 @@ class SnifyStepper(DocumentModifyingStepper, QuittableStepper, CursorModifyingSt
                 RedoCommand(is_possible=bool(self.modification_future)),
 
                 CommandSectionLabel('\nAnnotation'),
-                STeXAnnotateCommand(self.state, self.current_annotation_choices, catalog, self) if is_stex else None,
+                STeXAnnotateCommand(
+                    self.state, cast(TextAnnotationChoices, self.current_annotation_choices), catalog, self
+                ) if is_stex else None,
                 WdAnnotateCommand(self.state, self.current_annotation_choices, catalog) if is_wdanno else None,
                 STeXLookupCommand(self.state, catalog, self) if is_stex else None,
 
@@ -220,7 +274,7 @@ class SnifyStepper(DocumentModifyingStepper, QuittableStepper, CursorModifyingSt
 
                 CommandSectionLabel('\nViewing and editing'),
                 ViewCommand(document),
-                View_i_Command(self.current_annotation_choices),
+                View_i_Command(self.current_annotation_choices.choices) if isinstance(self.current_annotation_choices, TextAnnotationChoices) else None,
             ],
             have_help=True
         )

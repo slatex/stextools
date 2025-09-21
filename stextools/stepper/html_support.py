@@ -22,6 +22,8 @@ class MyHtmlParser(HTMLParser):
         self.body_start: Optional[int] = None
         self.body_end: Optional[int] = None
         self.annotatable_plaintext_ranges: list[LinkedStr[None]] = []
+        self.formula_ranges: list[tuple[int, int]] = []
+        self.current_formula_start: Optional[int] = None
 
         self.tag_stack: list[str] = []
         # the generation of annotatable plaintext segments can be blocked,
@@ -42,8 +44,11 @@ class MyHtmlParser(HTMLParser):
         return self.line_no_to_offset[p[0]-1] + p[1]
 
     def handle_starttag(self, tag, attrs):
+        d_attrs = dict(attrs)
         if self.resume_depth is None:
-            if tag in {'head', 'script', 'style', 'math', 'svg'}:
+            if tag in {'head', 'script', 'style', 'math', 'svg'} or 'data-wd-align' in d_attrs:
+                if tag == 'math':
+                    self.current_formula_start = self.get_offset()
                 self.resume_depth = len(self.tag_stack)
         self.tag_stack.append(tag)
         if tag == 'body' and self.body_start is None:
@@ -54,6 +59,13 @@ class MyHtmlParser(HTMLParser):
 
 
     def handle_endtag(self, tag):
+        if tag == 'math' and self.current_formula_start is not None:
+            formula_end = self.get_offset()
+            while formula_end < len(self.text) and self.text[formula_end] != '>':
+                formula_end += 1
+            self.formula_ranges.append((self.current_formula_start, formula_end))
+            self.current_formula_start = None
+
         while self.tag_stack.pop() != tag:
             pass
         if self.resume_depth is not None and len(self.tag_stack) <= self.resume_depth:

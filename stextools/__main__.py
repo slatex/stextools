@@ -29,17 +29,19 @@ def cli(log_file):
 @cli.command(name='snify', help='\\sn-ify sTeX documents')
 @click.option('--anno-format', default='stex', type=click.Choice(['stex', 'wikidata']),
               help='Annotation type (wikidata support is prototypical only).')
+@click.option('--mode', default='text', type=click.Choice(['text', 'math', 'both']),
+              help='Annotation mode: text, math, or both (default: text). Note that math is experimental.')
 @click.argument(
     'files', nargs=-1, type=click.Path(exists=True, path_type=Path),
 )
 @interface_option
-def snify_command(anno_format, files, interface):
+def snify_command(anno_format, mode, files, interface):
     from stextools.snify.snify import snify
     set_interface(interface)
     if not files:
         click.echo('No files specified. Please provide paths to files or directories to snify.')
         return
-    snify(files, anno_format=anno_format)
+    snify(files, anno_format=anno_format, mode=mode)
 
 @cli.command(name='lexgen', help='lexicong generation')
 @click.argument(

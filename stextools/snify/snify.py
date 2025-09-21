@@ -11,7 +11,8 @@ from stextools.stepper.session_storage import SessionStorage, IgnoreSessions
 
 def snify(
         files: list[Path],
-        anno_format: str = 'stex'
+        anno_format: str = 'stex',
+        mode: str = 'text',  # 'text', 'math', 'both'
 ):
     if anno_format not in {'stex', 'wikidata'}:
         raise ValueError(f"Unknown annotation format: {anno_format}")
@@ -35,6 +36,8 @@ def snify(
                 html_format='wdHTML' if anno_format=='wikidata' else None
             )
         )
+        assert mode in {'text', 'math', 'both'}
+        state.mode = mode
 
     stepper = SnifyStepper(state)
 

@@ -1,7 +1,7 @@
 import dataclasses
-from typing import Optional
+from typing import Optional, Literal
 
-from stextools.stepper.document import Document
+from stextools.stepper.document import Document, MODE
 from stextools.stepper.document_stepper import DocumentStepperState, DocumentCursor
 from stextools.stepper.stepper import State
 from stextools.stepper.stepper_extensions import FocussableState
@@ -25,6 +25,8 @@ class SnifyState(DocumentStepperState, FocussableState, State[SnifyCursor]):
 
         self.stem_focus: Optional[str] = None   # only suggest annotations for this stem (used in focus mode)
         self.focus_lang: Optional[str] = None  # only annotate documents of this language (used in focus mode)
+
+        self.mode: MODE | Literal['both'] = 'text'   # by default, only annotate text, not formulae
 
     def get_skip_words(self, lang: str, doc_index: Optional[int] = None):
         from stextools.snify.skip_and_ignore import get_srskipped_cached, IgnoreList

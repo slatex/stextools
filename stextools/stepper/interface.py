@@ -492,14 +492,16 @@ class BrowserInterface(Interface):
             result = highlight(string, lexer, self.formatter)
             result = result.strip()
             result = result[len('<div class="highlight"><pre>'):-len('</pre></div>')]
-            print(repr(result))
             return result
 
         a, b, c, line_no = self._code_highlight_prep(code, highlight_range, limit_range)
 
 
         # formatted_code = code_format(a) + self.apply_style(b, 'highlight') + code_format(c)
-        formatted_code = code_format(a) + self.apply_style(b, 'highlight') + code_format(c)
+        a_formatted = code_format(a)
+        if not a.endswith('\n'):
+            a_formatted = a.rstrip('\n')
+        formatted_code = a_formatted + self.apply_style(b, 'highlight') + code_format(c)
 
         result = []
         for i, line in enumerate(formatted_code.splitlines(keepends=True), line_no):
