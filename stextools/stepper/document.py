@@ -7,11 +7,14 @@ from typing import Iterable, Optional, TypeAlias, Literal, cast
 from pylatexenc.latexwalker import LatexWalker, LatexMathNode, LatexCommentNode, LatexSpecialsNode, LatexMacroNode, \
     LatexEnvironmentNode, LatexGroupNode, LatexCharsNode
 
+from stextools.remote_repositories import get_mathhub_path
 from stextools.stepper.html_support import MyHtmlParser
+from stextools.stepper.interface import interface
 from stextools.stex.local_stex import lang_from_path
 from stextools.stex.stex_py_parsing import STEX_CONTEXT_DB, get_annotatable_plaintext, get_plaintext_approx, \
     PLAINTEXT_EXTRACTION_MACRO_RECURSION, PLAINTEXT_EXTRACTION_ENVIRONMENT_RULES
 from stextools.stex.flams import FLAMS
+from stextools.utils.json_iter import json_iter
 from stextools.utils.linked_str import LinkedStr, string_to_lstr
 
 MODE: TypeAlias = Literal['text', 'math']
@@ -57,6 +60,7 @@ class Document(abc.ABC):
 
 class LocalFileDocument(Document, abc.ABC):
     _content: Optional[str] = None
+    path: Path
 
     def __init__(self, path: Path, language: str, format: str):
         self.path = path
@@ -107,6 +111,20 @@ class STeXDocument(LocalFileDocument):
 
     def get_plaintext_approximation(self) -> LinkedStr:
         return get_plaintext_approx(self.get_latex_walker())
+
+    def get_inputted_documents(self) -> Iterable['Document']:
+        annos = FLAMS.get_file_annotations(self.path)
+        for e in json_iter(annos, {'full_range', 'val_range', 'key_range', 'Sig', 'smodule_range', 'Title',
+                                   'path_range', 'archive_range', 'UseModule', 'ImportModule'}):
+            if not isinstance(e, dict):
+                continue
+            if not 'IncludeProblem' in e:
+                continue
+            path = get_mathhub_path() / e['IncludeProblem']['archive'][0] / 'source' / e['IncludeProblem']['filepath'][0]
+            if not path.exists():
+                interface.write_text(f"Warning: {path} does not exist. (included by {self.path})\n", style='warning')
+                continue
+            yield STeXDocument(path=path, language=lang_from_path(path))
 
 
 class WdAnnoTexDocument(LocalFileDocument):
@@ -221,6 +239,7 @@ def documents_from_paths(
                     files.append(html_path)
 
         for path in files:
+            path = path.resolve()
             if path not in included_paths:
                 file_paths.append(path)
                 included_paths.add(path)
@@ -230,12 +249,35 @@ def documents_from_paths(
 
     for path in file_paths:
         if tex_format == 'sTeX' and path.suffix == '.tex':
-            documents.append(STeXDocument(path=path, language=lang_from_path(path)))
+            new_doc = STeXDocument(path=path, language=lang_from_path(path))
         elif tex_format == 'wdTeX' and path.suffix == '.tex':
-            documents.append(WdAnnoTexDocument(path=path, language=lang_from_path(path)))
+            new_doc = WdAnnoTexDocument(path=path, language=lang_from_path(path))
         elif html_format == 'wdHTML' and path.suffix == '.html':
-            documents.append(WdAnnoHtmlDocument(path=path, language=lang_from_path(path)))
+            new_doc = WdAnnoHtmlDocument(path=path, language=lang_from_path(path))
         else:
             raise ValueError(f"Unsupported file format for path {path} with suffix {path.suffix}")
+
+        documents.append(new_doc)
+
+    include_inputted_files: Optional[bool] = None
+
+    for document in documents:
+        if include_inputted_files is False:
+            break
+
+        # currently, only local files supported
+        inputted = [
+            doc for doc in document.get_inputted_documents()
+            if isinstance(doc, LocalFileDocument) and doc.path.resolve not in included_paths
+        ]
+        if inputted:
+            if include_inputted_files is None:
+                include_inputted_files = interface.ask_yes_no('Some of the documents input other documents. Should these also be included?')
+            if include_inputted_files:
+                for doc in inputted:
+                    rp = doc.path.resolve()
+                    if rp not in included_paths:
+                        documents.append(doc)
+                        included_paths.add(rp)
 
     return documents
