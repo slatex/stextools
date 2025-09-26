@@ -4,9 +4,11 @@
 \usepackage{amsmath}
 \usepackage{cleveref}
 \usepackage{listings}
+
 \lstset{
   basicstyle=\ttfamily,
 }
+
 
 \title{Efficiently Linking Documents to Alignment Databases -- A Prototype-Based Exploration}
 
@@ -61,7 +63,7 @@ is crucial for large-scale alignment efforts.
 
 The sTeX ecosystem, which uses diverse semantic markup to drive
 learning support systems,
-faced a similar challenge, which was recently addressed by the snify system.
+faced a similar challenge, which was recently addressed by the snify system\cite{KohSch:safc25}.
 In this paper, we present a prototypical extension of the snify system
 for efficient alignment that is independent of the sTeX ecosystem.
 Concretely, we have added the option to use WikiData as the concept database,
@@ -121,7 +123,7 @@ In sTeX, the solution is essentially to write down
 a semantic representation of the formula and generate the presentation from it.
 A grammar-based approach to generate the semantic representation
 for ``conventional'' \LaTeX\ formulae
-in collaboration with a human annotator was presented in\ednote{TODO: Luca's work}.
+in collaboration with a human annotator was presented in\cite{VreWelKam:tsmmdui24}.
 For alignments, this approach could be considered too invasive.
 
 There is no reason to restrict the approach to \LaTeX\ documents.
@@ -151,6 +153,10 @@ On a higher level, this shows how relatively simple and naive tools
 can enable much more efficient alignment workflows,
 and we hope to inspire the community to think about other tools
 to help alignment authors -- be it text-to-database or database-to-database alignment.
+
+% \printbibliography
+
+\bibliography{references}
 
 
 % Document-to-database alignments are just annotations of specific
