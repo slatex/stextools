@@ -1,0 +1,281 @@
+\documentclass{ceurart}
+\usepackage[show]{ed}
+\usepackage{paralist}
+\usepackage{amsmath}
+\usepackage{cleveref}
+\usepackage{listings}
+\lstset{
+  basicstyle=\ttfamily,
+}
+
+\title{Efficiently Linking Documents to Alignment Databases -- A Prototype-Based Exploration}
+
+\author[1]{Michael Kohlhase}
+\author[2]{Jan Frederik Schaefer}
+
+\conference{Workshop on Math Datasets: alignments and comparisons (ALIGN2025),
+  October 10, 2025, Brasilia, Brazil}
+
+\begin{document}
+\maketitle
+Both formal and informal mathematical knowledge is fragmented across many different systems and formats.
+A first step towards combining these resources is aligning their concepts.
+
+The focus of this paper is the alignment
+of concept references in documents -- e.g.\ scientific papers -- with a concept database.
+We will use WikiData as the concept database in our examples.
+As WikiData links to other resources (e.g.\ nLab, ProofWiki, OEIS, \ldots),
+and is also referenced in other databases
+(e.g. the MathGloss~\cite{mathgloss:arxiv} alignment database),
+% As WikiData is often referenced in other alignment databases,
+% e.g.\ MathGloss~\cite{mathgloss:arxiv},
+we also get indirect alignments with other systems.
+
+As a running example, we will use the simple declarational sentence
+\begin{quote}
+Let $n$ be a natural number.
+\end{quote}
+where we want to align the concept reference ``natural number'' with
+the corresponding WikiData identifier.
+Such an alignment could, for example,
+provide additional information to the reader,
+could determine the prerequisite knowledge for understanding the document,
+or be a first step towards formalization.
+Creating such alignments is difficult.
+For our example there are, in fact, three possible alignment targets:
+\begin{compactitem}
+\item \texttt{Q21199} (natural numbers, possibly including 0)
+\item \texttt{Q28920044} (positive integers, i.e.\ natural numbers excluding 0)
+\item \texttt{Q28920052} (non-negative integers, i.e.\ natural numbers including 0)
+\end{compactitem}
+We claim that machine learning techniques are not yet capable of
+making the right choice sufficiently reliably,
+which puts the burden of creating alignments on human annotators --
+ideally the authors.
+
+The most obvious workflow is rather inefficient:
+the author has to either recall the correct alignment target from
+memory or search for it, and then edit the document to add the alignment annotation.
+A more efficient workflow, supported by dedicated tools,
+is crucial for large-scale alignment efforts.
+
+The sTeX ecosystem, which uses diverse semantic markup to drive
+learning support systems,
+faced a similar challenge, which was recently addressed by the snify system.
+In this paper, we present a prototypical extension of the snify system
+for efficient alignment that is independent of the sTeX ecosystem.
+Concretely, we have added the option to use WikiData as the concept database,
+rudimentary support for annotating formulae,
+the ability to annotate HTML documents,
+and a browser-based user interface, which
+helps with the annotation of HTML documents.
+
+The snify tool is a simple command line application that
+steps through the phrases that could be annotated in a document
+and presents the user with a list of potential targets.
+\Cref{fig:snify} shows the tool in action.
+The user can select the correct entry from the list by typing its number,
+which then creates the alignment by inserting a macro into the document
+(here e.g.\ \lstinline.\wdalign{Q28920044}{natural number}).
+Aside from choosing the correct annotation,
+snify has many other commands to skip
+phrases, undo annotations, modify the selection, etc.
+
+This workflow transforms the problem from a \emph{recollection}
+problem, where the user has to remember the correct alignment target
+or otherwise spend time searching for it,
+to a \emph{selection} problem, where the user can
+pick the correct option from a list of candidates.
+In the sTeX ecosystem, the snify tool has significantly increased
+the efficiency of annotators, especially for novices who
+are not deeply familiar with the domain model (i.e.\ the concept database).
+
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.7\textwidth]{img1.png}
+    \caption{Screenshot of snify.}\label{fig:snify}
+\end{figure}
+
+In the background, snify uses a verbalization catalog
+that links concept, here WikiData identifiers,
+to their natural language renderings (verbalizations).
+WikiData has both language-specific labels and synonyms.
+For example, \lstinline.Q28920044. has the
+label ``positive integer'' and lists ``natural number''
+as a synonym.
+This verbalization catalog drives the search for potential targets
+and the selection of candidates.
+To recognize inflected forms -- e.g.\ ``continuities'' instead of ``continuity''
+-- snify uses an off-the-shelf stemmer.
+
+
+As WikiData also has formula notations
+for many concepts, including \LaTeX\ notations like \lstinline.\mathbb{N}.,
+we can also use the same workflow to align formula fragments.
+Such formula alignment is rather limited:
+operators can be aligned, but their arguments are not marked, and
+some operators, like the invisible multiplication in ``$ax$'',
+are not represented by a glyph at all.
+In sTeX, the solution is essentially to write down
+a semantic representation of the formula and generate the presentation from it.
+A grammar-based approach to generate the semantic representation
+for ``conventional'' \LaTeX\ formulae
+in collaboration with a human annotator was presented in\ednote{TODO: Luca's work}.
+For alignments, this approach could be considered too invasive.
+
+There is no reason to restrict the approach to \LaTeX\ documents.
+As a case study, we have added support for HTML documents,
+where the alignments are stored in HTML attributes.
+Reading plain HTML in the command line interface is not ideal,
+especially for complex MathML formulae.
+To improve this, we have also created a browser-based interface
+that closely imitates the command line interface
+but can render HTML instead of showing the raw source (see \cref{fig:snify-browser}).
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.7\textwidth]{img2.png}
+    \caption{Screenshot of the browser-based snify interface.
+    Here, a MathML operator is being annotated.
+    }\label{fig:snify-browser}
+\end{figure}
+
+
+In summary, we have demonstrated that the snify approach for sTeX annotation
+can generalize to alignments with other concept databases
+and document formats.
+While the formula alignment is rather limited,
+it was relatively easy to implement and could be improved in the future.
+On a higher level, this shows how relatively simple and naive tools
+can enable much more efficient alignment workflows,
+and we hope to inspire the community to think about other tools
+to help alignment authors -- be it text-to-database or database-to-database alignment.
+
+
+% Document-to-database alignments are just annotations of specific
+% text fragments or formula fragments in the document.
+% For example, the text fragment ``natural number'' could be
+% with the WikiData concept for natural numbers (Q21199).
+% % For formulas, the annotation target can be less clear, for example because
+% % some operations, such as the multiplication in ``$ax$'',
+% % may not be represented by a glyph.
+% % Depending on the document format, there there may still be
+% % be an (invisible) symbol that can be annotated -- e.g.\ the unicode character for invisible multiplication.
+% % An alternative is to annotate the whole sub-expression, i.e.\ the operation
+% % including the operands.\ednote{these remarks break the flow}
+% 
+% Annotations can be created manually, e.g.\ by the authors,
+% or automatically using machine learning techniques.
+% Here, we focus on high-quality manual annotation,
+% claiming that machine learning models are not sufficiently
+% reliable, especially in research-level documents where training data is necessarily scarce.
+% Presenting a user with wrong but convincing alignments
+% is arguably worse than not providing any alignments at all.
+% 
+% The key challenge is to convice authors to actually create alignment annotations,
+% as it is additional effort with little immediate benefit.
+% To change the balance, we could either increase the benefit
+% by providing better services based on the annotations,
+% or reduce the effort by providing better annotation tools.
+% Here we focus on the latter.
+% 
+% There is already an ecosystem of annotation tools, annotation formats
+% and services based on them, developed in the KWARC group:
+% \begin{compactitem}
+% \item Annotation formats for \LaTeX (sTeX), HTML (FTML),
+%     and, prototypically, Microsoft Word (WOIDE).
+% \item Services for education (the ALeA platform)
+% \item Tool support for manual annotation in sTeX
+%     (snify and the sTeX IDE) and, prototypically, in Word (WOIDE).
+% \end{compactitem}
+% While there have been significant efforts to allow gradual adoption
+% and remain as flexible as possible,
+% potential users ultimately have to commit to a relatively
+% complex ecosystem system of actively developed research software.
+% As such, a dedicated teacher may be willing to invest time to
+% move their teaching materials into this ecosystem
+% to get the benefits of the ALeA learning platform,
+% but a researcher writing a paper likely will not.
+% 
+% In this paper, we present a prototypical extension of the snify system
+% for light-weight alignment independent of this ecosystem.
+% The snify tool has been developed for the efficient annotation of natural language text
+% with concept references and has been used to create an estimated 10,000 annotations.
+% 
+% Figure\ednote{TODO} shows
+% 
+% % Example:
+% % Let $n < m$ be natural numbers.
+% 
+% 
+% 
+% % However, we can adapt some of the ideas and tools
+% % for lightweight alignment of documents.
+% % For example, the snify system has been designed
+% % for large-scale manual creation of sTeX annotations.
+% % By adapting it for alignment, we can
+% % take advantage of
+% 
+% 
+% % The focus of this paper is the alignment
+% % of concept references in documents -- e.g.\ scientific papers -- with a concept database.
+% % We will use WikiData as the concept database in our examples.
+% % As WikiData is often referenced in other alignment databases,
+% % e.g.\ MathGloss~\cite{mathgloss:arxiv},
+% % this would also provide indirect alignments with other systems.
+% % 
+% % These document-to-database alignments are just annotations of specific
+% % text fragments or formula fragments in the document.
+% % For example, the text fragment ``natural number'' could be
+% % with the WikiData concept for natural numbers (Q21199).
+% % For formulas, the annotation target can be less clear, for example because
+% % some operations, such as the multiplication in ``$ax$'',
+% % are not represented by a glyph.
+% % Depending on the document format, there there may still be
+% % be an (invisible) symbol that can be annotated -- e.g.\ the unicode character for invisible multiplication.
+% % An alternative is to annotate the whole sub-expression, i.e.\ the operation
+% % including the operands.\ednote{these remarks break the flow}
+% % 
+% % Annotations can be created manually, e.g.\ by the authors,
+% % or automatically using machine learning techniques.
+% % Here, we focus on high-quality manual annotation,
+% % claiming that machine learning models are not sufficiently
+% % reliable, especially in research-level documents where training data is necessarily scarce.
+% % Presenting a user with wrong but convincing alignments
+% % is arguably worse than not providing any alignments at all.
+% % 
+% % The key challenge is to convice authors to actually create alignment annotations,
+% % as it is additional effort with little immediate benefit.
+% % To change the balance, we could either increase the benefit
+% % by providing better services based on the annotations,
+% % or reduce the effort by providing better annotation tools.
+% % Here we focus on the latter.
+% % 
+% % There is already an ecosystem of annotation tools, annotation formats
+% % and services based on them, developed in the KWARC group:
+% % \begin{compactitem}
+% % \item Annotation formats for \LaTeX (sTeX), HTML (FTML),
+% %     and, prototypically, Microsoft Word (WOIDE).
+% % \item Services for education (the ALeA platform)
+% % \item Tool support for manual annotation in sTeX
+% %     (snify and the sTeX IDE) and, prototypically, in Word (WOIDE).
+% % \end{compactitem}
+% % While there have been significant efforts to allow gradual adoption
+% % and remain as flexible as possible,
+% % potential users ultimately have to commit to a relatively
+% % complex ecosystem system of actively developed research software.
+% % As such, a dedicated teacher may be willing to invest time to
+% % move their teaching materials into this ecosystem
+% % to get the benefits of the ALeA learning platform,
+% % but a researcher writing a paper will likely not.
+% % 
+% % However, we can adapt some of the ideas and tools
+% % for lightweight alignment of documents.
+% % For example, the snify system has been designed
+% % for large-scale manual creation of sTeX annotations.
+% % By adapting it for alignment, we can
+% % take advantage of
+% 
+
+\end{document}
