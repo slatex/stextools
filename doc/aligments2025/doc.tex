@@ -10,10 +10,11 @@
 }
 
 
-\title{Efficiently Linking Documents to Alignment Databases -- A Prototype-Based Exploration}
+% \title{Efficiently Linking Documents to Alignment Databases -- A Prototype-Based Exploration}
+\title{Helping Humans Align Efficiently}
 
-\author[1]{Michael Kohlhase}
-\author[2]{Jan Frederik Schaefer}
+\author[1]{Jan Frederik Schaefer}
+\author[2]{Michael Kohlhase}
 
 \conference{Workshop on Math Datasets: alignments and comparisons (ALIGN2025),
   October 10, 2025, Brasilia, Brazil}
@@ -22,29 +23,51 @@
 \maketitle
 Both formal and informal mathematical knowledge is fragmented across many different systems and formats.
 A first step towards combining these resources is aligning their concepts.
+An alignment, for us, links a concept from one system to a concept in another system,
+indicating that they represent the same object or idea.
+We ignore the added complexity that concepts may only be similar,
+but not a precise match.
+In this paper, we will outline a workflow for supporting
+humans in creating such alignments,
+and present a prototypical extension of the snify tool\cite{KohSch:safc25}
+that implements this workflow.
 
-The focus of this paper is the alignment
-of concept references in documents -- e.g.\ scientific papers -- with a concept database.
-We will use WikiData as the concept database in our examples.
-As WikiData links to other resources (e.g.\ nLab, ProofWiki, OEIS, \ldots),
-and is also referenced in other databases
-(e.g. the MathGloss~\cite{mathgloss:arxiv} alignment database),
-% As WikiData is often referenced in other alignment databases,
-% e.g.\ MathGloss~\cite{mathgloss:arxiv},
-we also get indirect alignments with other systems.
+Concretely, we focus on the workflow where an aligner iterates over
+concepts or concept references in a \emph{source collection}
+to align them, where possible,
+with concepts from a \emph{target collection}.
+While we require that the target collection has unique concept identifiers
+-- for easy referencing --
+this is not necessary for the source collection.
+For example, we can align text fragments in a document
+by annotating them with an identifier from the target collection.
 
-As a running example, we will use the simple declarational sentence
+
+
+
+% The focus of this paper is the alignment
+% of concept references in documents -- e.g.\ scientific papers -- with a concept database.
+% We will use WikiData as the concept database in our examples.
+% As WikiData links to other resources (e.g.\ nLab, ProofWiki, OEIS, \ldots),
+% and is also referenced in other databases
+% (e.g. the MathGloss~\cite{mathgloss:arxiv} alignment database),
+% % As WikiData is often referenced in other alignment databases,
+% % e.g.\ MathGloss~\cite{mathgloss:arxiv},
+% we also get indirect alignments with other systems.
+
+As a running example, assume that we iterate over a scientific document
+and encounter the sentence
 \begin{quote}
 Let $n$ be a natural number.
 \end{quote}
 where we want to align the concept reference ``natural number'' with
-the corresponding WikiData identifier.
+the corresponding WikiData concept.
 Such an alignment could, for example,
 provide additional information to the reader,
 could determine the prerequisite knowledge for understanding the document,
 or be a first step towards formalization.
-Creating such alignments is difficult.
-For our example there are, in fact, three possible alignment targets:
+% Creating such alignments is difficult.
+In this case there are, in fact, three possible alignment targets:
 \begin{compactitem}
 \item \texttt{Q21199} (natural numbers, possibly including 0)
 \item \texttt{Q28920044} (positive integers, i.e.\ natural numbers excluding 0)
@@ -52,70 +75,117 @@ For our example there are, in fact, three possible alignment targets:
 \end{compactitem}
 We claim that machine learning techniques are not yet capable of
 making the right choice sufficiently reliably,
-which puts the burden of creating alignments on human annotators --
-ideally the authors.
+which puts the burden of creating alignments on humans.
+Even if machine learning techniques are successful,
+we will need human aligners for a gold standard and
+possibly for training data.
 
-The most obvious workflow is rather inefficient:
+Without dedicated tool support,
 the author has to either recall the correct alignment target from
 memory or search for it, and then edit the document to add the alignment annotation.
-A more efficient workflow, supported by dedicated tools,
-is crucial for large-scale alignment efforts.
+The workflow is much more efficient, if a tool
+presents the user with a list of alignment candidates
+(like the three options above),
+from which the user can select the correct one.
 
-The sTeX ecosystem, which uses diverse semantic markup to drive
-learning support systems,
-faced a similar challenge, which was recently addressed by the snify system\cite{KohSch:safc25}.
+To make this work, the target collection has to provide
+an \emph{alignment catalog},
+which links each concept identifier to a human-readable description
+and a set of \emph{verbalizations} (natural language renderings of the concept).
+For example, the alignment catalog from WikiData could have the following entry (extracted from the knowledge graph):
+\begin{compactitem}
+\item \textbf{identifier:} \texttt{https://www.wikidata.org/wiki/Q28920044}
+\item \textbf{description:} \emph{positive integer} (integer greater than zero; natural number explicitly excluding zero)
+\item \textbf{verbalizations:} ``positive integer'', ``integer greater than zero'', ``natural number'', \textellipsis
+\end{compactitem}
+The description is necessary to help the user identify the correct concept
+as the identifiers are not human-readable.
+The (language-specific) verbalizations can be used to find alignment candidates.
+Note that the alignment catalog is independent of the source collection.
+While an alignment support tool requires significant customization
+for the source collection (aligning phrases in a document is
+very different from aligning concepts in an ontology),
+it can easily support different catalogs.
+
+
+The snify tool\cite{KohSch:safc25} implements the idea of efficient
+annotation by selection of candidates
+specifically for the case where both the source collection
+and the target collection are \LaTeX\ documents
+that use the \texttt{stex} package for semantic markup.
+Using the snify tool has significantly increased
+the efficiency of annotators, especially for novices who
+are not deeply familiar with the domain model (i.e.\ who
+do not know the identifiers by heart).
+
+
 In this paper, we present a prototypical extension of the snify system
-for efficient alignment that is independent of the sTeX ecosystem.
-Concretely, we have added the option to use WikiData as the concept database,
+to support alignment outside of the sTeX ecosystem.
+Concretely, we have added support for a WikiData-derived alignment catalog,
 rudimentary support for annotating formulae,
 the ability to annotate HTML documents,
 and a browser-based user interface, which
 helps with the annotation of HTML documents.
 
-The snify tool is a simple command line application that
-steps through the phrases that could be annotated in a document
+% The sTeX ecosystem, which uses diverse semantic markup to drive
+% learning support systems,
+% faced a similar challenge, which was recently addressed by the snify system\cite{KohSch:safc25}.
+% In this paper, we present a prototypical extension of the snify system
+% for efficient alignment that is independent of the sTeX ecosystem.
+% Concretely, we have added the option to use WikiData as the concept database,
+% rudimentary support for annotating formulae,
+% the ability to annotate HTML documents,
+% and a browser-based user interface, which
+% helps with the annotation of HTML documents.
+
+The snify tool is implemented as a command line application.
+It steps through the phrases in a document that match verbalizations
+from the alignment catalog
 and presents the user with a list of potential targets.
+To recognize inflected forms -- e.g.\ ``continuities'' instead of ``continuity''
+-- snify uses an off-the-shelf stemmer.
 \Cref{fig:snify} shows the tool in action.
-The user can select the correct entry from the list by typing its number,
+The user can select the correct entry from the list by entering its number,
 which then creates the alignment by inserting a macro into the document
 (here e.g.\ \lstinline.\wdalign{Q28920044}{natural number}).
-Aside from choosing the correct annotation,
-snify has many other commands to skip
-phrases, undo annotations, modify the selection, etc.
+If the user does not want to create an alignment,
+there are many other commands to skip phrases,
+undo annotations, modify the selection, etc.
 
-This workflow transforms the problem from a \emph{recollection}
-problem, where the user has to remember the correct alignment target
-or otherwise spend time searching for it,
-to a \emph{selection} problem, where the user can
-pick the correct option from a list of candidates.
-In the sTeX ecosystem, the snify tool has significantly increased
-the efficiency of annotators, especially for novices who
-are not deeply familiar with the domain model (i.e.\ the concept database).
+% This workflow transforms the problem from a \emph{recollection}
+% problem, where the user has to remember the correct alignment target
+% or otherwise spend time searching for it,
+% to a \emph{selection} problem, where the user can
+% pick the correct option from a list of candidates.
+% In the sTeX ecosystem, the snify tool has significantly increased
+% the efficiency of annotators, especially for novices who
+% are not deeply familiar with the domain model (i.e.\ the concept database).
 
 
 \begin{figure}
     \centering
     \includegraphics[width=0.7\textwidth]{img1.png}
-    \caption{Screenshot of snify.}\label{fig:snify}
+    \caption{Screenshot of aligning
+    \LaTeX\ documents with WikiData concepts using snify.}\label{fig:snify}
 \end{figure}
 
-In the background, snify uses a verbalization catalog
-that links concept, here WikiData identifiers,
-to their natural language renderings (verbalizations).
-WikiData has both language-specific labels and synonyms.
-For example, \lstinline.Q28920044. has the
-label ``positive integer'' and lists ``natural number''
-as a synonym.
-This verbalization catalog drives the search for potential targets
-and the selection of candidates.
-To recognize inflected forms -- e.g.\ ``continuities'' instead of ``continuity''
--- snify uses an off-the-shelf stemmer.
+% In the background, snify uses a verbalization catalog
+% that links concept, here WikiData identifiers,
+% to their natural language renderings (verbalizations).
+% WikiData has both language-specific labels and synonyms.
+% For example, \lstinline.Q28920044. has the
+% label ``positive integer'' and lists ``natural number''
+% as a synonym.
+% This verbalization catalog drives the search for potential targets
+% and the selection of candidates.
+% To recognize inflected forms -- e.g.\ ``continuities'' instead of ``continuity''
+% -- snify uses an off-the-shelf stemmer.
 
-
-As WikiData also has formula notations
-for many concepts, including \LaTeX\ notations like \lstinline.\mathbb{N}.,
-we can also use the same workflow to align formula fragments.
-Such formula alignment is rather limited:
+Aside from verbalizations,
+WikiData also has formula notations
+for many concepts, including \LaTeX\ notations like \lstinline.\mathbb{N}..
+This allows us to use the same workflow to align formula fragments,
+but there are significant limitations:
 operators can be aligned, but their arguments are not marked, and
 some operators, like the invisible multiplication in ``$ax$'',
 are not represented by a glyph at all.
@@ -126,12 +196,12 @@ for ``conventional'' \LaTeX\ formulae
 in collaboration with a human annotator was presented in\cite{VreWelKam:tsmmdui24}.
 For alignments, this approach could be considered too invasive.
 
-There is no reason to restrict the approach to \LaTeX\ documents.
-As a case study, we have added support for HTML documents,
+% There is no reason to restrict the approach to \LaTeX\ documents.
+To explore other formats, we have added support for HTML documents,
 where the alignments are stored in HTML attributes.
 Reading plain HTML in the command line interface is not ideal,
 especially for complex MathML formulae.
-To improve this, we have also created a browser-based interface
+To improve this, we have created a browser-based interface
 that closely imitates the command line interface
 but can render HTML instead of showing the raw source (see \cref{fig:snify-browser}).
 
@@ -143,16 +213,23 @@ but can render HTML instead of showing the raw source (see \cref{fig:snify-brows
     }\label{fig:snify-browser}
 \end{figure}
 
-
-In summary, we have demonstrated that the snify approach for sTeX annotation
-can generalize to alignments with other concept databases
-and document formats.
+In summary, we have described a workflow for efficient human alignment
+based on an alignment catalog,
+and presented a prototypical extension of the snify tool
+that explores this workflow
+for the alignment of text and formulae in \LaTeX\ and HTML documents
+with WikiData concepts.
+% 
+% In summary, we have demonstrated that the snify approach for sTeX annotation
+% can generalize to alignments with other concept databases
+% and document formats.
 While the formula alignment is rather limited,
 it was relatively easy to implement and could be improved in the future.
 On a higher level, this shows how relatively simple and naive tools
 can enable much more efficient alignment workflows,
 and we hope to inspire the community to think about other tools
-to help alignment authors -- be it text-to-database or database-to-database alignment.
+that could help alignment authors.
+% -- be it text-to-database or database-to-database alignment.
 
 % \printbibliography
 
