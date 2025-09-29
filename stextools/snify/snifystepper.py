@@ -215,7 +215,7 @@ class SnifyStepper(DocumentModifyingStepper, QuittableStepper, CursorModifyingSt
             else:
                 content = doc.get_body_content()
             interface.write_text(
-                '<div style="border: 1px solid black; padding: 5px; margin: 5px; max-height: 400px; overflow: auto;">' +
+                '<div style="border: 1px solid black; padding: 5px; margin: 5px; max-height: 40vh; overflow: auto;">' +
                  content +
                 '</div>' + r'''
                 ''',

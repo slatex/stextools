@@ -5,6 +5,7 @@ import html
 import itertools
 import logging
 import re
+import textwrap
 from typing import Sequence, Optional
 
 import orjson
@@ -55,7 +56,13 @@ class QueryFragments:
         FILTER NOT EXISTS {?item wdt:P31 wd:Q10376408 }.
     } UNION {VALUES ?item { wd:Q204 wd:Q199 wd:Q200 }}. 
     '''
-
+    # item_has_description = r'?item schema:description ?description . FILTER(LANG(?description) = "en")'
+    item_has_description = r'''
+    SERVICE wikibase:label {
+        bd:serviceParam wikibase:language "en".
+        ?item schema:description ?description .
+    }
+    '''
     item_has_unicode_notation = r'?item wdt:P913?/wdt:P487 ?notation'
     item_has_tex_notation = r'?item wdt:P913?/wdt:P1993 ?notation'
 
@@ -91,7 +98,7 @@ def _get_cached_verbs(lang: str):
 
     labels = send_query(f'''
     SELECT DISTINCT ?item ?itemLabel WHERE {{
-      {QueryFragments.item_is_math_concept}
+      {{ {QueryFragments.item_is_math_concept} }} UNION {{ {QueryFragments.item_is_math_concept_small} }} .
       {QueryFragments.item_label_in_lang(lang)}
     }}
     ''')
@@ -135,12 +142,43 @@ def _get_cached_symbols(format: str):
     ''')
     notation_data = {}
     for binding in notations['results']['bindings']:
-        notation_data[binding['item']['value']] = binding['notation']['value']
+        notation_data.setdefault(binding['item']['value'], []).append(binding['notation']['value'])
 
     with gzip.open(cache_file, 'wb') as fp:
         fp.write(orjson.dumps(notation_data))
 
     return notation_data
+
+def _get_descriptions() -> dict[str, str]:
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    cache_file = CACHE_DIR / f'wd_descriptions_en.json.gz'
+    if cache_file.exists():
+        with gzip.open(cache_file, 'rb') as fp:
+            return orjson.loads(fp.read())
+
+    logger.info(f'Downloading wikidata descriptions')
+
+    descriptions = send_query(f'''
+    SELECT DISTINCT ?item ?description WHERE {{
+      {{ {QueryFragments.item_is_math_concept} }} UNION {{ {QueryFragments.item_is_math_concept_small} }} .
+      {QueryFragments.item_has_description}
+    }}
+    ''')
+
+    description_data = {}
+    for binding in descriptions['results']['bindings']:
+        if not 'description' in binding:
+            continue
+        description_data[binding['item']['value'].split('/')[-1]] = binding['description']['value']
+
+    with gzip.open(cache_file, 'wb') as fp:
+        fp.write(orjson.dumps(description_data))
+
+    return description_data
+
+@functools.cache
+def get_wd_descriptions() -> dict[str, str]:
+    return _get_descriptions()
 
 
 @functools.cache
@@ -158,11 +196,12 @@ def get_wd_catalog(lang: str) -> Catalog[WdSymbol, Verbalization]:
 def get_notation_table(format: str) -> dict[str, list[str]]:
     notation_data = _get_cached_symbols(format)
     notation_table: dict[str, list[str]] = {}
-    for uri, notation in notation_data.items():
-        symbol_id = uri.split('/')[-1]
-        if notation not in notation_table:
-            notation_table[notation] = []
-        notation_table[notation].append(symbol_id)
+    for uri, notations in notation_data.items():
+        for notation in notations:
+            symbol_id = uri.split('/')[-1]
+            if notation not in notation_table:
+                notation_table[notation] = []
+            notation_table[notation].append(symbol_id)
     return notation_table
 
 
@@ -188,19 +227,22 @@ class WdAnnotateCommand(Command):
         )
 
     def standard_display(self):
-        if isinstance(self.options, TextAnnotationChoices):
-            for i, (symb, verb) in enumerate(self.options.choices):
-                interface.write_command_info(
-                    str(i),
-                    f' {symb.uri}: {", ".join(v.verb for v in self.catalog.get_symb_verbs(symb))}'
-                )
-        else:
-            for i, symb in enumerate(self.options.choices):
-                assert isinstance(symb, WdSymbol)
-                interface.write_command_info(
-                    str(i),
-                    f' {symb.uri}: {", ".join(v.verb for v in get_wd_catalog("en").get_symb_verbs(symb))}'
-                )
+        symbols = [o[0] for o in self.options.choices] if isinstance(self.options, TextAnnotationChoices) else self.options.choices
+        for i, symb in enumerate(symbols):
+            label = interface.apply_style(get_wd_catalog("en").get_symb_verbs(symb)[0].verb, "highlight1")
+            id = interface.apply_style(f"({symb.identifier})", "pale")
+            prevlen = len(label) + len(id) + 3
+            description = '\n'.join(textwrap.wrap(
+                ' ' * prevlen +
+                get_wd_descriptions().get(symb.identifier) or "no description",
+                width=80, tabsize=6,
+            ))
+            description = description.strip()
+            interface.write_command_info(
+                str(i),
+                f' {label} {id}: {description}',
+                # f' {symb.uri}: {", ".join(v.verb for v in get_wd_catalog("en").get_symb_verbs(symb))}'
+            )
 
     def annotate_symbol(self, symbol: WdSymbol) -> Sequence[CommandOutcome]:
         cursor = self.state.cursor

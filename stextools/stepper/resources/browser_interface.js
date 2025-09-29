@@ -10,7 +10,7 @@ async function fetchUpdates() {
             // TODO: snify-specific code shouldn't be here
             const target = document.getElementById("snifyhighlight")
             if (target) {
-                target.scrollIntoView({behavior: "smooth", block: "center"});
+                target.scrollIntoView({behavior: "instant", block: "center"});
             }
         } else if (element.type === 'input') {
             const input = document.createElement('input');
