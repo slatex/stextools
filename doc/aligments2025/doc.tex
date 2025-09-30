@@ -35,12 +35,12 @@ is a key contribution towards making the data FAIR
 % A first step towards combining these resources
 % and making the data FAIR (Findable, Accessible, Interoperable, Reusable)
 % is aligning their concepts.
-An alignment, for us, links a concept from one system to a concept in another system,
+An alignment links a concept from one system to a concept in another system,
 indicating that they represent the same object or idea.
 We ignore the added complexity that concepts may only be similar,
 but not a precise match (see \cite{10.1007/978-3-319-62075-6_7}
 for a discussion of this issue).
-Most authors and curators try to generate alignments from existing datasets
+Authors and curators often try to generate alignments from existing datasets
 automatically (via rule-based matching, machine learning, or LLM techniques),
 but few parallel corpora exist for mathematics, and unsupervised approaches
 seem difficult for the subtle distinctions crucial in mathematical knowledge.
@@ -100,7 +100,8 @@ and presents the user with a list of alignment candidates to select from
 % we will outline how the alignment workflow can
 % be made much more efficient with if (relatively simple) tools
 % suggest alignment candidates that the user can select from.
-For the implementation, we build on the snify architecture for selection-based,
+For an example implementation,
+we build on the snify architecture for selection-based,
 corpus-based semantic annotation~\cite{KohSch:safc25}
 and extend it, prototypically, to the alignment problem.
 
@@ -121,7 +122,7 @@ and extend it, prototypically, to the alignment problem.
         \node at (2.9, 0) {\itshape\footnotesize Skip};
         \draw[-Stealth,thick] (next) to[out=180,in=225] (show.south west);
     \end{tikzpicture}
-    \caption{Flowchart of tool support for human aligners.}\label{fig:workflow}
+    \caption{Proposed flowchart for tool support for human aligners.}\label{fig:workflow}
 \end{figure}
 
 
@@ -162,7 +163,7 @@ and extend it, prototypically, to the alignment problem.
 
 
 \paragraph{Proposed Architecture}
-To support the workflow from \Cref{fig:workflow},
+To support the workflow in \Cref{fig:workflow},
 we propose an architecture centered around a \emph{concept glossary}
 (see \Cref{fig:architecture}).
 The concept glossary is extracted from the concept collection
@@ -236,11 +237,11 @@ for new different concept collections.
 % and a set of \emph{verbalizations} (natural language renderings of the concept).
 
 \paragraph{Building on snify}
-The snify tool~\cite{KohSch:safc25} implements
-a a workflow similar to the one shown in \Cref{fig:workflow}
+The snify tool~\cite{KohSch:safc25} supports semantic annotation with
+a workflow similar to the one shown in \Cref{fig:workflow}
 for semantic annotation.
 Both the harvester and the frontend act on \LaTeX\ documents
-that use the \texttt{stex} package for semantic markup.
+that use the sTeX package for semantic markup.
 Using the snify tool has significantly increased
 the efficiency of annotators, especially for novices who
 are not deeply familiar with the domain model (i.e.\ who
@@ -250,9 +251,9 @@ In this paper, we build on the snify architecture
 to support alignment outside of the sTeX ecosystem.
 Concretely, we have added a harvester for mathematical concepts from WikiData,
 rudimentary support for aligning formulae,
-a frontend for aligning HTML documents,
-and a browser-based user interface,
-which helps with the annotation of HTML documents.
+and a frontend for aligning HTML documents along with
+a browser-based user interface.
+% which helps with the annotation of HTML documents.
 
 % The sTeX ecosystem, which uses diverse semantic markup to drive
 % learning support systems,
@@ -265,16 +266,16 @@ which helps with the annotation of HTML documents.
 % and a browser-based user interface, which
 % helps with the annotation of HTML documents.
 
-The snify tool is implemented as a command line application.
+The snify tool was implemented as a simple command line application.
 It steps through the phrases in a document that match verbalizations
 from the concept glossary
-and presents the user with a list of potential targets.
+and presents the user with a list of annotation candidates.
 To recognize inflected forms -- e.g.\ ``continuities'' instead of ``continuity''
 -- snify uses an off-the-shelf stemmer.
 \Cref{fig:snify} shows the tool in action.
 The user can select the correct entry from the list by entering its number,
 which then creates the alignment by inserting a macro into the document
-(here e.g.\ \lstinline.\wdalign{Q28920044}{natural number}).
+(here e.g.\ \lstinline.\wdalign{Q28920044}{natural number}.).
 If the user does not want to create an alignment,
 there are many other commands to skip phrases,
 undo annotations, modify the selection, etc.
@@ -327,7 +328,7 @@ For alignments, this approach could be considered too invasive.
 
 % There is no reason to restrict the approach to \LaTeX\ documents.
 To explore other formats, we have added support for HTML documents,
-where the alignments are stored in HTML attributes.
+where the created alignments are stored in HTML attributes.
 Reading plain HTML in the command line interface is not ideal,
 especially for complex MathML formulae.
 To improve this, we have created a browser-based interface
@@ -339,12 +340,13 @@ but can render HTML instead of showing the raw source (see \cref{fig:snify-brows
     \includegraphics[width=0.7\textwidth]{img2.png}
     \caption{Screenshot of the browser-based snify interface.
     Here, a MathML operator is being annotated.
+    The document excerpt is from~\cite{tao2012oddnumbergreater1}.
     }\label{fig:snify-browser}
 \end{figure}
 
 \paragraph{Conclusion}
 In summary, we have described a workflow for efficient human alignment
-based on an concept glossary
+based on a concept glossary
 and presented a prototypical implementation based on the snify tool
 that explores this workflow
 for the alignment of text and formulae in \LaTeX\ and HTML documents
@@ -355,10 +357,10 @@ with WikiData concepts.
 % and document formats.
 While the formula alignment is rather limited,
 it was relatively easy to implement and could be improved in the future.
-On a higher level, this shows how relatively simple and naive tools
+On a higher level, this shows how relatively simple tools
 can enable much more efficient alignment workflows,
 and we hope to inspire the community to think about other tools
-that could help alignment authors.
+that could help alignment authors and maintainers.
 % -- be it text-to-database or database-to-database alignment.
 
 % \printbibliography
