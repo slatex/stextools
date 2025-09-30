@@ -235,7 +235,7 @@ for new different concept collections.
 % which links each concept identifier to a human-readable description
 % and a set of \emph{verbalizations} (natural language renderings of the concept).
 
-\paragraph{snify}
+\paragraph{Building on snify}
 The snify tool~\cite{KohSch:safc25} implements
 a a workflow similar to the one shown in \Cref{fig:workflow}
 for semantic annotation.
@@ -308,6 +308,7 @@ undo annotations, modify the selection, etc.
 % To recognize inflected forms -- e.g.\ ``continuities'' instead of ``continuity''
 % -- snify uses an off-the-shelf stemmer.
 
+\paragraph{Supporting Formulae and HTML}
 Aside from verbalizations,
 WikiData also has formula notations
 for many concepts, including \LaTeX\ notations like \lstinline.\mathbb{N}.
@@ -341,6 +342,7 @@ but can render HTML instead of showing the raw source (see \cref{fig:snify-brows
     }\label{fig:snify-browser}
 \end{figure}
 
+\paragraph{Conclusion}
 In summary, we have described a workflow for efficient human alignment
 based on an concept glossary
 and presented a prototypical implementation based on the snify tool
