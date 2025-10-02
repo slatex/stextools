@@ -7,7 +7,7 @@ from typing import Iterable, Optional, TypeAlias, Literal, cast
 from pylatexenc.latexwalker import LatexWalker, LatexMathNode, LatexCommentNode, LatexSpecialsNode, LatexMacroNode, \
     LatexEnvironmentNode, LatexGroupNode, LatexCharsNode
 
-from stextools.remote_repositories import get_mathhub_path
+from stextools.remote_repositories import get_mathhub_path, get_containing_archive
 from stextools.stepper.html_support import MyHtmlParser
 from stextools.stepper.interface import interface
 from stextools.stex.local_stex import lang_from_path
@@ -118,9 +118,20 @@ class STeXDocument(LocalFileDocument):
                                    'path_range', 'archive_range', 'UseModule', 'ImportModule'}):
             if not isinstance(e, dict):
                 continue
-            if not 'IncludeProblem' in e:
+            if not ('IncludeProblem' in e or 'Inputref' in e):
                 continue
-            path = get_mathhub_path() / e['IncludeProblem']['archive'][0] / 'source' / e['IncludeProblem']['filepath'][0]
+            key = 'IncludeProblem' if 'IncludeProblem' in e else 'Inputref'
+            if e[key]['archive']:
+                repo = get_mathhub_path() / e[key]['archive'][0]
+            else:
+                repo = get_containing_archive(self.path)
+                if repo is None:
+                    interface.write_text(
+                        f"Warning: {self.path} uses inputref without archive, but is not in a git repo.\n",
+                        style='warning'
+                    )
+                    continue
+            path = repo / 'source' / e[key]['filepath'][0]
             if not path.exists():
                 interface.write_text(f"Warning: {path} does not exist. (included by {self.path})\n", style='warning')
                 continue
