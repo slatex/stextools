@@ -466,7 +466,7 @@ def get_modules_in_scope_and_import_locations(document: STeXDocument, offset: in
                 else:
                     assert is_struct
                     pot_red_on_top_use_struct.setdefault(uri, []).append(full_range)
-                    if module_env.pos == containing_env.pos:
+                    if module_env and module_env.pos == containing_env.pos:
                         pot_red_on_import_use_struct.setdefault(uri, []).append(full_range)
                     if use_env and surrounding_envs_pos.index(containing_env.pos) >= surrounding_envs_pos.index(use_env.pos):
                         pot_red_on_use_struct.setdefault(uri, []).append(full_range)
