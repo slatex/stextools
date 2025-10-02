@@ -8,6 +8,9 @@ from stextools.snify.snifystate import SnifyState, SnifyCursor
 from stextools.snify.snifystepper import SnifyStepper
 from stextools.stepper.session_storage import SessionStorage, IgnoreSessions
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 def snify(
         files: list[Path],
@@ -41,7 +44,15 @@ def snify(
 
     stepper = SnifyStepper(state)
 
-    stop_reason = stepper.run()
+    try:
+        stop_reason = stepper.run()
+    except Exception as exc:
+        try:
+            doc = stepper.state.get_current_document()
+            logger.exception(f'Unexpected error while processing {doc.identifier}')
+        except ValueError:
+            pass
+        raise exc
 
     if stop_reason == 'quit':
         session_storage.store_session_dialog(state)
