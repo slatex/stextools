@@ -34,6 +34,9 @@ class Document(abc.ABC):
     def set_content(self, content: str):
         pass
 
+    def on_modified(self):
+        pass
+
     def get_annotatable_plaintext(self) -> Iterable[LinkedStr[None]]:
         raise NotImplementedError(f'get_annotatable_plaintext not implemented for {self.format} documents.')
 
@@ -77,6 +80,7 @@ class LocalFileDocument(Document, abc.ABC):
 
     def set_content(self, content: str):
         self.write_content(content)
+        self.on_modified()
 
     def write_content(self, content: str) -> None:
         """ Writes the content to the file. """
@@ -91,11 +95,9 @@ class STeXDocument(LocalFileDocument):
     def __init__(self, path: Path, language: str):
         super().__init__(path, language, 'sTeX')
 
-    def set_content(self, content: str):
-        super().set_content(content)
+    def on_modified(self):
         self._latex_walker = None
         FLAMS.load_file(self.identifier)
-
 
     def get_latex_walker(self) -> LatexWalker:
         """ Returns a LatexWalker for the document content. """

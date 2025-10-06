@@ -16,11 +16,11 @@ from stextools.snify.snifystate import SnifyState, SnifyCursor
 from stextools.snify.wikidata import get_wd_catalog, WdAnnotateCommand, WikidataMathMLCatalog, WikidataMathTexCatalog
 from stextools.stepper.command import CommandCollection, CommandSectionLabel, CommandOutcome
 from stextools.stepper.document import STeXDocument, Document, WdAnnoTexDocument, WdAnnoHtmlDocument, MODE
-from stextools.stepper.document_stepper import DocumentModifyingStepper
+from stextools.stepper.document_stepper import DocumentModifyingStepper, EditCommand
 from stextools.stepper.interface import interface, BrowserInterface
 from stextools.stepper.stepper import Stepper, StopStepper, Modification
 from stextools.stepper.stepper_extensions import QuittableStepper, QuitCommand, CursorModifyingStepper, UndoCommand, \
-    RedoCommand, UndoableStepper
+    RedoCommand, UndoableStepper, SetCursorOutcome
 from stextools.utils.linked_str import LinkedStr
 
 
@@ -236,6 +236,15 @@ class SnifyStepper(DocumentModifyingStepper, QuittableStepper, CursorModifyingSt
         assert catalog is not None
         is_stex = isinstance(document, STeXDocument)
         is_wdanno = isinstance(document, WdAnnoTexDocument) or isinstance(document, WdAnnoHtmlDocument)
+
+        # If first edit is before cursor: set cursor to first edit position
+        # else: set to current position, to run reselection logic
+        set_cursor_after_edit = lambda pos: [
+            SetCursorOutcome(SnifyCursor(self.state.cursor.document_index, pos))
+        ] if pos <= self.state.cursor.selection[0] else [
+            SetCursorOutcome(SnifyCursor(self.state.cursor.document_index, self.state.cursor.selection[0]))
+        ]
+
         # is_html = isinstance(document, WdAnnoHtmlDocument)
         # is_tex = isinstance(document, WdAnnoTexDocument) or isinstance(document, STeXDocument)
         return CommandCollection(
@@ -275,6 +284,8 @@ class SnifyStepper(DocumentModifyingStepper, QuittableStepper, CursorModifyingSt
                 CommandSectionLabel('\nViewing and editing'),
                 ViewCommand(document),
                 View_i_Command(self.current_annotation_choices.choices) if isinstance(self.current_annotation_choices, TextAnnotationChoices) else None,
+                EditCommand(1, document, set_cursor_after_edit),
+                EditCommand(2, document, set_cursor_after_edit),
             ],
             have_help=True
         )

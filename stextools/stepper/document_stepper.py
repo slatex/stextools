@@ -1,8 +1,11 @@
 import dataclasses
-from typing import Optional
+import os
+import subprocess
+from typing import Optional, Sequence, Callable
 
-from stextools.stepper.command import CommandOutcome
-from stextools.stepper.document import Document
+from stextools.config import get_config
+from stextools.stepper.command import CommandOutcome, Command, CommandInfo
+from stextools.stepper.document import Document, LocalFileDocument
 from stextools.stepper.interface import interface
 from stextools.stepper.stepper import State, Modification, StateType, Stepper
 
@@ -92,3 +95,43 @@ class DocumentModifyingStepper(Stepper[DocumentStepperState]):
         return super().handle_command_outcome(outcome)
 
 
+#######################################################################
+#   EDIT DOCUMENT
+#######################################################################
+
+
+def get_editor(number: int) -> str:
+    if number == 1:
+        return get_config().get('stextools.general', 'editor', fallback=os.getenv('EDITOR', 'nano'))
+    elif number == 2:
+        return get_config().get('stextools.general', f'editor2', fallback=os.getenv('EDITOR', 'nano'))
+    else:
+        raise ValueError('Invalid editor number')
+
+
+class EditCommand(Command):
+    def __init__(self, number: int, document: LocalFileDocument,
+                 outcome_for_first_changed_pos: Optional[Callable[[int], Sequence[CommandOutcome]]] = None):
+        self.document = document
+        self.outcome_for_first_changed_pos = outcome_for_first_changed_pos
+        self.editor = get_editor(number)
+        super().__init__(CommandInfo(
+            show=False,
+            pattern_presentation='e' * number,
+            pattern_regex='^' + 'e' * number + '$',
+            description_short='dit file' + ('' if number == 1 else f' with editor {number}'),
+            description_long=f'Edit the current file with {self.editor} (can be changed in the config file)')
+        )
+
+    def execute(self, call: str) -> Sequence[CommandOutcome]:
+        old_content = self.document.get_content()
+        subprocess.Popen([self.editor, str(self.document.path)]).wait()
+        new_content = self.document.get_content()
+        self.document.on_modified()
+        first_change_pos = 0
+        while first_change_pos < len(old_content) and first_change_pos < len(new_content) and old_content[first_change_pos] == new_content[first_change_pos]:
+            first_change_pos += 1
+
+        if self.outcome_for_first_changed_pos is not None:
+            return self.outcome_for_first_changed_pos(first_change_pos)
+        return []
