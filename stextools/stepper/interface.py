@@ -632,7 +632,7 @@ class ConsoleInterface(Interface):
         elif style == 'warning':
             bg = c('yellow', (255, 255, 0), 'bright_yellow', (255, 255, 128))
         elif style == 'highlight':
-            bg = c('yellow', (255, 255, 0), 'bright_yellow', (255, 255, 128))
+            bg = c('yellow', (255, 255, 0), 'bright_yellow', (255, 255, 0))
         elif style == 'pale':
             fg = c('bright_black', (128, 128, 128), 'bright_black', (128, 128, 128))
         elif style == 'highlight1':

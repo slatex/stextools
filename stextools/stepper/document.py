@@ -80,7 +80,11 @@ class LocalFileDocument(Document, abc.ABC):
 
     def set_content(self, content: str):
         self.write_content(content)
-        self.on_modified()
+        self.on_modified(reset_content=False)
+
+    def on_modified(self, reset_content: bool = True):
+        if reset_content:
+            self._content = None
 
     def write_content(self, content: str) -> None:
         """ Writes the content to the file. """
@@ -95,9 +99,10 @@ class STeXDocument(LocalFileDocument):
     def __init__(self, path: Path, language: str):
         super().__init__(path, language, 'sTeX')
 
-    def on_modified(self):
+    def on_modified(self, reset_content: bool = True):
         self._latex_walker = None
         FLAMS.load_file(self.identifier)
+        LocalFileDocument.on_modified(self, reset_content=reset_content)
 
     def get_latex_walker(self) -> LatexWalker:
         """ Returns a LatexWalker for the document content. """
