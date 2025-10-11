@@ -9,9 +9,10 @@ from stextools.snify.local_stex_catalog import local_flams_stex_catalogs, \
 from stextools.snify.math_catalog import MathCatalog
 from stextools.snify.skip_and_ignore import SkipCommand, SkipUntilFileEnd, SkipForRestOfSession, IgnoreCommand, \
     AddWordToSrSkip, AddStemToSrSkip
-from stextools.snify.snify_commands import View_i_Command, ViewCommand, ExitFileCommand, RescanOutcome, StemFocusCommand, \
+from stextools.snify.snify_commands import View_i_Command, ViewCommand, ExitFileCommand, RescanOutcome, \
+    StemFocusCommand, \
     StemFocusCommandPlus, PreviousWordShouldBeIncluded, FirstWordShouldntBeIncluded, NextWordShouldBeIncluded, \
-    LastWordShouldntBeIncluded
+    LastWordShouldntBeIncluded, RescanCommand
 from stextools.snify.snifystate import SnifyState, SnifyCursor
 from stextools.snify.wikidata import get_wd_catalog, WdAnnotateCommand, WikidataMathMLCatalog, WikidataMathTexCatalog
 from stextools.stepper.command import CommandCollection, CommandSectionLabel, CommandOutcome
@@ -286,6 +287,7 @@ class SnifyStepper(DocumentModifyingStepper, QuittableStepper, CursorModifyingSt
                 View_i_Command(self.current_annotation_choices.choices) if isinstance(self.current_annotation_choices, TextAnnotationChoices) else None,
                 EditCommand(1, document, set_cursor_after_edit),
                 EditCommand(2, document, set_cursor_after_edit),
+                RescanCommand() if is_stex else None,
             ],
             have_help=True
         )
