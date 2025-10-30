@@ -15,7 +15,7 @@ from typing import TypeAlias, Iterable
 import orjson
 
 from stextools.config import CACHE_DIR
-from stextools.snify.catalog import Verbalization, Catalog, catalogs_from_stream
+from stextools.snify.text_anno.catalog import Verbalization, Catalog, catalogs_from_stream
 from stextools.stex.local_stex import OpenedStexFLAMSFile, lang_from_path
 from stextools.stex.flams import FLAMS
 from stextools.utils.timer import timelogger

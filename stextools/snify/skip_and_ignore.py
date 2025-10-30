@@ -5,7 +5,7 @@ import re
 
 from stextools.config import CONFIG_DIR
 from stextools.snify.snifystate import SnifyCursor, SnifyState
-from stextools.snify.stemming import string_to_stemmed_word_sequence_simplified, mystem
+from stextools.snify.text_anno.stemming import mystem
 from stextools.stepper.command import Command, CommandInfo, CommandOutcome
 from stextools.stepper.document_stepper import TextRewriteOutcome
 from stextools.stepper.stepper import Modification

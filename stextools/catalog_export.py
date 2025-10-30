@@ -2,7 +2,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from stextools.snify.local_stex_catalog import local_flams_stex_catalogs
+from stextools.snify.text_anno.local_stex_catalog import local_flams_stex_catalogs
 
 
 def catalog_export(path: Path):

@@ -14,7 +14,7 @@ import requests
 
 from stextools.config import CACHE_DIR
 from stextools.snify.annotate import AnnotationChoices, TextAnnotationChoices, MathAnnotationChoices
-from stextools.snify.catalog import Catalog, Verbalization, Symb
+from stextools.snify.text_anno.catalog import Catalog, Verbalization, Symb
 from stextools.snify.math_catalog import MathCatalog
 from stextools.snify.snifystate import SnifyState, SnifyCursor
 from stextools.stepper.command import Command, CommandInfo, CommandOutcome

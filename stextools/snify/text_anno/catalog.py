@@ -1,7 +1,7 @@
 import re
 from typing import TypeVar, Generic, Iterable, Optional, Hashable
 
-from stextools.snify.stemming import string_to_stemmed_word_sequence_simplified, string_to_stemmed_word_sequence
+from stextools.snify.text_anno.stemming import string_to_stemmed_word_sequence_simplified, string_to_stemmed_word_sequence
 from stextools.utils.linked_str import LinkedStr, string_to_lstr
 
 

@@ -136,6 +136,13 @@ class UndoableStepper(Stepper[StateType]):
 
 
 class FocussableState:
+    """
+    Idea:
+    There is a stack of states.
+    Focussing pushes a new state onto the stack.
+    The stepper references the current (focussed state).
+    ``on_unfocus`` links to the state below in the stack.
+    """
     on_unfocus = None
 
     def is_focussed(self) -> bool:

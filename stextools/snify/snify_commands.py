@@ -2,11 +2,11 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Sequence, Any
 
-from stextools.snify.catalog import Verbalization
+from stextools.snify.text_anno.catalog import Verbalization
 from stextools.snify.snifystate import SnifyCursor, SnifyState
-from stextools.snify.stemming import string_to_stemmed_word_sequence_simplified, mystem, string_to_stemmed_word_sequence
+from stextools.snify.text_anno.stemming import mystem, string_to_stemmed_word_sequence
 from stextools.stepper.document import Document
-from stextools.snify.local_stex_catalog import LocalStexSymbol
+from stextools.snify.text_anno.local_stex_catalog import LocalStexSymbol
 from stextools.stepper.command import CommandOutcome, Command, CommandInfo
 from stextools.stepper.document_stepper import SubstitutionOutcome
 from stextools.stepper.interface import interface

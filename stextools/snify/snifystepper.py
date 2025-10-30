@@ -3,8 +3,8 @@ from typing import Optional, Iterable, cast
 
 from stextools.snify.annotate import STeXAnnotateCommand, STeXLookupCommand, AnnotationChoices, MathAnnotationChoices, \
     TextAnnotationChoices
-from stextools.snify.catalog import Catalog
-from stextools.snify.local_stex_catalog import local_flams_stex_catalogs, \
+from stextools.snify.text_anno.catalog import Catalog
+from stextools.snify.text_anno.local_stex_catalog import local_flams_stex_catalogs, \
     LocalFlamsCatalog
 from stextools.snify.math_catalog import MathCatalog
 from stextools.snify.skip_and_ignore import SkipCommand, SkipUntilFileEnd, SkipForRestOfSession, IgnoreCommand, \

@@ -238,9 +238,10 @@ class WdAnnoHtmlDocument(LocalFileDocument):
 
 def documents_from_paths(
         paths: list[Path],
-        tex_format: str = 'sTeX',    # or 'wdTeX' to use wikidata annotation format
-        html_format: Optional[str] = None,  # 'wdHTML' to use wikidata annotation format for HTML files
+        annotation_format: Literal['stex', 'wikidata'] = 'stex',
 ) -> list[Document]:
+    # TODO: This needs cleanup and enhancements
+
     included_paths: set[Path] = set()
 
     # Step 1: make a list of all relevant files
@@ -252,7 +253,7 @@ def documents_from_paths(
             files = [path]
         else:
             files = list(path.rglob('*.tex'))
-            if html_format is not None:
+            if annotation_format == 'wikidata':
                 for html_path in path.rglob('*.html'):
                     files.append(html_path)
 
@@ -266,11 +267,11 @@ def documents_from_paths(
     documents: list[Document] = []
 
     for path in file_paths:
-        if tex_format == 'sTeX' and path.suffix == '.tex':
+        if annotation_format == 'stex' and path.suffix == '.tex':
             new_doc = STeXDocument(path=path, language=lang_from_path(path))
-        elif tex_format == 'wdTeX' and path.suffix == '.tex':
+        elif annotation_format == 'wikidata' and path.suffix == '.tex':
             new_doc = WdAnnoTexDocument(path=path, language=lang_from_path(path))
-        elif html_format == 'wdHTML' and path.suffix == '.html':
+        elif annotation_format == 'wikidata' and path.suffix == '.html':
             new_doc = WdAnnoHtmlDocument(path=path, language=lang_from_path(path))
         else:
             raise ValueError(f"Unsupported file format for path {path} with suffix {path.suffix}")

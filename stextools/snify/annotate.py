@@ -4,10 +4,10 @@ from typing import Optional, Literal, Iterable, Sequence, Any
 
 from pylatexenc.latexwalker import LatexEnvironmentNode
 
-from stextools.snify.catalog import Verbalization
+from stextools.snify.text_anno.catalog import Verbalization
 from stextools.stepper.document import STeXDocument
 from stextools.stex.local_stex import OpenedStexFLAMSFile, get_transitive_imports, FlamsUri, get_transitive_structs
-from stextools.snify.local_stex_catalog import LocalStexSymbol, LocalFlamsCatalog
+from stextools.snify.text_anno.local_stex_catalog import LocalStexSymbol, LocalFlamsCatalog
 from stextools.snify.snify_commands import ImportCommand
 from stextools.stepper.document_stepper import SubstitutionOutcome
 from stextools.snify.snifystate import SnifyState, SnifyCursor

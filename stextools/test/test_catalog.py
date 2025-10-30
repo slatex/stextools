@@ -1,6 +1,6 @@
 import unittest
 
-from stextools.snify.catalog import Catalog, catalogs_from_stream, Verbalization
+from stextools.snify.text_anno.catalog import Catalog, catalogs_from_stream, Verbalization
 
 
 def get_test_catalog() -> Catalog:
