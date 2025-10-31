@@ -2,43 +2,40 @@ import dataclasses
 import functools
 import itertools
 import re
+from copy import deepcopy
+from typing import Sequence, Literal
 
 from stextools.config import CONFIG_DIR
-from stextools.snify.snifystate import SnifyCursor, SnifyState
+from stextools.snify.snify_state import SnifyState, SetOngoingAnnoTypeModification
+from stextools.snify.snify_commands import SkipCommand
 from stextools.snify.text_anno.stemming import mystem
+from stextools.snify.text_anno.text_anno_state import TextAnnoState
 from stextools.stepper.command import Command, CommandInfo, CommandOutcome
 from stextools.stepper.document_stepper import TextRewriteOutcome
-from stextools.stepper.stepper import Modification
-from stextools.stepper.stepper_extensions import SetCursorOutcome
-
-
-class SkipCommand(Command):
-    def __init__(self, state: SnifyState):
-        super().__init__(CommandInfo(
-            pattern_presentation = 's',
-            description_short = 'kip once',
-            description_long = 'Skips to the next possible annotation')
-        )
-        self.state = state
-
-    def execute(self, call: str) -> list[CommandOutcome]:
-        assert isinstance(self.state.cursor.selection, tuple)
-        return [
-            SetCursorOutcome(
-                new_cursor=SnifyCursor(self.state.cursor.document_index, self.state.cursor.selection[-1] + 1)
-            )
-        ]
+from stextools.stepper.stepper import Modification, Stepper
+from stextools.stepper.stepper_extensions import FocusOutcome
 
 
 class StateSkipOutcome(CommandOutcome, Modification[SnifyState]):
-    def __init__(self, word: str, is_stem: bool, session_wide: bool, lang: str, current_document_index: int):
+    """
+    Command outcome that writes into the state that a certain word (or stem) should be skipped
+    either for the rest of the session or for the rest of the current document.
+    It does not update the cursor; that has to be done separately.
+    """
+    def __init__(
+            self, word: str, is_stem: bool, session_wide: bool, lang: str, current_document_index: int,
+            anno_type_name: str,
+    ):
         self.word = word
         self.is_stem = is_stem
         self.session_wide = session_wide
         self.lang = lang
         self.current_document_index = current_document_index
+        self.anno_type_name = anno_type_name
 
-    def _get_key_and_dict(self, state: SnifyState):
+    def _get_key_and_dict(self, snify_state: SnifyState):
+        state = snify_state[self.anno_type_name]
+        assert isinstance(state, TextAnnoState)
         if self.session_wide:
             return self.lang, state.skip_stem if self.is_stem else state.skip
         else:
@@ -58,48 +55,54 @@ class StateSkipOutcome(CommandOutcome, Modification[SnifyState]):
 
 
 class SkipUntilFileEnd(Command):
-    def __init__(self, state: SnifyState):
+    def __init__(self, snify_state: SnifyState, anno_type_name: str):
         super().__init__(CommandInfo(
             show=False,
             pattern_presentation='s!',
             description_short='kip until end of file',
             description_long='Skip all occurrences of the selected phrase in this file (until end of session).')
         )
-        self.state = state
+        self.snify_state = snify_state
+        self.anno_type_name = anno_type_name
 
     def execute(self, call: str) -> list[CommandOutcome]:
+        state = self.snify_state[self.anno_type_name]
+        assert isinstance(state, TextAnnoState)
         return [
             StateSkipOutcome(
-                word=self.state.get_selected_text(),
+                word=state.get_selected_text(self.snify_state),
                 is_stem=False,
                 session_wide=False,
-                lang=self.state.get_current_document().language,
-                current_document_index=self.state.cursor.document_index
-            ),
-            SetCursorOutcome(SnifyCursor(self.state.cursor.document_index, self.state.cursor.selection[0])),
-        ]
+                lang=self.snify_state.get_current_document().language,
+                current_document_index=self.snify_state.cursor.document_index,
+                anno_type_name=self.anno_type_name
+            )
+        ] + SkipCommand.get_skip_outcome(self.snify_state)
 
 class SkipForRestOfSession(Command):
-    def __init__(self, state: SnifyState):
+    def __init__(self, snify_state: SnifyState, anno_type_name: str):
         super().__init__(CommandInfo(
             show=False,
             pattern_presentation='s!!',
             description_short='kip until end of session',
             description_long='Skip all occurrences of the selected phrase in this session.')
         )
-        self.state = state
+        self.snify_state = snify_state
+        self.anno_type_name = anno_type_name
 
     def execute(self, call: str) -> list[CommandOutcome]:
+        state = self.snify_state[self.anno_type_name]
+        assert isinstance(state, TextAnnoState)
         return [
             StateSkipOutcome(
-                word=self.state.get_selected_text(),
+                word=state.get_selected_text(self.snify_state),
                 is_stem=False,
                 session_wide=True,
-                lang=self.state.get_current_document().language,
-                current_document_index=self.state.cursor.document_index
-            ),
-            SetCursorOutcome(SnifyCursor(self.state.cursor.document_index, self.state.cursor.selection[0])),
-        ]
+                lang=self.snify_state.get_current_document().language,
+                current_document_index=self.snify_state.cursor.document_index,
+                anno_type_name=self.anno_type_name
+            )
+        ] + SkipCommand.get_skip_outcome(self.snify_state)
 
 
 
@@ -117,8 +120,9 @@ class IgnoreWordOutcome(CommandOutcome, Modification[SnifyState]):
 
 
 class IgnoreCommand(Command):
-    def __init__(self, state: SnifyState):
-        self.state = state
+    def __init__(self, state: SnifyState, anno_type_name: str):
+        self.snify_state = state
+        self.anno_type_name = anno_type_name
         super().__init__(CommandInfo(
             show=False,
             pattern_presentation='i',
@@ -127,41 +131,44 @@ class IgnoreCommand(Command):
             description_long=f'''
 The word gets put into the ignore list and will never be proposed for annotation again,
 unless removed from that list.
-You can find the ignore list at {IgnoreList.file_path_string(self.state.get_current_document().language)}.
+You can find the ignore list at {IgnoreList.file_path_string(self.snify_state.get_current_document().language)}.
 '''.strip())
         )
 
     def execute(self, call: str) -> list[CommandOutcome]:
-        state = self.state
+        state = self.snify_state[self.anno_type_name]
+        assert isinstance(state, TextAnnoState)
         return [
-            IgnoreWordOutcome(lang=state.get_current_document().language,
-                              word=re.sub(r'\s+', ' ', state.get_selected_text()).strip()),
-            SetCursorOutcome(SnifyCursor(state.cursor.document_index, state.cursor.selection[0] + 1))
-        ]
+            IgnoreWordOutcome(
+                lang=self.snify_state.get_current_document().language,
+                word=re.sub(r'\s+', ' ', state.get_selected_text(self.snify_state)).strip()
+            )
+        ] + SkipCommand.get_skip_outcome(self.snify_state)
 
 
 class AddWordToSrSkip(Command):
-    def __init__(self, state: SnifyState):
+    def __init__(self, state: SnifyState, anno_type_name: str):
         super().__init__(CommandInfo(
             show=False,
             pattern_presentation='S',
             description_short='kip word in this file forever',
             description_long='Adds the selected word to the `% srskip` comments of this file\nthat list words that should always be skipped.')
         )
-        self.state = state
+        self.snify_state = state
+        self.anno_type_name = anno_type_name
 
     def execute(self, call: str) -> list[CommandOutcome]:
-        srskipped = SrSkipped(self.state.get_current_document().get_content())
-        srskipped.add_literal(self.state.get_selected_text())
-        return [
-            TextRewriteOutcome(srskipped.to_new_text()),
-            SetCursorOutcome(SnifyCursor(self.state.cursor.document_index, self.state.cursor.selection[0] + 1))
-        ]
+        state = self.snify_state[self.anno_type_name]
+        assert isinstance(state, TextAnnoState)
+        srskipped = SrSkipped(self.snify_state.get_current_document().get_content())
+        srskipped.add_literal(state.get_selected_text(self.snify_state))
+        return [TextRewriteOutcome(srskipped.to_new_text())] + SkipCommand.get_skip_outcome(self.snify_state)
 
 
 class AddStemToSrSkip(Command):
-    def __init__(self, state: SnifyState):
-        self.state = state
+    def __init__(self, state: SnifyState, anno_type_name: str):
+        self.snify_state = state
+        self.anno_type_name = anno_type_name
         super().__init__(CommandInfo(
             show=False,
             pattern_presentation='SS',
@@ -170,15 +177,13 @@ class AddStemToSrSkip(Command):
         )
 
     def execute(self, call: str) -> list[CommandOutcome]:
-        state = self.state
-        srskipped = SrSkipped(self.state.get_current_document().get_content())
-        word = state.get_selected_text()
-        stem = mystem(word, self.state.get_current_document().language)
+        state = self.snify_state[self.anno_type_name]
+        assert isinstance(state, TextAnnoState)
+        srskipped = SrSkipped(self.snify_state.get_current_document().get_content())
+        word = state.get_selected_text(self.snify_state)
+        stem = mystem(word, self.snify_state.get_current_document().language)
         srskipped.add_stem(stem)
-        return [
-            TextRewriteOutcome(srskipped.to_new_text()),
-            SetCursorOutcome(SnifyCursor(state.cursor.document_index, state.cursor.selection[0] + 1))
-        ]
+        return [TextRewriteOutcome(srskipped.to_new_text())] + SkipCommand.get_skip_outcome(self.snify_state)
 
 
 class _IgnoreList:
@@ -322,3 +327,46 @@ class SrSkipped:
 def get_srskipped_cached(text: str) -> SrSkipped:
     """ typically, we repeatedly check for the same file """
     return SrSkipped(text)
+
+
+class StemFocusCommand(Command):
+    def __init__(
+            self, stepper: Stepper, scope: Literal['file', 'remaining_files'], anno_type_name: str
+    ):
+        if scope == 'file':
+            super().__init__(CommandInfo(
+                show=False,
+                pattern_presentation='f',
+                description_short='ocus on stem',
+                description_long='Look for other occurrences of the current stem in the current file')
+            )
+        elif scope == 'remaining_files':
+            super().__init__(CommandInfo(
+                show=False,
+                pattern_presentation='f!',
+                description_short='ocus on stem in all remaining files',
+                description_long='Look for other occurrences of the current stem in the remaining files')
+            )
+        else:
+            raise ValueError(f'Invalid scope: {scope}')
+        self.anno_type_name = anno_type_name
+        self.scope = scope
+        self.stepper = stepper
+
+    def execute(self, call: str) -> Sequence[CommandOutcome]:
+        snify_state = self.stepper.state
+        assert isinstance(snify_state, SnifyState)
+        new_snify_state = deepcopy(snify_state)   # TODO: This is inefficient (copies and then discards entire stack)
+        new_snify_state.on_unfocus = None
+        if self.scope == 'file':
+            new_snify_state.documents = [snify_state.get_current_document()]
+        new_state = new_snify_state[self.anno_type_name]
+        assert isinstance(new_state, TextAnnoState)
+        new_state.stem_focus = mystem(new_state.get_selected_text(snify_state), snify_state.get_current_document().language)
+        new_state.focus_lang = snify_state.get_current_document().language
+
+        return [
+            # do not want to return to old selection
+            FocusOutcome(new_snify_state, self.stepper),
+            SetOngoingAnnoTypeModification(snify_state.ongoing_annotype, None),
+        ]

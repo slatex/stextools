@@ -29,7 +29,7 @@ from __future__ import annotations
 import abc
 from typing import Optional
 
-from stextools.snify.new_snify_state import NewSnifyState
+from stextools.snify.snify_state import SnifyState
 from stextools.stepper.command import CommandCollection, CommandOutcome
 from stextools.stepper.document import Document
 from stextools.stepper.stepper import Modification
@@ -48,7 +48,7 @@ class EndeavourSource(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def is_applicable(self, document: Document, snify_state: NewSnifyState) -> bool:
+    def is_applicable(self, document: Document, snify_state: SnifyState) -> bool:
         # Note: Document may be different in snify state cursor
         # snify_state should only be used for general session information (mode, annotation format, ...)
         pass
@@ -58,7 +58,7 @@ class EndeavourSource(abc.ABC):
             self,
             document: Document,   # document and position may be different in state cursor
             position: int,
-            snify_state: NewSnifyState
+            snify_state: SnifyState
     ) -> Optional[Endeavour]:
         pass
 
@@ -74,8 +74,8 @@ class EndOfEndeavour(CommandOutcome):
 
 
 class Endeavour(abc.ABC):
-    def __init__(self, name: str, document: Document, position: int, snify_state: NewSnifyState,
-                 setup_modifications: list[Modification[NewSnifyState]]):
+    def __init__(self, name: str, document: Document, position: int, snify_state: SnifyState,
+                 setup_modifications: list[Modification[SnifyState]]):
         # Important: Both document and position could be wrong in snify_state's cursor
         # That's because at this point the endeavour is just a proposal.
         # That's why document and position are passed explicitly.

@@ -24,20 +24,30 @@ Performance remarks:
   Therefore, initialization should and expensive setup should be deferred until the AnnoType is actually used.
 """
 import abc
+import dataclasses
 from typing import TypeVar, Generic, Optional
 
-from stextools.snify.new_snify_state import NewSnifyState
+from stextools.snify.snify_state import SnifyState
 from stextools.stepper.command import CommandCollection
 from stextools.stepper.document import Document
-from stextools.stepper.stepper import Modification
+from stextools.stepper.stepper import Modification, Stepper
 
 StateType = TypeVar('StateType')
 
 
-class AnnoType(Generic[StateType], abc.ABC):
-    snify_state: NewSnifyState
+@dataclasses.dataclass
+class StepperStatus:
+    """ Some information about the current stepper "state" that is not actually part of the state. """
+    can_undo: bool
+    can_redo: bool
+    # Reference to the stepper itself (needed for focus commands, possibly others)
+    stepper_ref: Stepper
 
-    def set_snify_state(self, state: NewSnifyState):
+
+class AnnoType(Generic[StateType], abc.ABC):
+    snify_state: SnifyState
+
+    def set_snify_state(self, state: SnifyState):
         self.snify_state = state
 
     @property
@@ -78,7 +88,7 @@ class AnnoType(Generic[StateType], abc.ABC):
         """Show the current state to the user (e.g. print the document fragment and highlight selected segment)."""
 
     @abc.abstractmethod
-    def get_command_collection(self) -> CommandCollection:
+    def get_command_collection(self, stepper_status: StepperStatus) -> CommandCollection:
         """Return the commands applicable to the current state."""
 
     def rescan(self):

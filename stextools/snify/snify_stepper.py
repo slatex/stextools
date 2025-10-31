@@ -1,8 +1,8 @@
 from collections import namedtuple
 from typing import Optional
 
-from stextools.snify.annotype import AnnoType
-from stextools.snify.new_snify_state import NewSnifyState, NewSnifyCursor
+from stextools.snify.annotype import AnnoType, StepperStatus
+from stextools.snify.snify_state import SnifyState, SnifyCursor, SetOngoingAnnoTypeModification
 from stextools.snify.text_anno.text_anno_type import TextAnnoType
 from stextools.stepper.command import CommandCollection, CommandOutcome
 from stextools.stepper.document_stepper import DocumentModifyingStepper
@@ -20,24 +20,20 @@ ANNO_TYPE_LOOKUP: dict[str, AnnoType] = {
     atype.name: atype for atype in ANNO_TYPES
 }
 
-class SetOngoingAnnoTypeModification(Modification[NewSnifyState]):
-    def __init__(self, old_annotype: Optional[str], new_annotype: Optional[str]):
-        self.old_annotype = old_annotype
-        self.new_annotype = new_annotype
 
-    def apply(self, state: NewSnifyState):
-        state.ongoing_annotype = self.new_annotype
-
-    def unapply(self, state: NewSnifyState):
-        state.ongoing_annotype = self.old_annotype
-
-
-class NewSnifyStepper(
-    DocumentModifyingStepper, QuittableStepper, CursorModifyingStepper, UndoableStepper, Stepper[NewSnifyState]
+class SnifyStepper(
+    DocumentModifyingStepper, QuittableStepper, CursorModifyingStepper, UndoableStepper, Stepper[SnifyState]
 ):
-    def __init__(self, state: NewSnifyState):
+    def __init__(self, state: SnifyState):
         super().__init__(state)
         self.state = state
+
+    def get_stepper_status(self) -> StepperStatus:
+        return StepperStatus(
+            can_undo=bool(self.modification_history),
+            can_redo=bool(self.modification_future),
+            stepper_ref=self,
+        )
 
     def ensure_state_up_to_date(self):
         """ Regularly called by the stepper to ensure that we have an annotation to work on. """
@@ -64,7 +60,7 @@ class NewSnifyStepper(
                 if annotype_name in self.state.cursor.banned_annotypes:
                     pos += 1   # only look for potential annotations after the current position
                 r = anno_type.get_next_annotation_suggestion(
-                    self.state.get_current_document(),
+                    self.state.documents[document_index],
                     pos,
                 )
                 if r is not None:
@@ -80,8 +76,8 @@ class NewSnifyStepper(
                     )
 
                 setup_modifications: list[Modification] = next_anno.setup_modifications
-                if document_index != self.state.cursor.document_index or in_doc_pos != self.state.cursor.in_doc_pos:
-                    new_cursor = NewSnifyCursor(
+                if document_index != self.state.cursor.document_index or next_anno.position != self.state.cursor.in_doc_pos:
+                    new_cursor = SnifyCursor(
                         document_index=document_index,
                         in_doc_pos=next_anno.position,
                         banned_annotypes=set(),   # reset banned endeavours on position change
@@ -89,6 +85,7 @@ class NewSnifyStepper(
                     setup_modifications = [
                         CursorModification(self.state.cursor, new_cursor)
                     ] + setup_modifications
+
                 setup_modifications.append(
                     SetOngoingAnnoTypeModification(
                         old_annotype=self.state.ongoing_annotype,
@@ -132,10 +129,11 @@ class NewSnifyStepper(
         return ANNO_TYPE_LOOKUP[self.state.ongoing_annotype]
 
     def show_current_state(self):
+        self.get_current_anno_type().set_snify_state(self.state)
         self.get_current_anno_type().show_current_state()
 
     def get_current_command_collection(self) -> CommandCollection:
-        return self.get_current_anno_type().get_command_collection()
+        return self.get_current_anno_type().get_command_collection(self.get_stepper_status())
 
     def handle_command_outcome(self, outcome: CommandOutcome) -> Optional[Modification]:
         # if isinstance(outcome, RescanOutcome):

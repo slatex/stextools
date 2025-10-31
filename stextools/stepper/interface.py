@@ -44,6 +44,9 @@ def _get_lines_around(text: str, start: int, end: int, n_lines: int = 7) -> tupl
       - the line number of the start index
     """
     start_index = start
+    if not 0 <= start <= end < len(text):
+        raise ValueError(f"Invalid start/end: {start}/{end} for text of length {len(text)}")
+
     for _ in range(n_lines):
         if start_index > 0:
             start_index -= 1

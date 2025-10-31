@@ -1,34 +1,29 @@
-from copy import deepcopy
 from pathlib import Path
 from typing import Sequence, Any
 
+from stextools.snify.snify_state import SnifyState, SnifyCursor, SetOngoingAnnoTypeModification
 from stextools.snify.text_anno.catalog import Verbalization
-from stextools.snify.snifystate import SnifyCursor, SnifyState
-from stextools.snify.text_anno.stemming import mystem, string_to_stemmed_word_sequence
 from stextools.stepper.document import Document
 from stextools.snify.text_anno.local_stex_catalog import LocalStexSymbol
-from stextools.stepper.command import CommandOutcome, Command, CommandInfo
-from stextools.stepper.document_stepper import SubstitutionOutcome
+from stextools.stepper.command import Command, CommandInfo, CommandOutcome
 from stextools.stepper.interface import interface
-from stextools.stepper.stepper import Stepper
-from stextools.stepper.stepper_extensions import SetCursorOutcome, FocusOutcome
+from stextools.stepper.stepper_extensions import SetCursorOutcome
 
 
-class ImportCommand(Command):
-    def __init__(self, letter: str, description_short: str, description_long: str, outcome: SubstitutionOutcome,
-                 redundancies: list[SubstitutionOutcome]):
-        super().__init__(CommandInfo(
-            pattern_presentation=letter,
-            description_short=description_short,
-            description_long=description_long)
-        )
-        self.outcome = outcome
-        self.redundancies = redundancies
-
-    def execute(self, call: str) -> Sequence[CommandOutcome]:
-        cmds: list[SubstitutionOutcome] = self.redundancies + [self.outcome]
-        cmds.sort(key=lambda x: x.start_pos, reverse=True)
-        return cmds
+# If first edit is before cursor: set cursor to first edit position
+# else: set to current position, to run reselection logic
+def get_set_cursor_after_edit_function(state: SnifyState):
+    def set_cursor_after_edit(pos) -> list[CommandOutcome]:
+        if pos <= state.cursor.in_doc_pos:
+            return [
+                SetCursorOutcome(SnifyCursor(document_index=state.cursor.document_index, in_doc_pos=pos))
+            ]
+        else:
+            return [
+                SetOngoingAnnoTypeModification(state.ongoing_annotype, None),
+                # SetCursorOutcome(SnifyCursor(state.cursor.document_index, state.cursor.selection[0]))
+            ]
+    return set_cursor_after_edit
 
 
 class View_i_Command(Command):
@@ -95,7 +90,10 @@ class ExitFileCommand(Command):
         self.state = state
 
     def execute(self, call: str) -> Sequence[CommandOutcome]:
-        return [SetCursorOutcome(SnifyCursor(self.state.cursor.document_index + 1, 0))]
+        return [
+            SetOngoingAnnoTypeModification(self.state.ongoing_annotype, None),
+            SetCursorOutcome(SnifyCursor(self.state.cursor.document_index + 1, 0, banned_annotypes=set()))
+        ]
 
 
 class RescanOutcome(CommandOutcome):
@@ -116,174 +114,28 @@ class RescanCommand(Command):
         return [RescanOutcome()]
 
 
-class StemFocusCommand(Command):
-    def __init__(self, stepper: Stepper):
+class SkipCommand(Command):
+    def __init__(self, state: SnifyState):
         super().__init__(CommandInfo(
-            show=False,
-            pattern_presentation='f',
-            description_short='ocus on stem',
-            description_long='Look for other occurrences of the current stem in the current file')
+            pattern_presentation = 's',
+            description_short = 'kip once',
+            description_long = 'Skips to the next possible annotation')
         )
-        self.stepper = stepper
+        self.state = state
 
-    def execute(self, call: str) -> Sequence[CommandOutcome]:
-        state = self.stepper.state
-        assert isinstance(state, SnifyState)
-        new_state = deepcopy(state)   # TODO: This is inefficient (copies and then discards entire stack)
-        new_state.on_unfocus = None
-        new_state.documents = [state.get_current_document()]
-        new_state.stem_focus = mystem(state.get_selected_text(), state.get_current_document().language)
-        new_state.focus_lang = state.get_current_document().language
-
+    @classmethod
+    def get_skip_outcome(cls, state: SnifyState) -> list[CommandOutcome]:
+        c = state.cursor
+        new_cursor = SnifyCursor(
+            document_index=c.document_index,
+            banned_annotypes=c.banned_annotypes | {state.ongoing_annotype},
+            in_doc_pos=c.in_doc_pos
+        )
         return [
-            # do not want to return to old selection
-            FocusOutcome(new_state, self.stepper),
-            SetCursorOutcome(SnifyCursor(state.cursor.document_index, state.cursor.selection[0])),
+            SetOngoingAnnoTypeModification(state.ongoing_annotype, None),
+            SetCursorOutcome(new_cursor=new_cursor),
         ]
 
 
-class StemFocusCommandPlus(Command):
-    # TODO: Merge this with StemFocusCommand
-    def __init__(self, stepper: Stepper):
-        super().__init__(CommandInfo(
-            show=False,
-            pattern_presentation='f!',
-            description_short='ocus on stem in all remaining files',
-            description_long='Look for other occurrences of the current stem in the remaining files')
-        )
-        self.stepper = stepper
-
-    def execute(self, call: str) -> Sequence[CommandOutcome]:
-        state = self.stepper.state
-        assert isinstance(state, SnifyState)
-        new_state = deepcopy(state)   # TODO: This is inefficient (copies and then discards entire stack)
-        new_state.on_unfocus = None
-        new_state.stem_focus = mystem(state.get_selected_text(), state.get_current_document().language)
-        new_state.focus_lang = state.get_current_document().language
-
-        return [
-            FocusOutcome(new_state, self.stepper),
-            SetCursorOutcome(SnifyCursor(state.cursor.document_index, state.cursor.selection[0])),
-        ]
-
-
-class PreviousWordShouldBeIncluded(Command):
-    def __init__(self, state: SnifyState):
-        self.state = state
-        super().__init__(CommandInfo(
-            show=False,
-            pattern_presentation='p',
-            description_short='revious token should be included',
-            description_long='Extends the selection to include the previous token.')
-        )
-
     def execute(self, call: str) -> list[CommandOutcome]:
-        state = self.state
-        doc = state.get_current_document()
-        for lstr in doc.get_annotatable_plaintext():
-            if lstr.get_end_ref() >= state.cursor.selection[0]:
-                words = string_to_stemmed_word_sequence(lstr, doc.language)
-                i = 0
-                while i < len(words) and words[i].get_end_ref() <= state.cursor.selection[0]:
-                    i += 1
-                if i == 0:
-                    interface.admonition(
-                        'Already at beginning of possible selection range.',
-                        'error',
-                        confirm=True
-                    )
-                    return []
-                return [SetCursorOutcome(SnifyCursor(
-                    state.cursor.document_index,
-                    (words[i - 1].get_start_ref(), state.cursor.selection[1]),
-                ))]
-        raise RuntimeError('Somehow I did not find the previous word.')
-
-
-class FirstWordShouldntBeIncluded(Command):
-    def __init__(self, state: SnifyState):
-        self.state = state
-        super().__init__(CommandInfo(
-            show=False,
-            pattern_presentation='P',
-            description_short=' exclude first selected token',
-            description_long='Opposite of [p]. Excludes the first token from the selection.')
-        )
-
-    def execute(self, call: str) -> list[CommandOutcome]:
-        state = self.state
-        doc = state.get_current_document()
-        for lstr in doc.get_annotatable_plaintext():
-            if lstr.get_end_ref() >= state.cursor.selection[0]:
-                words = string_to_stemmed_word_sequence(lstr, doc.language)
-                i = 0
-                while i < len(words) and words[i].get_end_ref() <= state.cursor.selection[0]:
-                    i += 1
-                new_start = words[i + 1].get_start_ref()
-                if new_start >= state.cursor.selection[1]:
-                    interface.admonition('Selection is getting too small', 'error', confirm=True)
-                    return []
-                return [SetCursorOutcome(SnifyCursor(
-                    state.cursor.document_index,
-                    (new_start, state.cursor.selection[1]),
-                ))]
-        raise RuntimeError('I could not find the first word.')
-
-
-class NextWordShouldBeIncluded(Command):
-    def __init__(self, state: SnifyState):
-        self.state = state
-        super().__init__(CommandInfo(
-            show=False,
-            pattern_presentation='n',
-            description_short='ext token should be included',
-            description_long='Extends the selection to include the next token.')
-        )
-
-    def execute(self, call: str) -> list[CommandOutcome]:
-        state = self.state
-        doc = state.get_current_document()
-        for lstr in doc.get_annotatable_plaintext():
-            if lstr.get_end_ref() >= state.cursor.selection[0]:
-                words = string_to_stemmed_word_sequence(lstr, doc.language)
-                i = 0
-                while i < len(words) and words[i].get_start_ref() < state.cursor.selection[1]:
-                    i += 1
-                if i == len(words):
-                    interface.admonition('Already at end of possible selection range.', 'error', confirm=True)
-                    return []
-                return [SetCursorOutcome(SnifyCursor(
-                    state.cursor.document_index,
-                    (state.cursor.selection[0], words[i].get_end_ref()),
-                ))]
-        raise RuntimeError('Somehow I did not find the next word.')
-
-
-class LastWordShouldntBeIncluded(Command):
-    def __init__(self, state: SnifyState):
-        self.state = state
-        super().__init__(CommandInfo(
-            show=False,
-            pattern_presentation='N',
-            description_short=' exclude last selected token',
-            description_long='Opposite of [n]. Excludes the last token from the selection.')
-        )
-
-    def execute(self, call: str) -> list[CommandOutcome]:
-        state = self.state
-        doc = state.get_current_document()
-        for lstr in doc.get_annotatable_plaintext():
-            if lstr.get_end_ref() >= state.cursor.selection[0]:
-                words = string_to_stemmed_word_sequence(lstr, doc.language)
-                i = 0
-                while i < len(words) and words[i].get_start_ref() < state.cursor.selection[1]:
-                    i += 1
-                new_end = words[i - 2].get_end_ref()
-                if new_end <= state.cursor.selection[0]:
-                    interface.admonition('Selection is getting too small', 'error', confirm=True)
-                    return []
-                return [SetCursorOutcome(SnifyCursor(
-                    state.cursor.document_index,
-                    (state.cursor.selection[0], new_end),
-                ))]
-        raise RuntimeError('I could not find the last word.')
+        return self.get_skip_outcome(self.state)

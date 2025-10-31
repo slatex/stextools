@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Optional
 
 from stextools.config import CONFIG_DIR
-from stextools.stepper.command import CommandOutcome, Command, CommandInfo, CommandCollection
+from stextools.stepper.command import Command, CommandInfo, CommandCollection, CommandOutcome
 from stextools.stepper.interface import interface
 from stextools.stepper.stepper import State
 from stextools.stepper.stepper_extensions import QuitOutcome, QuitCommand

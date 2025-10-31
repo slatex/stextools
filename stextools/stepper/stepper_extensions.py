@@ -150,28 +150,29 @@ class FocussableState:
 
 
 class FocusOutcome(CommandOutcome, Modification):
-    def __init__(self, new_state, stepper: Stepper):
+    def __init__(self, new_state: FocussableState, stepper: Stepper[FocussableState]):
+        # TODO: the dependency on the stepper is awkward
         self.new_state = new_state
         self.stepper = stepper
         self.old_state = self.stepper.state
 
-    def apply(self, state: StateType):
+    def apply(self, state: FocussableState):
         self.new_state.on_unfocus = self.old_state
         self.stepper.state = self.new_state
 
-    def unapply(self, state: StateType):
+    def unapply(self, state: FocussableState):
         self.stepper.state = state.on_unfocus
 
 
 class UnfocusOutcome(CommandOutcome):
-    def __init__(self, stepper: Stepper):
+    def __init__(self, stepper: Stepper[FocussableState]):
         self.stepper = stepper
         self.focus_state = self.stepper.state
 
-    def apply(self, state: StateType):
+    def apply(self, state: FocussableState):
         self.stepper.state = state.on_unfocus
 
-    def unapply(self, state: StateType):
+    def unapply(self, state: FocussableState):
         self.stepper.state = self.focus_state
 
 

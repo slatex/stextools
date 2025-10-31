@@ -13,10 +13,11 @@ import requests
 
 
 from stextools.config import CACHE_DIR
-from stextools.snify.annotate import AnnotationChoices, TextAnnotationChoices, MathAnnotationChoices
+from stextools.snify.snify_state import SnifyState, SnifyCursor, SetOngoingAnnoTypeModification
+from stextools.snify.text_anno.annotate import AnnotationCandidates, TextAnnotationCandidates, MathAnnotationCandidates
 from stextools.snify.text_anno.catalog import Catalog, Verbalization, Symb
 from stextools.snify.math_catalog import MathCatalog
-from stextools.snify.snifystate import SnifyState, SnifyCursor
+from stextools.snify.text_anno.text_anno_state import TextAnnoState
 from stextools.stepper.command import Command, CommandInfo, CommandOutcome
 from stextools.stepper.document import WdAnnoTexDocument, WdAnnoHtmlDocument
 from stextools.stepper.document_stepper import SubstitutionOutcome
@@ -208,13 +209,15 @@ def get_notation_table(format: str) -> dict[str, list[str]]:
 class WdAnnotateCommand(Command):
     def __init__(
             self,
-            state: SnifyState,
-            options: AnnotationChoices,
+            snify_state: SnifyState,
+            options: AnnotationCandidates,
             catalog: Catalog[WdSymbol, Verbalization] | MathCatalog,
+            anno_type_name: str,
     ):
-        self.state = state
+        self.snify_state = snify_state
         self.options = options
         self.catalog = catalog
+        self.anno_type_name = anno_type_name
 
         Command.__init__(
             self,
@@ -226,8 +229,14 @@ class WdAnnotateCommand(Command):
             )
         )
 
+    @property
+    def state(self) -> TextAnnoState:
+        state = self.snify_state[self.anno_type_name]
+        assert isinstance(state, TextAnnoState)
+        return state
+
     def standard_display(self):
-        symbols = [o[0] for o in self.options.choices] if isinstance(self.options, TextAnnotationChoices) else self.options.choices
+        symbols = [o[0] for o in self.options.candidates] if isinstance(self.options, TextAnnotationCandidates) else self.options.candidates
         for i, symb in enumerate(symbols):
             label = interface.apply_style(get_wd_catalog("en").get_symb_verbs(symb)[0].verb, "highlight1")
             id = interface.apply_style(f"({symb.identifier})", "pale")
@@ -245,41 +254,49 @@ class WdAnnotateCommand(Command):
             )
 
     def annotate_symbol(self, symbol: WdSymbol) -> Sequence[CommandOutcome]:
-        cursor = self.state.cursor
-        if isinstance(self.state.get_current_document(), WdAnnoTexDocument):
-            if isinstance(self.options, TextAnnotationChoices):
-                new_string = f'\\wdalign{{{symbol.identifier}}}{{{self.state.get_selected_text()}}}'
+        cursor = self.snify_state.cursor
+        if isinstance(self.snify_state.get_current_document(), WdAnnoTexDocument):
+            if isinstance(self.options, TextAnnotationCandidates):
+                new_string = f'\\wdalign{{{symbol.identifier}}}{{{self.state.get_selected_text(self.snify_state)}}}'
             else:
-                new_string = f'\\mwdalign{{{symbol.identifier}}}{{{self.state.get_selected_text()}}}'
-        elif isinstance(self.state.get_current_document(), WdAnnoHtmlDocument):
-            if isinstance(self.options, TextAnnotationChoices):
-                new_string = f'<span data-wd-align="{symbol.identifier}">{self.state.get_selected_text()}</span>'
+                new_string = f'\\mwdalign{{{symbol.identifier}}}{{{self.state.get_selected_text(self.snify_state)}}}'
+        elif isinstance(self.snify_state.get_current_document(), WdAnnoHtmlDocument):
+            if isinstance(self.options, TextAnnotationCandidates):
+                new_string = f'<span data-wd-align="{symbol.identifier}">{self.state.get_selected_text(self.snify_state)}</span>'
             else:
-                st = self.state.get_selected_text()
+                st = self.state.get_selected_text(self.snify_state)
                 gtpos = st.find('>')
                 assert gtpos != -1
                 new_string = st[:gtpos] + f' data-wd-align="{symbol.identifier}"' + st[gtpos:]
         else:
             raise ValueError("Document type not supported for Wikidata annotation.")
+        new_cursor = SnifyCursor(
+            document_index=cursor.document_index,
+            in_doc_pos=cursor.in_doc_pos + len(new_string),
+            banned_annotypes=cursor.banned_annotypes,
+        )
+
         return [
             SubstitutionOutcome(
                 new_string,
-                cursor.selection[0], cursor.selection[1]
+                self.state.selection[0], self.state.selection[1]
             ),
-            SetCursorOutcome(SnifyCursor(cursor.document_index, cursor.selection[0] + len(new_string)))
+            # SetCursorOutcome(SnifyCursor(cursor.document_index, self.state.selection[0] + len(new_string)))
+            SetOngoingAnnoTypeModification(self.snify_state.ongoing_annotype, None),
+            SetCursorOutcome(new_cursor=new_cursor),
         ]
 
     def execute(self, call: str) -> Sequence[CommandOutcome]:
-        if int(call) >= len(self.options.choices):
+        if int(call) >= len(self.options.candidates):
             interface.write_text('Invalid annotation number', style='error')
             interface.await_confirmation()
             return []
 
-        if isinstance(self.options, TextAnnotationChoices):
-            symbol, _ = self.options.choices[int(call)]
+        if isinstance(self.options, TextAnnotationCandidates):
+            symbol, _ = self.options.candidates[int(call)]
         else:
-            assert isinstance(self.options, MathAnnotationChoices)
-            symbol = self.options.choices[int(call)]
+            assert isinstance(self.options, MathAnnotationCandidates)
+            symbol = self.options.candidates[int(call)]
         return self.annotate_symbol(symbol)
 
 

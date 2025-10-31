@@ -1,12 +1,12 @@
 """
 Various helper functions for displaying snify content.
 """
-from stextools.snify.new_snify_state import NewSnifyState
+from stextools.snify.snify_state import SnifyState
 from stextools.stepper.document import Document, WdAnnoHtmlDocument
 from stextools.stepper.interface import interface, BrowserInterface
 
 
-def display_snify_header(state: NewSnifyState):
+def display_snify_header(state: SnifyState):
     # TODO: add:
     #   * current annotation type
     #   * statistics (# annos, remaining/total documents, ...)

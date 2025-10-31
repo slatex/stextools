@@ -1,61 +1,83 @@
 import dataclasses
 from copy import deepcopy
-from typing import Optional, Literal, Iterable, Sequence, Any
+from typing import Optional, Literal, Iterable, Sequence, Any, Callable
 
 from pylatexenc.latexwalker import LatexEnvironmentNode
 
+from stextools.snify.snify_state import SnifyState, SnifyCursor, SetOngoingAnnoTypeModification
 from stextools.snify.text_anno.catalog import Verbalization
+from stextools.snify.text_anno.text_anno_state import TextAnnoState
 from stextools.stepper.document import STeXDocument
 from stextools.stex.local_stex import OpenedStexFLAMSFile, get_transitive_imports, FlamsUri, get_transitive_structs
 from stextools.snify.text_anno.local_stex_catalog import LocalStexSymbol, LocalFlamsCatalog
-from stextools.snify.snify_commands import ImportCommand
 from stextools.stepper.document_stepper import SubstitutionOutcome
-from stextools.snify.snifystate import SnifyState, SnifyCursor
 from stextools.stex.stex_py_parsing import iterate_latex_nodes
-from stextools.stepper.command import Command, CommandInfo, CommandOutcome, CommandCollection
+from stextools.stepper.command import Command, CommandInfo, CommandCollection, CommandOutcome
 from stextools.stepper.interface import interface
 from stextools.stepper.stepper_extensions import QuitCommand, QuitOutcome, SetCursorOutcome
 from stextools.stex.flams import FLAMS
 from stextools.utils.json_iter import json_iter
 
 
-class AnnotationChoices:
+class AnnotationCandidates:
     pass
 
 
 @dataclasses.dataclass(frozen=True)
-class TextAnnotationChoices(AnnotationChoices):
-    choices: list[tuple[Any, Verbalization]]
+class TextAnnotationCandidates(AnnotationCandidates):
+    candidates: list[tuple[Any, Verbalization]]
 
 
 @dataclasses.dataclass(frozen=True)
-class MathAnnotationChoices(AnnotationChoices):
-    choices: list[Any]
+class MathAnnotationCandidates(AnnotationCandidates):
+    candidates: list[Any]
 
 class AnnotationAborted(Exception):
     pass
 
 
+class ImportCommand(Command):
+    def __init__(self, letter: str, description_short: str, description_long: str, outcome: SubstitutionOutcome,
+                 redundancies: list[SubstitutionOutcome]):
+        super().__init__(CommandInfo(
+            pattern_presentation=letter,
+            description_short=description_short,
+            description_long=description_long)
+        )
+        self.outcome = outcome
+        self.redundancies = redundancies
+
+    def execute(self, call: str) -> Sequence[CommandOutcome]:
+        cmds: list[SubstitutionOutcome] = self.redundancies + [self.outcome]
+        cmds.sort(key=lambda x: x.start_pos, reverse=True)
+        return cmds
+
+
 class STeXAnnotateBase(Command):
     def __init__(
             self,
-            state: SnifyState,
+            snify_state: SnifyState,
             catalog: LocalFlamsCatalog,
-            stepper,
+            show_state_fun: Callable[[], None],
+            anno_type_name: str,
     ):
-        self.state = state
+        self.snify_state = snify_state
         self.catalog = catalog
-        self.stepper = stepper
-        document = state.get_current_document()
+        self.show_state_fun = show_state_fun
+        self.anno_type_name = anno_type_name
+        document = snify_state.get_current_document()
         assert isinstance(document, STeXDocument)
         self.document: STeXDocument = document
-        self.importinfo = get_modules_in_scope_and_import_locations(
-            self.document,
-            state.cursor.selection[0] if isinstance(state.cursor.selection, tuple) else state.cursor.selection,
-        )
+        self.importinfo = get_modules_in_scope_and_import_locations(self.document, self.state.selection[0])
+
+    @property
+    def state(self) -> TextAnnoState:
+        state = self.snify_state[self.anno_type_name]
+        assert isinstance(state, TextAnnoState)
+        return state
 
     def annotate_symbol(self, symbol: LocalStexSymbol) -> list[CommandOutcome]:
-        cursor = self.state.cursor
+        state = self.state
         outcomes: list[Any] = []
 
         try:
@@ -68,7 +90,7 @@ class STeXAnnotateBase(Command):
 
         sr = self.get_sr(symbol.uri)
         outcomes.append(
-            SubstitutionOutcome(sr, cursor.selection[0], cursor.selection[1])
+            SubstitutionOutcome(sr, state.selection[0], state.selection[1])
         )
 
         # at this point, we only have substitutions
@@ -82,7 +104,18 @@ class STeXAnnotateBase(Command):
             offset += len(o.new_str) - (o.end_pos - o.start_pos)
 
         # outcomes.append(StatisticUpdateOutcome('annotation_inc'))
-        outcomes.append(SetCursorOutcome(SnifyCursor(cursor.document_index, cursor.selection[0] + offset)))
+        # outcomes.append(SetCursorOutcome(SnifyCursor(cursor.document_index, cursor.selection[0] + offset)))
+
+        c = self.snify_state.cursor
+        new_cursor = SnifyCursor(
+            document_index=c.document_index,
+            banned_annotypes=c.banned_annotypes | {self.snify_state.ongoing_annotype},
+            in_doc_pos=c.in_doc_pos + offset,
+        )
+        outcomes.extend([
+            SetOngoingAnnoTypeModification(self.snify_state.ongoing_annotype, None),
+            SetCursorOutcome(new_cursor=new_cursor),
+        ])
 
         return outcomes
 
@@ -98,7 +131,7 @@ class STeXAnnotateBase(Command):
     def get_sr(self, symbol_uri: str) -> str:
         symbol = FlamsUri(symbol_uri)
         # check if symbol is uniquely identified by its name
-        word = self.state.get_selected_text()
+        word = self.state.get_selected_text(self.snify_state)
         symb_name = symbol.symbol
         if self._symbname_unique(symbol):
             symb_path = symb_name
@@ -232,7 +265,7 @@ class STeXAnnotateBase(Command):
 
         results: Sequence[CommandOutcome] = []
         while not results:
-            self.stepper.show_current_state()
+            self.show_state_fun()
             results = cmd_collection.apply()
             interface.newline()
             interface.write_header('Import options', style='subdialog')
@@ -250,13 +283,14 @@ class STeXAnnotateBase(Command):
 class STeXAnnotateCommand(STeXAnnotateBase, Command):
     def __init__(
             self,
-            state: SnifyState,
-            options: TextAnnotationChoices,
+            snify_state: SnifyState,
+            options: TextAnnotationCandidates,
             catalog: LocalFlamsCatalog,
-            stepper,
+            show_state_fun: Callable[[], None],
+            anno_type_name: str,
     ):
-        self.options = options.choices
-        STeXAnnotateBase.__init__(self, state, catalog, stepper)
+        self.options = options.candidates
+        STeXAnnotateBase.__init__(self, snify_state, catalog, show_state_fun, anno_type_name)
         Command.__init__(
             self,
             CommandInfo(
@@ -311,11 +345,12 @@ def stex_symbol_style(uri: FlamsUri) -> str:
 class STeXLookupCommand(STeXAnnotateBase, Command):
     def __init__(
                 self,
-                state: SnifyState,
+                snify_state: SnifyState,
                 catalog: LocalFlamsCatalog,
-                stepper,
+                show_state_fun: Callable[[], None],
+                anno_type_name: str,
         ):
-            STeXAnnotateBase.__init__(self, state, catalog, stepper)
+            STeXAnnotateBase.__init__(self, snify_state, catalog, show_state_fun, anno_type_name)
 
             Command.__init__(self, CommandInfo(
                 show=False,
@@ -323,11 +358,11 @@ class STeXLookupCommand(STeXAnnotateBase, Command):
                 description_short='ookup a symbol',
                 description_long='Look up a symbol for annotation'
             ))
-            self.state = state
+            self.snify_state = snify_state
 
     def execute(self, call: str) -> list[CommandOutcome]:
-        cursor = self.state.cursor
-        # filter_fun = make_filter_fun(state.filter_pattern, state.ignore_pattern)
+        cursor = self.snify_state.cursor
+        # filter_fun = make_filter_fun(snify_state.filter_pattern, snify_state.ignore_pattern)
 
         symbol = interface.list_search(
             {

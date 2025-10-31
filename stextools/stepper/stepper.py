@@ -3,7 +3,6 @@ from typing import Optional, TypeVar, Generic, Sequence, Literal, TypeAlias
 
 from stextools.stepper.command import CommandCollection, CommandOutcome
 
-
 CursorType = TypeVar('CursorType')
 
 

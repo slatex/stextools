@@ -1,27 +1,28 @@
 import dataclasses
 from typing import Any, Optional
 
+from stextools.stepper.command import CommandOutcome
 from stextools.stepper.document import Document
 from stextools.stepper.document_stepper import DocumentCursor, DocumentStepperState
-from stextools.stepper.stepper import State
+from stextools.stepper.stepper import State, Modification
 from stextools.stepper.stepper_extensions import FocussableState
 
 
-@dataclasses.dataclass(frozen=True)
-class NewSnifyCursor(DocumentCursor):
+@dataclasses.dataclass(frozen=True, repr=True)
+class SnifyCursor(DocumentCursor):
     in_doc_pos: int
     # set of anno types that should not be suggested for this specific cursor position anymore
     banned_annotypes: set[str] = dataclasses.field(default_factory=set)
 
 
-class NewSnifyState(DocumentStepperState, FocussableState, State[NewSnifyCursor]):
+class SnifyState(DocumentStepperState, FocussableState, State[SnifyCursor]):
     """
     This state should hold all relevant information for snify.
     It can be stored (pickled) and restored to continue an annotation session.
 
     Before a session is stored, changes of an unfinished endeavour are rolled back.
     """
-    def __init__(self, cursor: NewSnifyCursor, documents: list[Document], anno_types: list[str]):
+    def __init__(self, cursor: SnifyCursor, documents: list[Document], anno_types: list[str]):
         super().__init__(cursor, documents)
 
         self.mode: set[str] = set()         # what should be annotated (text/formulae/...)
@@ -40,3 +41,15 @@ class NewSnifyState(DocumentStepperState, FocussableState, State[NewSnifyCursor]
 
     def __contains__(self, item):
         return item in self.annotype_states
+
+
+class SetOngoingAnnoTypeModification(Modification[SnifyState], CommandOutcome):
+    def __init__(self, old_annotype: Optional[str], new_annotype: Optional[str]):
+        self.old_annotype = old_annotype
+        self.new_annotype = new_annotype
+
+    def apply(self, state: SnifyState):
+        state.ongoing_annotype = self.new_annotype
+
+    def unapply(self, state: SnifyState):
+        state.ongoing_annotype = self.old_annotype
