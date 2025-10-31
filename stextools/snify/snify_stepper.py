@@ -2,6 +2,7 @@ from collections import namedtuple
 from typing import Optional
 
 from stextools.snify.annotype import AnnoType, StepperStatus
+from stextools.snify.snify_commands import RescanOutcome
 from stextools.snify.snify_state import SnifyState, SnifyCursor, SetOngoingAnnoTypeModification
 from stextools.snify.text_anno.text_anno_type import TextAnnoType
 from stextools.stepper.command import CommandCollection, CommandOutcome
@@ -136,8 +137,9 @@ class SnifyStepper(
         return self.get_current_anno_type().get_command_collection(self.get_stepper_status())
 
     def handle_command_outcome(self, outcome: CommandOutcome) -> Optional[Modification]:
-        # if isinstance(outcome, RescanOutcome):
-        #     self.get_stex_catalogs.cache_clear()
-        #     return None
-
-        return super().handle_command_outcome(outcome)
+        if isinstance(outcome, RescanOutcome):
+            for anno_type in ANNO_TYPES:
+                anno_type.rescan()
+            return None
+        else:
+            return super().handle_command_outcome(outcome)
