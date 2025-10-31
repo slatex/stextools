@@ -123,6 +123,7 @@ class TextAnnoType(AnnoType[TextAnnoState]):
     def rescan(self):
         _get_stex_catalogs.cache_clear()
         _get_catalog_for_lang.cache_clear()
+        self.get_annotation_candidates_actual.cache_clear()
     
     @functools.lru_cache(1)
     def get_annotation_candidates_actual(self, doc_id: int, doc_content: str, position: int) -> AnnotationCandidates:
