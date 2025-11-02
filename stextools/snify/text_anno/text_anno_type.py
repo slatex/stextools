@@ -219,7 +219,5 @@ class TextAnnoType(AnnoType[TextAnnoState]):
         _get_stex_catalogs()
         interface.clear()
         display_snify_header(self.snify_state)
-        print(self.snify_state.cursor)
-        print(self.state)
         display_text_selection(self.snify_state.get_current_document(), self.state.selection)
         interface.newline()
