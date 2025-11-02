@@ -449,10 +449,8 @@ class BrowserInterface(Interface):
             webbrowser.open(f'http://localhost:{self.port}/')
         _thread.start_new_thread(open_in_browser, ())
 
-    def apply_style(self, text: str, style: str, keep_linebreaks: bool = False) -> str:
-        if not keep_linebreaks:
-            text = text.replace('\n', '<br>\n')
-        return f'<span class="{style}">{html_escape(text)}</span>'   # styles can be defined in browser_interface.css
+    def apply_style(self, text: str, style: str) -> str:
+        return f'<span class="{style}">{html_escape(text.replace('\n', '<br>\n'))}</span>'   # styles can be defined in browser_interface.css
 
     def write_text(self, text: str, style: str = 'default', *, prestyled: bool = False):
         if not prestyled:
@@ -506,7 +504,8 @@ class BrowserInterface(Interface):
         a_formatted = code_format(a)
         if not a.endswith('\n'):
             a_formatted = a.rstrip('\n')
-        formatted_code = a_formatted + self.apply_style(b, 'highlight', keep_linebreaks=True) + code_format(c)
+        b_formatted = '\n'.join(self.apply_style(part, 'highlight') for part in b.splitlines(keepends=False))
+        formatted_code = a_formatted + b_formatted + code_format(c)
 
         result = []
         for i, line in enumerate(formatted_code.splitlines(keepends=True), line_no):
