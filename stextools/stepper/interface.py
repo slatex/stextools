@@ -677,7 +677,8 @@ class ConsoleInterface(Interface):
 
             return highlight(string, lexer, formatter)
 
-        formatted_code = code_format(a) + self.apply_style(b, 'highlight') + code_format(c)
+        styled_b = '\n'.join(self.apply_style(part, 'highlight') for part in b.splitlines(keepends=False))
+        formatted_code = code_format(a) + styled_b + code_format(c)
 
         for i, line in enumerate(formatted_code.splitlines(keepends=True), line_no):
             self.write_text(f'{i:4} ', style='pale')
