@@ -1,10 +1,16 @@
 import functools
+import sys
 from pathlib import Path
 from typing import Any
 import os
+import logging
 
 import orjson
 from cffi import FFI
+
+from stextools.stepper.interface import interface
+
+logger = logging.getLogger(__name__)
 
 
 class _Flams:
@@ -26,7 +32,48 @@ void free_string(char* s);
     def lib(self):
         path = os.getenv('FLAMS_LIB_PATH')
         if not path:
-            raise RuntimeError('FLAMS_LIB_PATH environment variable not set')
+            logger.info(f'FLAMS_LIB_PATH not set.')
+
+        if sys.platform == 'darwin':
+            filename = 'libflams_ffi.dylib'
+            zipfilename = 'ffi-macos.zip'
+        elif sys.platform == 'linux':
+            filename = 'libflams_ffi.so'
+            zipfilename = 'ffi-linux.zip'
+        else:
+            raise RuntimeError(f'Unsupported platform: {sys.platform}')
+
+        if not path:
+            logger.info(f'Using ~/.cache/stextools/{filename} as FLAMS library path.')
+            path = str(Path.home() / '.cache' / 'stextools' / filename)
+
+        if not Path(path).exists():
+            download = interface.ask_yes_no(f'''The FLAMS library was not found at {path}.
+You can download it from https://github.com/FlexiFormal/FLAMS/releases/tag/latest
+Should I do that for you?''')
+            if not download:
+                interface.write_text(f'Cannot proceed without FLAMS library. Exiting.', 'error')
+                sys.exit(1)
+            # download zip into temp file and extract
+            import tempfile
+            import zipfile
+            import requests
+            import shutil
+            url = f'https://github.com/FlexiFormal/FLAMS/releases/download/latest/{zipfilename}'
+            with tempfile.TemporaryDirectory() as tmpdirname:
+                tmpzipfile = Path(tmpdirname) / zipfilename
+                interface.write_text(f'Downloading FLAMS library from {url}...\n')
+                response = requests.get(url)
+                response.raise_for_status()
+                with open(tmpzipfile, 'wb') as f:
+                    f.write(response.content)
+                with zipfile.ZipFile(tmpzipfile, 'r') as zip_ref:
+                    zip_ref.extractall(tmpdirname)
+                extracted_path = Path(tmpdirname) / filename
+                Path(path).parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy(extracted_path, path)   # os.rename does not work across filesystems
+                interface.write_text(f'Successfully downloaded and extracted FLAMS library to {path}.')
+
         lib: Any = self.ffi.dlopen(path)
         lib.initialize()
         return lib
