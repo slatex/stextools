@@ -232,9 +232,9 @@ class STeXAnnotateBase(Command):
         import_impossible_reason: Optional[str] = None
         if ii.import_pos is None:
             import_impossible_reason = 'not in an smodule'
-        elif self.document.path in get_transitive_imports([
+        elif str(self.document.path) in get_transitive_imports([
             (str(module), symb.path)
-        ]):
+        ]).values():
             import_impossible_reason = 'import would result cyclic dependency'
 
         # Step 7: Import module
@@ -266,12 +266,12 @@ class STeXAnnotateBase(Command):
         results: Sequence[CommandOutcome] = []
         while not results:
             self.show_state_fun()
-            results = cmd_collection.apply()
-            interface.newline()
             interface.write_header('Import options', style='subdialog')
-            interface.write_text('The symbol is not in scope.')
+            interface.write_text('The symbol is not in scope.\n')
             if import_impossible_reason:
                 interface.write_text(f'\\importmodule is impossible: {import_impossible_reason}')
+            interface.newline()
+            results = cmd_collection.apply()
             if any(isinstance(o, QuitOutcome) for o in results):
                 raise AnnotationAborted()
 
