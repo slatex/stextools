@@ -22,6 +22,8 @@ class SnifyState(DocumentStepperState, FocussableState, State[SnifyCursor]):
 
     Before a session is stored, changes of an unfinished endeavour are rolled back.
     """
+    cursor: SnifyCursor
+
     def __init__(self, cursor: SnifyCursor, documents: list[Document], anno_types: list[str],
                  deep_mode: bool = False):
         super().__init__(cursor, documents)

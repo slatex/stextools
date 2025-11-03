@@ -116,6 +116,9 @@ class STeXAnnotateBase(Command):
         symbol = FlamsUri(symbol_uri)
         # check if symbol is uniquely identified by its name
         word = self.state.get_selected_text(self.snify_state)
+        if word is None:
+            raise RuntimeError('No text selected for annotation')
+
         symb_name = symbol.symbol
         if self._symbname_unique(symbol):
             symb_path = symb_name

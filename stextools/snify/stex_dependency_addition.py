@@ -156,12 +156,14 @@ def get_modules_in_scope_and_import_locations(document: STeXDocument, offset: in
     }]
     use_env = _containers[-1] if _containers else None
 
-    pot_red_on_use = {}
-    pot_red_on_import = {}
-    pot_red_on_top_use = {}
-    pot_red_on_use_struct = {}
-    pot_red_on_import_use_struct = {}
-    pot_red_on_top_use_struct = {}
+
+    pot_red_on_use: dict[str, list[tuple[int, int]]] = {}
+    pot_red_on_import: dict[str, list[tuple[int, int]]] = {}
+    pot_red_on_top_use: dict[str, list[tuple[int, int]]] = {}
+
+    pot_red_on_use_struct: dict[str, list[tuple[int, int]]] = {}
+    pot_red_on_import_use_struct: dict[str, list[tuple[int, int]]] = {}
+    pot_red_on_top_use_struct: dict[str, list[tuple[int, int]]] = {}
 
     # STEP 2: find modules in scope and the imports/uses
     available_modules: list[tuple[str, str]] = []   # (module uri, module path)
@@ -169,6 +171,7 @@ def get_modules_in_scope_and_import_locations(document: STeXDocument, offset: in
     for item in json_iter(annos):
         if isinstance(item, dict) and ('ImportModule' in item or 'UseModule' in item or 'UseStructure' in item):
             value = item.get('ImportModule') or item.get('UseModule') or item.get('UseStructure')
+            assert value
             is_struct = 'UseStructure' in item
             full_range = file.flams_range_to_offsets(value['full_range'])
             containing_envs = list(get_surrounding_envs(document, full_range[0]))
@@ -193,6 +196,8 @@ def get_modules_in_scope_and_import_locations(document: STeXDocument, offset: in
                 else:
                     available_modules.append((uri, full_path))
 
+                assert module_env is not None
+
                 if 'ImportModule' in item and module_env.pos == containing_env.pos:
                     pot_red_on_import.setdefault(uri, []).append(full_range)
                 elif 'UseModule' in item:
@@ -209,6 +214,7 @@ def get_modules_in_scope_and_import_locations(document: STeXDocument, offset: in
 
         elif isinstance(item, dict) and ('Module' in item or 'MathStructure' in item):
             value = item.get('Module') or item.get('MathStructure')
+            assert value
             module_offset = file.flams_range_to_offsets(value['name_range'])[0]   # lots of things would work here
             containing_envs = list(get_surrounding_envs(document, module_offset))
             assert containing_envs
@@ -261,7 +267,7 @@ def get_import(
         structure = deepcopy(symbol)
         structure.module, _, structure.symbol = symbol.path.rpartition('/')
     module: FlamsUri = deepcopy(structure or symbol)
-    module.symbol = None
+    module.symbol = ''
 
     # Step 2: do we need to do anything?
     if structure is not None and structure in ii.structs_in_scope:

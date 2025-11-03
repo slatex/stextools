@@ -26,6 +26,8 @@ ANNO_TYPE_LOOKUP: dict[str, AnnoType] = {
 class SnifyStepper(
     DocumentModifyingStepper, QuittableStepper, CursorModifyingStepper, UndoableStepper, Stepper[SnifyState]
 ):
+    state: SnifyState
+
     def __init__(self, state: SnifyState):
         super().__init__(state)
         self.state = state
