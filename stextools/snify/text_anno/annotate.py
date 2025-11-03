@@ -1,22 +1,19 @@
 import dataclasses
-from copy import deepcopy
-from typing import Optional, Literal, Iterable, Sequence, Any, Callable
-
-from pylatexenc.latexwalker import LatexEnvironmentNode
+import math
+from typing import Any, Callable
 
 from stextools.snify.snify_state import SnifyState, SnifyCursor, SetOngoingAnnoTypeModification
+from stextools.snify.stex_dependency_addition import AnnotationAborted, get_modules_in_scope_and_import_locations, \
+    get_import
 from stextools.snify.text_anno.catalog import Verbalization
 from stextools.snify.text_anno.text_anno_state import TextAnnoState
 from stextools.stepper.document import STeXDocument
-from stextools.stex.local_stex import OpenedStexFLAMSFile, get_transitive_imports, FlamsUri, get_transitive_structs
+from stextools.stex.local_stex import FlamsUri
 from stextools.snify.text_anno.local_stex_catalog import LocalStexSymbol, LocalFlamsCatalog
 from stextools.stepper.document_stepper import SubstitutionOutcome
-from stextools.stex.stex_py_parsing import iterate_latex_nodes
-from stextools.stepper.command import Command, CommandInfo, CommandCollection, CommandOutcome
+from stextools.stepper.command import Command, CommandInfo, CommandOutcome
 from stextools.stepper.interface import interface
-from stextools.stepper.stepper_extensions import QuitCommand, QuitOutcome, SetCursorOutcome
-from stextools.stex.flams import FLAMS
-from stextools.utils.json_iter import json_iter
+from stextools.stepper.stepper_extensions import SetCursorOutcome
 
 
 class AnnotationCandidates:
@@ -31,26 +28,6 @@ class TextAnnotationCandidates(AnnotationCandidates):
 @dataclasses.dataclass(frozen=True)
 class MathAnnotationCandidates(AnnotationCandidates):
     candidates: list[Any]
-
-class AnnotationAborted(Exception):
-    pass
-
-
-class ImportCommand(Command):
-    def __init__(self, letter: str, description_short: str, description_long: str, outcome: SubstitutionOutcome,
-                 redundancies: list[SubstitutionOutcome]):
-        super().__init__(CommandInfo(
-            pattern_presentation=letter,
-            description_short=description_short,
-            description_long=description_long)
-        )
-        self.outcome = outcome
-        self.redundancies = redundancies
-
-    def execute(self, call: str) -> Sequence[CommandOutcome]:
-        cmds: list[SubstitutionOutcome] = self.redundancies + [self.outcome]
-        cmds.sort(key=lambda x: x.start_pos, reverse=True)
-        return cmds
 
 
 class STeXAnnotateBase(Command):
@@ -81,7 +58,13 @@ class STeXAnnotateBase(Command):
         outcomes: list[Any] = []
 
         try:
-            import_thing = self.get_import(symbol)
+            # import_thing = self.get_import(symbol)
+            import_thing = get_import(
+                self.document,
+                self.importinfo,
+                symbol,
+                self.show_state_fun,
+            )
         except AnnotationAborted:
             return []
 
@@ -97,11 +80,12 @@ class STeXAnnotateBase(Command):
         # -> sort them and update the offsets
         # TODO: maybe the controller should be responsible for this
         offset = 0
-        outcomes.sort(key=lambda o: o.start_pos)
+        outcomes.sort(key=lambda o: o.start_pos if isinstance(o, SubstitutionOutcome) else math.inf)
         for o in outcomes:
-            o.start_pos += offset
-            o.end_pos += offset
-            offset += len(o.new_str) - (o.end_pos - o.start_pos)
+            if isinstance(o, SubstitutionOutcome):
+                o.start_pos += offset
+                o.end_pos += offset
+                offset += len(o.new_str) - (o.end_pos - o.start_pos)
 
         # outcomes.append(StatisticUpdateOutcome('annotation_inc'))
         # outcomes.append(SetCursorOutcome(SnifyCursor(cursor.document_index, cursor.selection[0] + offset)))
@@ -152,130 +136,6 @@ class STeXAnnotateBase(Command):
             return f'\\sn[pre={word[:-len(symb_name)]}]{{' + symb_path + '}'
         else:
             return '\\sr{' + symb_path + '}' + '{' + word + '}'
-
-    def get_import(self, symb: LocalStexSymbol) -> Sequence[CommandOutcome]:
-        ii = self.importinfo
-
-        # Step 1: determine structure and module
-        symbol = FlamsUri(symb.uri)
-        structure: Optional[FlamsUri] = None
-        if '/' in symbol.module:      # TODO: better way to identify structures
-            structure = deepcopy(symbol)
-            structure.module, _, structure.symbol = symbol.path.rpartition('/')
-        module: FlamsUri = deepcopy(structure or symbol)
-        module.symbol = None
-
-        # Step 2: do we need to do anything?
-        if structure is not None and structure in ii.structs_in_scope:
-            return []
-        if str(module) in ii.modules_in_scope and structure is None:
-            return []
-
-
-        # Step 3: Prepare to generate import commands
-        explain_loc = lambda loc: f' after \\begin{{{loc}}}' if loc else ' at the beginning of the file'
-
-        def _get_indentation(pos: int) -> str:
-            file_text = self.document.get_content()
-            indentation = '\n'
-            i = pos + 1
-            while i < len(file_text):
-                if file_text[i] == ' ':
-                    indentation += ' '
-                else:
-                    break
-                i += 1
-            return indentation
-
-        def _get_use_struct(pos: int) -> str:
-            if structure is None:
-                return ''
-            return _get_indentation(pos) + f'\\usestructure{{{structure.symbol}}}'
-
-        # TODO: skip archive if redundant (and path as well?)
-        args = f'[{module.archive}]{{{module.path}?{module.module}}}'
-
-
-        # Step 4: Top level use
-        top_use_cmd = ImportCommand(
-            't',
-            'op-level usemodule (i.e.' + explain_loc(ii.top_use_env) + ')'
-            if ii.top_use_env else
-            'op-level usemodule (in this case same as [u])',
-            'Inserts \\usemodule at the top of the document (i.e.' + explain_loc(ii.top_use_env) + ')'
-            if ii.top_use_env else
-            'Inserts \\usemodule at the top of the document (in this case same as [u])',
-            SubstitutionOutcome(
-                _get_indentation(ii.top_use_pos) + f'\\usemodule{args}' + _get_use_struct(
-                    ii.top_use_pos),
-                ii.top_use_pos, ii.top_use_pos
-            ),
-            redundancies=list(ii.get_redundant_import_removals(
-                self.document, 'top_use', str(module), symb.path
-            ))
-        )
-
-        # Step 5: Use module
-        use_module_cmd = ImportCommand(
-            'u', 'semodule' + explain_loc(ii.use_env),
-                 'Inserts \\usemodule' + explain_loc(ii.use_env),
-            SubstitutionOutcome(
-                _get_indentation(ii.use_pos) + f'\\usemodule{args}' + _get_use_struct(ii.use_pos),
-                ii.use_pos, ii.use_pos
-            ),
-            redundancies=list(ii.get_redundant_import_removals(
-                self.document, 'use', str(module), symb.path
-            ))
-        )
-
-        # Step 6: Evaluate feasibility of import
-        import_impossible_reason: Optional[str] = None
-        if ii.import_pos is None:
-            import_impossible_reason = 'not in an smodule'
-        elif str(self.document.path) in get_transitive_imports([
-            (str(module), symb.path)
-        ]).values():
-            import_impossible_reason = 'import would result cyclic dependency'
-
-        # Step 7: Import module
-        import_command: Optional[ImportCommand] = None
-        if not import_impossible_reason:
-            import_command = ImportCommand(
-                'i', 'mportmodule',
-                'Inserts \\importmodule',
-                SubstitutionOutcome(
-                    _get_indentation(ii.import_pos) + f'\\importmodule{args}' + _get_use_struct(ii.import_pos),
-                    ii.import_pos, ii.import_pos
-                ),
-                redundancies=list(ii.get_redundant_import_removals(
-                    self.document, 'import', str(module), symb.path
-                ))
-            )
-
-        # Step 8: Ask user
-        commands: list[Command] = [
-            use_module_cmd,
-            top_use_cmd,
-        ]
-        if import_command:
-            commands.append(import_command)
-        commands.append(QuitCommand('Stop this annotation'))
-
-        cmd_collection = CommandCollection('Import options', commands, have_help=True)
-
-        results: Sequence[CommandOutcome] = []
-        while not results:
-            self.show_state_fun()
-            interface.write_header('Import options', style='subdialog')
-            interface.write_text('The symbol is not in scope.\n')
-            if import_impossible_reason:
-                interface.write_text(f'\\importmodule is impossible: {import_impossible_reason}')
-            interface.newline()
-            results = cmd_collection.apply()
-            if any(isinstance(o, QuitOutcome) for o in results):
-                raise AnnotationAborted()
-
-        return results
 
 
 
@@ -376,172 +236,3 @@ class STeXLookupCommand(STeXAnnotateBase, Command):
 
 
 
-@dataclasses.dataclass
-class _ImportInfo:
-    modules_in_scope: set[str]
-    structs_in_scope: set[str]
-    top_use_pos: int
-    use_pos: int
-    import_pos: Optional[int]
-    use_env: Optional[str]
-    top_use_env: Optional[str]
-
-    # potential redundancies on use/import
-    # module uri -> full range of use/import
-    pot_red_on_use: dict[str, list[tuple[int, int]]]
-    pot_red_on_import: dict[str, list[tuple[int, int]]]
-    pot_red_on_top_use: dict[str, list[tuple[int, int]]]
-
-    pot_red_on_use_struct: dict[str, list[tuple[int, int]]]
-    pot_red_on_import_use_struct: dict[str, list[tuple[int, int]]]
-    pot_red_on_top_use_struct: dict[str, list[tuple[int, int]]]
-
-
-    def get_redundant_import_removals(
-            self,
-            document: STeXDocument,
-            type_: Literal['use', 'import', 'top_use'],
-            module_uri: str,
-            module_path: str,
-    ) -> Iterable[SubstitutionOutcome]:
-        """
-        Assuming module_uri get imported according to type_,
-        this method returns substitutions that remove then-redundant imports.
-        TODO: Extend this to structures as well (less relevant in practice)
-        """
-        pot_red = {
-            'use': self.pot_red_on_use,
-            'import': self.pot_red_on_import,
-            'top_use': self.pot_red_on_top_use,
-        }[type_]
-
-        text = document.get_content()
-
-        uri_trans = get_transitive_imports([(module_uri, module_path)])
-        for uri, importrange in pot_red.items():
-            if uri not in uri_trans:
-                continue
-
-            for from_, to in importrange:
-                while from_ > 0 and text[from_ - 1] in {' ', '\t'}:
-                    from_ -= 1
-                while to < len(text) and text[to].isspace():
-                    to += 1
-                yield SubstitutionOutcome('', from_, to)
-
-
-def get_modules_in_scope_and_import_locations(document: STeXDocument, offset: int) -> _ImportInfo:
-    """
-    collects import information and potential import locations in the document.
-    Uses both FLAMS and pylatexenc.
-
-    Note: Comparing latex environments for equality doesn't work in pylatexenc
-    (equal environments are not equal),
-    so, as a quick hack, I use the positions instead.
-    """
-
-    annos = FLAMS.get_file_annotations(document.path)
-    file = OpenedStexFLAMSFile(str(document.path))
-    surrounding_envs = get_surrounding_envs(document, offset)
-    surrounding_envs_pos = [e.pos for e in surrounding_envs]
-
-    # STEP 1: find interesting environments for new imports/uses
-    module_env: Optional[LatexEnvironmentNode] = None
-    _modules = [e for e in surrounding_envs if e.environmentname == 'smodule']
-    if _modules:
-        module_env = _modules[-1]
-    _containers = [e for e in surrounding_envs if e.environmentname in {
-        'sproblem', 'smodule', 'sdefinition', 'sparagraph', 'document', 'frame'
-    }]
-    use_env = _containers[-1] if _containers else None
-
-    pot_red_on_use = {}
-    pot_red_on_import = {}
-    pot_red_on_top_use = {}
-    pot_red_on_use_struct = {}
-    pot_red_on_import_use_struct = {}
-    pot_red_on_top_use_struct = {}
-
-    # STEP 2: find modules in scope and the imports/uses
-    available_modules: list[tuple[str, str]] = []   # (module uri, module path)
-    available_structs: list[tuple[str, str]] = []   # (structure uri, structure path)
-    for item in json_iter(annos):
-        if isinstance(item, dict) and ('ImportModule' in item or 'UseModule' in item or 'UseStructure' in item):
-            value = item.get('ImportModule') or item.get('UseModule') or item.get('UseStructure')
-            is_struct = 'UseStructure' in item
-            full_range = file.flams_range_to_offsets(value['full_range'])
-            containing_envs = list(get_surrounding_envs(document, full_range[0]))
-
-            uri = value['structure' if is_struct else 'module']['uri']
-            full_path = value['structure' if is_struct else 'module']['filepath' if is_struct else 'full_path']
-
-            if not containing_envs:
-                if is_struct:
-                    available_structs.append((uri, full_path))
-                    pot_red_on_top_use_struct.setdefault(uri, []).append(full_range)
-                else:
-                    available_modules.append((uri, full_path))
-                    pot_red_on_top_use.setdefault(uri, []).append(full_range)
-                continue
-
-
-            containing_env = containing_envs[-1]
-            if containing_env.pos in surrounding_envs_pos:
-                if is_struct:
-                    available_structs.append((uri, full_path))
-                else:
-                    available_modules.append((uri, full_path))
-
-                if 'ImportModule' in item and module_env.pos == containing_env.pos:
-                    pot_red_on_import.setdefault(uri, []).append(full_range)
-                elif 'UseModule' in item:
-                    pot_red_on_top_use.setdefault(uri, []).append(full_range)
-                    if use_env and surrounding_envs_pos.index(containing_env.pos) >= surrounding_envs_pos.index(use_env.pos):
-                        pot_red_on_use.setdefault(uri, []).append(full_range)
-                else:
-                    assert is_struct
-                    pot_red_on_top_use_struct.setdefault(uri, []).append(full_range)
-                    if module_env and module_env.pos == containing_env.pos:
-                        pot_red_on_import_use_struct.setdefault(uri, []).append(full_range)
-                    if use_env and surrounding_envs_pos.index(containing_env.pos) >= surrounding_envs_pos.index(use_env.pos):
-                        pot_red_on_use_struct.setdefault(uri, []).append(full_range)
-
-        elif isinstance(item, dict) and ('Module' in item or 'MathStructure' in item):
-            value = item.get('Module') or item.get('MathStructure')
-            module_offset = file.flams_range_to_offsets(value['name_range'])[0]   # lots of things would work here
-            containing_envs = list(get_surrounding_envs(document, module_offset))
-            assert containing_envs
-            containing_env = containing_envs[-1]
-            if containing_env.pos in surrounding_envs_pos:
-                if 'Module' in item:
-                    available_modules.append((value['uri'], str(document.path)))
-                else:
-                    available_structs.append((value['uri'], str(document.path)))
-
-    return _ImportInfo(
-        modules_in_scope = set(get_transitive_imports(available_modules)),
-        structs_in_scope = set(get_transitive_structs(available_structs)),
-        top_use_pos = surrounding_envs[0].nodelist[0].pos if surrounding_envs else 0,
-        use_pos = use_env.nodelist[0].pos if use_env else 0,
-        import_pos = module_env.nodelist[0].pos if module_env else None,
-        use_env = use_env.environmentname if use_env else None,
-        top_use_env = surrounding_envs[0].environmentname if surrounding_envs else None,
-        pot_red_on_use = pot_red_on_use,
-        pot_red_on_import = pot_red_on_import,
-        pot_red_on_top_use = pot_red_on_top_use,
-        pot_red_on_use_struct = pot_red_on_use_struct,
-        pot_red_on_import_use_struct = pot_red_on_import_use_struct,
-        pot_red_on_top_use_struct = pot_red_on_top_use_struct,
-    )
-
-
-
-def get_surrounding_envs(document: STeXDocument, offset: int) -> list[LatexEnvironmentNode]:
-    """
-    Returns the surrounding environments of the given offset in the document.
-    """
-    return [
-        node
-        for node in iterate_latex_nodes(document.get_latex_walker().get_latex_nodes()[0])
-        if isinstance(node, LatexEnvironmentNode) and node.pos <= offset < node.pos + node.len
-    ]

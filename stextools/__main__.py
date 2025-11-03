@@ -31,17 +31,19 @@ def cli(log_file):
               help='Annotation type (wikidata support is prototypical only).')
 @click.option('--mode', default='text', type=click.Choice(['text', 'math', 'both']),
               help='Annotation mode: text, math, or both (default: text). Note that math is experimental.')
+@click.option('--deep', is_flag=True,
+              help='Also include dependencies of the specified files (transitively).')
 @click.argument(
     'files', nargs=-1, type=click.Path(exists=True, path_type=Path),
 )
 @interface_option
-def snify_command(anno_format, mode, files, interface):
+def snify_command(anno_format, mode, deep, files, interface):
     from stextools.snify.snify import snify
     set_interface(interface)
     if not files:
         click.echo('No files specified. Please provide paths to files or directories to snify.')
         return
-    snify(files, anno_format=anno_format, mode=mode)
+    snify(files, anno_format=anno_format, mode=mode, deep=deep)
 
 
 @cli.command(name='lexgen', help='lexicong generation')

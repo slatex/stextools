@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Sequence, Any
 
 from stextools.snify.snify_state import SnifyState, SnifyCursor, SetOngoingAnnoTypeModification
+from stextools.snify.stex_dependency_addition import DependencyModificationOutcome
 from stextools.snify.text_anno.catalog import Verbalization
 from stextools.stepper.document import Document
 from stextools.snify.text_anno.local_stex_catalog import LocalStexSymbol
@@ -16,11 +17,14 @@ def get_set_cursor_after_edit_function(state: SnifyState):
     def set_cursor_after_edit(pos) -> list[CommandOutcome]:
         if pos <= state.cursor.in_doc_pos:
             return [
-                SetCursorOutcome(SnifyCursor(document_index=state.cursor.document_index, in_doc_pos=pos))
+                SetCursorOutcome(SnifyCursor(document_index=state.cursor.document_index, in_doc_pos=pos)),
+                # dependencies may have changed...
+                DependencyModificationOutcome(state.get_current_document())
             ]
         else:
             return [
                 SetOngoingAnnoTypeModification(state.ongoing_annotype, None),
+                DependencyModificationOutcome(state.get_current_document())
                 # SetCursorOutcome(SnifyCursor(state.cursor.document_index, state.cursor.selection[0]))
             ]
     return set_cursor_after_edit

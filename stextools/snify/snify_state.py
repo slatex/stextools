@@ -22,12 +22,16 @@ class SnifyState(DocumentStepperState, FocussableState, State[SnifyCursor]):
 
     Before a session is stored, changes of an unfinished endeavour are rolled back.
     """
-    def __init__(self, cursor: SnifyCursor, documents: list[Document], anno_types: list[str]):
+    def __init__(self, cursor: SnifyCursor, documents: list[Document], anno_types: list[str],
+                 deep_mode: bool = False):
         super().__init__(cursor, documents)
 
         self.mode: set[str] = set()         # what should be annotated (text/formulae/...)
         # list of anno types that can generally be used
         self.anno_types: list[str] = anno_types
+
+        self.deep_mode: bool = deep_mode    # whether dependencies should be added to the documents list
+
         # states for individual anno types (by anno type name)
         self.annotype_states: dict[str, Any] = {}
 

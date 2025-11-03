@@ -1,6 +1,7 @@
 import dataclasses
 import os
 import subprocess
+from copy import deepcopy
 from typing import Optional, Sequence, Callable
 
 from stextools.config import get_config
@@ -14,6 +15,11 @@ from stextools.stepper.stepper import State, Modification, StateType, Stepper
 class DocumentCursor:
     document_index: int
 
+    def with_document_index(self, new_index: int) -> 'DocumentCursor':
+        new_cursor = deepcopy(self)
+        object.__setattr__(new_cursor, 'document_index', new_index)
+        return new_cursor
+
 
 class DocumentStepperState(State[DocumentCursor]):
     def __init__(self, cursor: DocumentCursor, documents: list[Document]):
@@ -24,6 +30,23 @@ class DocumentStepperState(State[DocumentCursor]):
         if not self.documents:
             raise ValueError("No documents available.")
         return self.documents[self.cursor.document_index]
+
+
+class DocumentCollectionModification(Modification[DocumentStepperState]):
+    def __init__(self, old_documents: list[Document], new_documents: list[Document],
+                 old_document_index: int, new_document_index: int):
+        self.old_documents = old_documents
+        self.new_documents = new_documents
+        self.old_document_index = old_document_index
+        self.new_document_index = new_document_index
+
+    def apply(self, state: DocumentStepperState):
+        state.documents = self.new_documents
+        state.cursor = state.cursor.with_document_index(self.new_document_index)
+
+    def unapply(self, state: DocumentStepperState):
+        state.documents = self.old_documents
+        state.cursor = state.cursor.with_document_index(self.old_document_index)
 
 
 #######################################################################

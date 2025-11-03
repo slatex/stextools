@@ -132,7 +132,8 @@ if __name__ == '__main__':
     # path = str(Path('/home/jfs/MMT/MMT-content/smglom/mv/source/mod/constant.en.tex').relative_to(Path.cwd(), walk_up=True)).encode('utf-8')
     # path = str(Path('/home/jfs/MMT/MMT-content/smglom/algebra/source/mod/subgroup.en.tex'))
     # path = str(Path('/home/jfs/MMT/MMT-content/courses/FAU/AI/hwexam/source/WS2425/assignments/a10.tex'))
-    path = str(Path('/home/jfs/git/gl.mathhub.info/courses/FAU/LBS/course/source/course/notes/notes.tex'))
+    # path = str(Path('/home/jfs/git/gl.mathhub.info/courses/FAU/LBS/course/source/course/notes/notes.tex'))
+    path = str(Path('/home/jfs/git/gl.mathhub.info/smglom/sets/source/mod/injective.en.tex'))
     print(orjson.dumps(FLAMS.get_file_annotations(path)).decode('utf-8'))
     # relpath = str(Path('/home/jfs/MMT/MMT-content/smglom/mv/source/mod/constant.en.tex')).encode('utf-8')
 

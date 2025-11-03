@@ -4,6 +4,7 @@ from typing import Optional
 from stextools.snify.annotype import AnnoType, StepperStatus
 from stextools.snify.snify_commands import RescanOutcome
 from stextools.snify.snify_state import SnifyState, SnifyCursor, SetOngoingAnnoTypeModification
+from stextools.snify.stex_dependency_addition import DependencyModificationOutcome
 from stextools.snify.text_anno.text_anno_type import TextAnnoType
 from stextools.stepper.command import CommandCollection, CommandOutcome
 from stextools.stepper.document_stepper import DocumentModifyingStepper
@@ -141,5 +142,7 @@ class SnifyStepper(
             for anno_type in ANNO_TYPES:
                 anno_type.rescan()
             return None
+        elif isinstance(outcome, DependencyModificationOutcome):
+            return outcome.get_modification(self.state)
         else:
             return super().handle_command_outcome(outcome)

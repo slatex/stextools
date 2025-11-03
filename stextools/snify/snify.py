@@ -15,6 +15,7 @@ def snify(
         files: list[Path],
         anno_format: str = 'stex',
         mode: str = 'text',  # 'text', 'math', 'both'
+        deep: bool = False,
 ):
     if anno_format not in {'stex', 'wikidata'}:
         raise ValueError(f"Unknown annotation format: {anno_format}")
@@ -35,10 +36,10 @@ def snify(
             documents=documents_from_paths(
                 files,
                 annotation_format=anno_format,
-                # tex_format='wdTeX' if anno_format=='wikidata' else 'sTeX',
-                # html_format='wdHTML' if anno_format=='wikidata' else None
+                include_dependencies=deep,
             ),
-            anno_types=['text-anno-stex']
+            anno_types=['text-anno-stex'],
+            deep_mode=deep,
         )
         assert mode in {'text', 'math', 'both'}
         if mode == 'both':

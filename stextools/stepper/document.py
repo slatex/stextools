@@ -10,7 +10,7 @@ from pylatexenc.latexwalker import LatexWalker, LatexMathNode, LatexCommentNode,
 from stextools.remote_repositories import get_mathhub_path, get_containing_archive
 from stextools.stepper.html_support import MyHtmlParser
 from stextools.stepper.interface import interface
-from stextools.stex.local_stex import lang_from_path
+from stextools.stex.local_stex import lang_from_path, get_transitive_imports
 from stextools.stex.stex_py_parsing import STEX_CONTEXT_DB, get_annotatable_plaintext, get_plaintext_approx, \
     PLAINTEXT_EXTRACTION_MACRO_RECURSION, PLAINTEXT_EXTRACTION_ENVIRONMENT_RULES
 from stextools.stex.flams import FLAMS
@@ -120,29 +120,57 @@ class STeXDocument(LocalFileDocument):
         return get_plaintext_approx(self.get_latex_walker())
 
     def get_inputted_documents(self) -> Iterable['Document']:
+        return self.get_dependencies(mode='inputs')
+
+    def get_dependencies(self, mode: Literal['inputs', 'noninputs', 'both']) -> Iterable['Document']:
+        """ not transitive """
+        if mode == 'inputs':
+            keys = {'IncludeProblem', 'Inputref'}
+        elif mode == 'noninputs':
+            keys = {'ImportModule', 'UseModule'}
+        else:
+            assert mode == 'both'
+            keys = {'IncludeProblem', 'Inputref', 'ImportModule', 'UseModule'}
+
         annos = FLAMS.get_file_annotations(self.path)
         for e in json_iter(annos, {'full_range', 'val_range', 'key_range', 'Sig', 'smodule_range', 'Title',
-                                   'path_range', 'archive_range', 'UseModule', 'ImportModule'}):
+                                   'path_range', 'archive_range'}):
             if not isinstance(e, dict):
                 continue
-            if not ('IncludeProblem' in e or 'Inputref' in e):
+            if all(k not in e for k in keys):
                 continue
-            key = 'IncludeProblem' if 'IncludeProblem' in e else 'Inputref'
-            if e[key]['archive']:
-                repo = get_mathhub_path() / e[key]['archive'][0]
-            else:
-                repo = get_containing_archive(self.path)
-                if repo is None:
+
+            if 'IncludeProblem' in e or 'Inputref' in e:
+                key = 'IncludeProblem' if 'IncludeProblem' in e else 'Inputref'
+                if e[key]['archive']:
+                    repo = get_mathhub_path() / e[key]['archive'][0]
+                else:
+                    repo = get_containing_archive(self.path)
+                    if repo is None:
+                        interface.write_text(
+                            f"Warning: {self.path} uses inputref without archive, but is not in a git repo.\n",
+                            style='warning'
+                        )
+                        continue
+                path = repo / 'source' / e[key]['filepath'][0]
+                if not path.exists():
+                    interface.write_text(f"Warning: {path} does not exist. (included by {self.path})\n", style='warning')
+                    continue
+                yield STeXDocument(path=path, language=lang_from_path(path))
+            elif 'ImportModule' in e or 'UseModule' in e:
+                key = 'ImportModule' if 'ImportModule' in e else 'UseModule'
+                # uri = e[key]['module']['uri']
+                path_val = e[key]['module']['full_path']
+                if not path_val:
                     interface.write_text(
-                        f"Warning: {self.path} uses inputref without archive, but is not in a git repo.\n",
+                        f'Warning: could not determine path for module included by {self.path}\n',
                         style='warning'
                     )
                     continue
-            path = repo / 'source' / e[key]['filepath'][0]
-            if not path.exists():
-                interface.write_text(f"Warning: {path} does not exist. (included by {self.path})\n", style='warning')
-                continue
-            yield STeXDocument(path=path, language=lang_from_path(path))
+                path = Path(path_val)
+                yield STeXDocument(path=path, language=lang_from_path(path))
+                # for v in get_transitive_imports([(uri, path)]).values():
+                #     yield STeXDocument(path=Path(v), language=lang_from_path(Path(v)))
 
 
 class WdAnnoTexDocument(LocalFileDocument):
@@ -239,10 +267,28 @@ class WdAnnoHtmlDocument(LocalFileDocument):
 def documents_from_paths(
         paths: list[Path],
         annotation_format: Literal['stex', 'wikidata'] = 'stex',
+        include_dependencies: bool = False,
 ) -> list[Document]:
-    # TODO: This needs cleanup and enhancements
+    """
+    Creates a list of Document objects from the given paths.
 
-    included_paths: set[Path] = set()
+    ``annotation_format`` is relevant as the annotation format is (currently) also
+    relevant for creating the document objects.
+    This might not be the best design choice.
+
+    ``include_dependencies`` indicates whether all dependencies should be added as well.
+    If it is False (default) and documents input other documents, the user is asked whether to include them.
+    "input" means that their content is included.
+    There are also "non-input" dependencies, (importmodule, usemodule)
+    which are only added if ``include_dependencies`` is True.
+
+    TODO: This function needs cleanup and enhancements
+    """
+
+    # documents should be uniquely identified Document.identifier
+    all_identifiers: set[str] = set()
+
+    already_considered_file_paths: set[Path] = set()
 
     # Step 1: make a list of all relevant files
     file_paths: list[Path] = []
@@ -259,9 +305,9 @@ def documents_from_paths(
 
         for path in files:
             path = path.resolve()
-            if path not in included_paths:
+            if path not in already_considered_file_paths:
                 file_paths.append(path)
-                included_paths.add(path)
+                already_considered_file_paths.add(path)
 
     # Step 2: create Document objects for each file
     documents: list[Document] = []
@@ -277,8 +323,11 @@ def documents_from_paths(
             raise ValueError(f"Unsupported file format for path {path} with suffix {path.suffix}")
 
         documents.append(new_doc)
+        all_identifiers.add(new_doc.identifier)
 
     include_inputted_files: Optional[bool] = None
+    if include_dependencies:
+        include_inputted_files = True
 
     for document in documents:
         if include_inputted_files is False:
@@ -287,16 +336,56 @@ def documents_from_paths(
         # currently, only local files supported
         inputted = [
             doc for doc in document.get_inputted_documents()
-            if isinstance(doc, LocalFileDocument) and doc.path.resolve not in included_paths
+            if isinstance(doc, LocalFileDocument) and doc.identifier not in all_identifiers
         ]
         if inputted:
             if include_inputted_files is None:
-                include_inputted_files = interface.ask_yes_no('Some of the documents input other documents. Should these also be included?')
+                include_inputted_files = interface.ask_yes_no(
+                    'Some of the documents input other documents. Should these also be included?'
+                )
             if include_inputted_files:
                 for doc in inputted:
-                    rp = doc.path.resolve()
-                    if rp not in included_paths:
+                    if doc.identifier not in all_identifiers:
                         documents.append(doc)
-                        included_paths.add(rp)
+                        all_identifiers.add(doc.identifier)
+
+    if include_dependencies:   # non-input dependencies should come after input dependencies
+        documents.extend(get_missing_dependencies(documents, all_identifiers))
 
     return documents
+
+
+def get_missing_dependencies(
+        documents: list[Document],
+        known_doc_ids: set[str],
+) -> list[Document]:
+    """
+    Optimized helper function. Use with care!
+
+    Ignores input dependencies.
+
+    known_doc_ids should include the identifiers in the document list as well.
+    It will be modified by this function!
+
+    It works in a BFS manner, which may be desirable from a user perspective
+    (first annotate the immediate dependencies)
+    """
+
+    result = documents[:]
+
+    for document in result:
+        if not isinstance(document, STeXDocument):  # currently, only STeX documents have non-input dependencies
+            continue
+
+        dependencies = [
+            doc for doc in document.get_dependencies(mode='noninputs')
+        ]
+
+        for doc in dependencies:
+            if isinstance(doc, LocalFileDocument):
+                if doc.identifier not in known_doc_ids:
+                    result.append(doc)
+                    known_doc_ids.add(doc.identifier)
+
+    return result[len(documents):]  # only return the newly added documents
+
