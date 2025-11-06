@@ -142,6 +142,10 @@ class interface:
         return actual_interface.ask_yes_no(message)
 
     @staticmethod
+    def editable_string_field(message: str, string: str) -> str:
+        return actual_interface.editable_string_field(message, string)
+
+    @staticmethod
     def show_code(
             code: str,
             format: Optional[Literal['tex', 'sTeX', 'myst']] = None,
@@ -171,6 +175,12 @@ class Interface(ABC):
     @abstractmethod
     def write_text(self, text: str, style: str = 'default', *, prestyled: bool = False):
         pass
+
+    def editable_string_field(self, message: str, string: str) -> str:
+        self.write_text(
+            f'{message} (current value {string!r})\n',
+        )
+        return self.get_input()
 
 
     def list_search(self, items: dict[str, Any] | list[str]) -> Optional[Any]:
@@ -550,6 +560,17 @@ class ConsoleInterface(Interface):
 
     def clear(self) -> None:
         click.clear()
+
+    def editable_string_field(self, message: str, string: str) -> str:
+        import readline
+        if not message.endswith('\n'):
+            message += '\n'
+        self.write_text(message)
+        readline.set_startup_hook(lambda: readline.insert_text(string))
+        try:
+            return input()
+        finally:
+            readline.set_startup_hook()
 
     def list_search(self, items: dict[str, Any] | list[str]) -> Optional[Any]:
         fzf_path = get_fzf_path()

@@ -7,6 +7,7 @@ from stextools.snify.text_anno.annotate import AnnotationCandidates, TextAnnotat
     STeXLookupCommand
 from stextools.snify.text_anno.change_selection_commands import PreviousWordShouldBeIncluded, \
     FirstWordShouldntBeIncluded, NextWordShouldBeIncluded, LastWordShouldntBeIncluded
+from stextools.snify.text_anno.replace_command import ReplaceCommand
 from stextools.snify.text_anno.skip_and_ignore import SkipUntilFileEnd, SkipForRestOfSession, IgnoreCommand, \
     AddWordToSrSkip, AddStemToSrSkip, StemFocusCommand
 from stextools.snify.snify_commands import ExitFileCommand, SkipCommand, ViewCommand, RescanCommand, \
@@ -202,6 +203,7 @@ class TextAnnoType(AnnoType[TextAnnoState]):
                 View_i_Command(self.get_annotation_candidates().candidates)
                     if isinstance(self.get_annotation_candidates(), TextAnnotationCandidates)
                     else None,
+                ReplaceCommand(self.snify_state, self.name) if isinstance(document, LocalFileDocument) else None,
                 EditCommand(
                     1, document, get_set_cursor_after_edit_function(self.snify_state)
                 ) if isinstance(document, LocalFileDocument) else None,
