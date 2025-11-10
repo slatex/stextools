@@ -268,7 +268,7 @@ def get_import(
     structure: Optional[FlamsUri] = None
     if '/' in symbol.module:      # TODO: better way to identify structures
         structure = deepcopy(symbol)
-        structure.module, _, structure.symbol = symbol.path.rpartition('/')
+        structure.module, _, structure.symbol = symbol.module.rpartition('/')
     module: FlamsUri = deepcopy(structure or symbol)
     module.symbol = ''
 
