@@ -196,9 +196,12 @@ def get_modules_in_scope_and_import_locations(document: STeXDocument, offset: in
                 else:
                     available_modules.append((uri, full_path))
 
-                assert module_env is not None
+                # assert module_env is not None
 
-                if 'ImportModule' in item and module_env.pos == containing_env.pos:
+                if 'ImportModule' in item and (module_env is None or module_env.pos == containing_env.pos):
+                    if module_env is None:
+                        interface.write_text('Warning: found \\importmodule outside of module.\n', style='warning')
+                        continue
                     pot_red_on_import.setdefault(uri, []).append(full_range)
                 elif 'UseModule' in item:
                     pot_red_on_top_use.setdefault(uri, []).append(full_range)
