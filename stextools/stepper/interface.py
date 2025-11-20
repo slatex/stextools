@@ -579,11 +579,7 @@ class ConsoleInterface(Interface):
         except ImportError:
             import readline
             if 'libedit' in readline.__doc__:
-                interface.admonition(
-                    'readline library is libedit',
-                    'warning',
-                    confirm=False
-                )
+                _warn_readline_libedit()
         if not message.endswith('\n'):
             message += '\n'
         self.write_text(message)
