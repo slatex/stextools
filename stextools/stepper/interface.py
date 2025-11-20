@@ -7,6 +7,7 @@ import functools
 import json
 import shutil
 import subprocess
+import sys
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -549,6 +550,17 @@ class MinimalInterface(Interface):
         return input()
 
 
+@functools.cache
+def _warn_readline_libedit():
+    interface.admonition(
+        f'''Your system uses libedit instead of readline, which may cause issues.
+Potential workaround:
+    {sys.executable} -m pip install gnureadline''',
+        'warning',
+        confirm=True
+    )
+
+
 @dataclasses.dataclass
 class ConsoleInterface(Interface):
     light_mode: bool = False
@@ -562,7 +574,16 @@ class ConsoleInterface(Interface):
         click.clear()
 
     def editable_string_field(self, message: str, string: str) -> str:
-        import readline
+        try:
+            import gnureadline as readline
+        except ImportError:
+            import readline
+            if 'libedit' in readline.__doc__:
+                interface.admonition(
+                    'readline library is libedit',
+                    'warning',
+                    confirm=False
+                )
         if not message.endswith('\n'):
             message += '\n'
         self.write_text(message)
