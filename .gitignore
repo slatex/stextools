@@ -13,3 +13,4 @@
 *~
 auto
 *.swp
+*.venv
