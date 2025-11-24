@@ -1,6 +1,8 @@
 import abc
 import dataclasses
+import functools
 import itertools
+import logging
 from pathlib import Path
 from typing import Iterable, Optional, TypeAlias, Literal, cast
 
@@ -16,6 +18,8 @@ from stextools.stex.stex_py_parsing import STEX_CONTEXT_DB, get_annotatable_plai
 from stextools.stex.flams import FLAMS
 from stextools.utils.json_iter import json_iter
 from stextools.utils.linked_str import LinkedStr, string_to_lstr
+
+logger = logging.getLogger(__name__)
 
 MODE: TypeAlias = Literal['text', 'math']
 
@@ -312,8 +316,23 @@ def documents_from_paths(
     # Step 2: create Document objects for each file
     documents: list[Document] = []
 
+    @functools.cache
+    def log_once(msg: str):
+        logger.info(msg)
+
     for path in file_paths:
         if annotation_format == 'stex' and path.suffix == '.tex':
+            if path.parent.name == 'lib' and (path.parent.parent / '.git').exists():
+                # skip lib files in archives (they crash FLAMS)
+                log_once(f'Skipping files in {path.parent}.')
+                continue
+            if '/.flams/' in str(path):
+                subpath = path
+                while subpath and subpath.name != '.flams':
+                    subpath = subpath.parent
+                if subpath:
+                    log_once(f'Skipping files in {subpath}.')
+                    continue
             new_doc = STeXDocument(path=path, language=lang_from_path(path))
         elif annotation_format == 'wikidata' and path.suffix == '.tex':
             new_doc = WdAnnoTexDocument(path=path, language=lang_from_path(path))
