@@ -52,6 +52,12 @@ class FlamsUri:
             parts.append(f's={self.symbol}')
         return '?'.join([self.root, '&'.join(parts)])
 
+    def __eq__(self, other):
+        return str(self) == str(other)
+
+    def __hash__(self):
+        return hash(str(self))
+
 
 
 

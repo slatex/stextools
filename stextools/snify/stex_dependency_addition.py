@@ -273,7 +273,7 @@ def get_import(
     module.symbol = ''
 
     # Step 2: do we need to do anything?
-    if structure is not None and structure in ii.structs_in_scope:
+    if structure is not None and str(structure) in ii.structs_in_scope:
         return []
     if str(module) in ii.modules_in_scope and structure is None:
         return []

@@ -1,5 +1,6 @@
 import dataclasses
 import math
+from copy import deepcopy
 from typing import Any, Callable
 
 from stextools.snify.snify_state import SnifyState, SnifyCursor, SetOngoingAnnoTypeModification
@@ -169,12 +170,16 @@ class STeXAnnotateCommand(STeXAnnotateBase, Command):
         for i, (symbol, verbalization) in enumerate(self.options):
             assert isinstance(symbol, LocalStexSymbol)
             module_uri_f = FlamsUri(symbol.uri)
-            module_uri_f.symbol = None
+            if '/' in module_uri_f.module:  # TODO: better way to identify structures
+                structure = deepcopy(module_uri_f)
+                structure.module, _, structure.symbol = module_uri_f.module.rpartition('/')
+                is_available = str(structure) in self.importinfo.structs_in_scope
+            else:
+                module_uri_f.symbol = None
+                is_available = str(module_uri_f) in self.importinfo.modules_in_scope
             symbol_display = ' '
             symbol_display += (
-                style('✓', 'correct-weak')
-                if str(module_uri_f) in self.importinfo.modules_in_scope
-                else style('✗', 'error-weak')
+                style('✓', 'correct-weak') if is_available else style('✗', 'error-weak')
             )
             uri = FlamsUri(symbol.uri)
             symbol_display += ' ' + stex_symbol_style(uri)
