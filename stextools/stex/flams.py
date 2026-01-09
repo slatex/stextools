@@ -26,6 +26,8 @@ void load_file(char* s);
 char* list_of_loaded_files();
 char* list_of_all_files();
 void free_string(char* s);
+void reset_global_backend();
+extern size_t FFI_VERSION;
 """)
 
     @functools.cached_property
@@ -120,21 +122,35 @@ Should I do that for you?''')
     def get_loaded_files(self) -> list[str]:
         return self._cstr_to_json(self.lib.list_of_loaded_files())
 
-    def get_all_files(self) -> list[str]:
+    def get_all_files(self, rescan: bool = False) -> list[str]:
+        if rescan:
+            self.reset_global_backend()
         return self._cstr_to_json(self.lib.list_of_all_files())
+
+    def reset_global_backend(self):
+        self.lib.reset_global_backend()
+
+    @property
+    def ffi_version(self) -> int:
+        return self.lib.FFI_VERSION
 
 FLAMS = _Flams()
 
 
 if __name__ == '__main__':
 
-    print('Getting file json')
-    # path = str(Path('/home/jfs/MMT/MMT-content/smglom/mv/source/mod/constant.en.tex').relative_to(Path.cwd(), walk_up=True)).encode('utf-8')
-    # path = str(Path('/home/jfs/MMT/MMT-content/smglom/algebra/source/mod/subgroup.en.tex'))
-    # path = str(Path('/home/jfs/MMT/MMT-content/courses/FAU/AI/hwexam/source/WS2425/assignments/a10.tex'))
-    # path = str(Path('/home/jfs/git/gl.mathhub.info/courses/FAU/LBS/course/source/course/notes/notes.tex'))
-    path = str(Path('/home/jfs/git/gl.mathhub.info/smglom/sets/source/mod/injective.en.tex'))
-    print(orjson.dumps(FLAMS.get_file_annotations(path)).decode('utf-8'))
+    # print('Getting file json')
+    # path = str(Path('/home/jfs/git/gl.mathhub.info/smglom/mv/source/mod/mv.en.tex'))
+    # path = str(Path('/home/jfs/MMT/MMT-content/courses/FAU/AI/problems/source/csp/quiz/csp23.en.tex'))
+    print(orjson.dumps(FLAMS.get_file_annotations(Path(sys.argv[1]).resolve())).decode('utf-8'))
+
+    # while True:
+    #     print('FLAMS FFI VERSION:', FLAMS.ffi_version)
+    #     print(len(FLAMS.get_all_files()))
+    #     input()
+    #     FLAMS.reset_global_backend()
+
+
     # relpath = str(Path('/home/jfs/MMT/MMT-content/smglom/mv/source/mod/constant.en.tex')).encode('utf-8')
 
 #     print(relpath)

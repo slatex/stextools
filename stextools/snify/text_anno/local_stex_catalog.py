@@ -174,9 +174,9 @@ def local_flams_stex_catalogs() -> dict[str, LocalFlamsCatalog]:
     with timelogger(logger, 'Building catalogs'):
         return catalogs_from_stream(
             (
-                (lang, get_symbol(uri, path), LocalStexVerbalization(verb, path, (start, end)))
+                (lang, get_symbol(uri, symb_path), LocalStexVerbalization(verb, path, (start, end)))
                 for path, entry in cache.items()
-                for lang, uri, path, verb, start, end in entry['verbs']
+                for lang, uri, symb_path, verb, start, end in entry['verbs']
             ),
             (
                 symb

@@ -177,6 +177,8 @@ def get_modules_in_scope_and_import_locations(document: STeXDocument, offset: in
             containing_envs = list(get_surrounding_envs(document, full_range[0]))
 
             uri = value['structure' if is_struct else 'module']['uri']
+            if not isinstance(uri, str):
+                raise ValueError(f'Unexpected uri thing: {value}')
             full_path = value['structure' if is_struct else 'module']['filepath' if is_struct else 'full_path']
 
             if not containing_envs:
@@ -226,7 +228,7 @@ def get_modules_in_scope_and_import_locations(document: STeXDocument, offset: in
                 if 'Module' in item:
                     available_modules.append((value['uri'], str(document.path)))
                 else:
-                    available_structs.append((value['uri'], str(document.path)))
+                    available_structs.append((value['uri']['uri'], str(document.path)))
 
     return _ImportInfo(
         modules_in_scope = set(get_transitive_imports(available_modules)),
