@@ -1,6 +1,8 @@
+import fnmatch
 import functools
 from typing import Optional, Literal, cast
 
+from stextools.config import get_config
 from stextools.snify.annotype import AnnoType, StepperStatus
 from stextools.snify.displaysupport import display_snify_header, display_text_selection
 from stextools.snify.text_anno.annotate import AnnotationCandidates, TextAnnotationCandidates, STeXAnnotateCommand, \
@@ -13,7 +15,7 @@ from stextools.snify.text_anno.skip_and_ignore import SkipUntilFileEnd, SkipForR
 from stextools.snify.snify_commands import ExitFileCommand, SkipCommand, ViewCommand, RescanCommand, \
     get_set_cursor_after_edit_function, View_i_Command
 from stextools.snify.text_anno.catalog import Catalog
-from stextools.snify.text_anno.local_stex_catalog import LocalFlamsCatalog, local_flams_stex_catalogs
+from stextools.snify.text_anno.local_stex_catalog import LocalFlamsCatalog, local_flams_stex_catalogs, LocalStexSymbol
 from stextools.snify.text_anno.text_anno_state import TextAnnoState, TextAnnoSetSelectionModification
 from stextools.snify.wikidata import get_wd_catalog, WdAnnotateCommand
 from stextools.stepper.command import CommandCollection, CommandSectionLabel
@@ -22,6 +24,8 @@ from stextools.stepper.document_stepper import EditCommand
 from stextools.stepper.interface import interface
 from stextools.stepper.stepper import Modification
 from stextools.stepper.stepper_extensions import QuitCommand, UndoCommand, RedoCommand
+from stextools.stex.local_stex import FlamsUri
+from stextools.utils.timer import timelogger
 
 
 @functools.cache
@@ -38,7 +42,8 @@ def _get_catalog_for_lang(anno_format: str, lang: str) -> Optional[Catalog]:
         elif lang not in catalogs:
             error_message = f'Error: No STeX catalogs available for language {lang!r}.'
         else:
-            return catalogs.get(lang)
+            return catalogs[lang]
+
         interface.write_text(error_message, 'error')
         interface.await_confirmation()
         return None

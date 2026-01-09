@@ -7,6 +7,8 @@ FLAMS is slow enough that caching verbalizations is helpful.
 """
 
 import dataclasses
+import fnmatch
+import functools
 import gzip
 import logging
 import os
@@ -14,9 +16,9 @@ from typing import TypeAlias, Iterable
 
 import orjson
 
-from stextools.config import CACHE_DIR
+from stextools.config import CACHE_DIR, get_config
 from stextools.snify.text_anno.catalog import Verbalization, Catalog, catalogs_from_stream
-from stextools.stex.local_stex import OpenedStexFLAMSFile, lang_from_path
+from stextools.stex.local_stex import OpenedStexFLAMSFile, lang_from_path, FlamsUri
 from stextools.stex.flams import FLAMS
 from stextools.utils.timer import timelogger
 
@@ -171,17 +173,33 @@ def local_flams_stex_catalogs() -> dict[str, LocalFlamsCatalog]:
         symbol.srefcount += 1
         return symbol
 
+    # ignore certain archives
+
+    filter_string = get_config().get('stextools.snify', 'ignore_archives', fallback='')
+    filter_parts = filter_string.split(',') if filter_string else []
+
+    @functools.cache
+    def matches_ignore(uri) -> bool:
+        if not filter_parts:
+            return False
+        flams_uri = FlamsUri(uri)
+        if any(fnmatch.fnmatch(flams_uri.archive, part) for part in filter_parts):
+            return True
+        return False
+
     with timelogger(logger, 'Building catalogs'):
         return catalogs_from_stream(
             (
                 (lang, get_symbol(uri, symb_path), LocalStexVerbalization(verb, path, (start, end)))
                 for path, entry in cache.items()
                 for lang, uri, symb_path, verb, start, end in entry['verbs']
+                if not matches_ignore(uri)
             ),
             (
                 symb
                 for entry in cache.values()
                 for symb in entry['symbols']
+                if not matches_ignore(symb)
             )
         )
 

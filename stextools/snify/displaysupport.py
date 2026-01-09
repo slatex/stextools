@@ -1,6 +1,7 @@
 """
 Various helper functions for displaying snify content.
 """
+from stextools.config import get_config
 from stextools.snify.snify_state import SnifyState
 from stextools.stepper.document import Document, WdAnnoHtmlDocument
 from stextools.stepper.interface import interface, BrowserInterface
@@ -40,5 +41,5 @@ def display_text_selection(doc: Document, selection: tuple[int, int] | None):
             doc.get_content(),
             doc.format,  # type: ignore
             highlight_range=selection if isinstance(selection, tuple) else None,
-            limit_range=5,
+            limit_range=get_config().getint('stextools.snify', 'display_context_lines', fallback=5)
         )

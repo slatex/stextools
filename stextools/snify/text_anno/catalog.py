@@ -137,6 +137,22 @@ class Catalog(Generic[Symb, Verb]):
 
         return None    # no match found
 
+    def without_symbols(self, remove_predicate) -> 'Catalog':
+        """ Returns a new catalog without symbols for which remove_predicate(symbol) is True. """
+        new_catalog = Catalog[Symb, Verb](self.lang)
+        for symb, verbs in self.symb_to_verb.items():
+            if not remove_predicate(symb):
+                for verb in verbs:
+                    new_catalog.add_symbverb(symb, verb)
+        for symb in self.symb_iter():
+            if remove_predicate(symb):
+                continue
+            new_catalog.add_symb(symb)
+            if symb in self.symb_to_verb:
+                for verb in self.symb_to_verb[symb]:
+                    new_catalog.add_symbverb(symb, verb)
+        return new_catalog
+
 
 def catalogs_from_stream(
         stream: Iterable[tuple[str, Symb, Verb]],

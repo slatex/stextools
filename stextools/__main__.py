@@ -48,7 +48,7 @@ def snify_command(anno_format, mode, deep, files, interface):
     snify(files, anno_format=anno_format, mode=mode, deep=deep)
 
 
-@cli.command(name='lexgen', help='lexicong generation')
+@cli.command(name='lexgen', help='lexicon generation (experimental and work-in-progress)')
 @click.argument(
     'files', nargs=-1, type=click.Path(exists=True, path_type=Path),
 )
