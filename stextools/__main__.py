@@ -1,6 +1,8 @@
+import importlib.metadata
 import logging
 import shutil
 from pathlib import Path
+from platform import python_version
 
 import click
 
@@ -72,6 +74,10 @@ def clone_groups(groups):
     for group in groups:
         clone_group(group)
 
+@cli.command(name='version', help='Print the version of stextools.')
+def version():
+    print('stextools:', importlib.metadata.version('stextools'))
+    print('python:', python_version())
 
 if __name__ == '__main__':
     cli(
