@@ -1,6 +1,13 @@
 # Changelog
 
 
+## Release 0.3.1 (2026-01-09)
+This release is the result of significant changes to all of `stextools` (which were not tracked in the changelog).
+The most important change is that `snify` now uses [FLAMS](https://github.com/flexiformal/flams) for processing sTeX files.
+This makes `snify` compatible with the new sTeX version, and also makes faster/more responsive.
+Furthermore, the whole setup is much more modular and extensible.
+In the process, some (less used) features were lost, but will be reintroduced in future releases if needed.
+
 ## Release 0.1.3 (2025-06-04)
 
 **New features:**
