@@ -261,3 +261,23 @@ def string_to_lstr(string: str, ref_offset: int = 0) -> LinkedStr[None]:
         start_refs=list(range(ref_offset, len(string) + ref_offset)),
         end_refs=list(range(1 + ref_offset, len(string) + 1 + ref_offset))
     )
+
+def fixed_range_lstr(string: str, start_ref: int, end_ref: int) -> LinkedStr[None]:
+    """ Creates a LinkedStr with fixed start and end references. """
+    return LinkedStr(
+        meta_info=None,
+        string=string,
+        start_refs=[start_ref] * len(string),
+        end_refs=[end_ref] * len(string)
+    )
+
+def concatenate_lstrs(
+        lstrs: Sequence[LinkedStr[_MetaInfoType]],
+        meta_info: _MetaInfoType,
+) -> LinkedStr[_MetaInfoType]:
+
+    start_refs = list(itertools.chain.from_iterable(l.get_start_refs() for l in lstrs))
+    end_refs = list(itertools.chain.from_iterable(l.get_end_refs() for l in lstrs))
+    string = ''.join(str(l) for l in lstrs)
+
+    return LinkedStr(meta_info=meta_info, string=string, start_refs=start_refs, end_refs=end_refs)

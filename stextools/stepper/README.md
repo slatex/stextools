@@ -1,27 +1,52 @@
-# `stepper` module
+# Stepper Code
 
-The `stepper` module provides functionality for building
-a command line interfaces for batch annotation tasks.
-The most prominent use case is `snify`.
+This package provides the `Stepper` functionality that powers `snify`.
+A `Stepper` is a tool that iterates over data and interacts with
+the user via commands.
+For example, `snify` iterates over sTeX documents and the user
+has to commands to make annotations etc.
 
+This package is generic, but for examples, we will often refer to `snify`.
 
-Key concepts
-============
+## Commmands
 
-The stepper is centered around `Commands`.
-A `Command` typically is a simple action like adding an annotation or skipping a document.
-When called, a `Command` does not actually change anything, but instead returns `CommandOutcome`s,
-which carry information about what should happen.
-The `Controller` usually translates `CommandOutcome`s into
-simple `Modification`s, which can be applied (and undone).
-In general, this separation lets us gradually decompose
-commands into simple, re-usable modifications.
-For example, the `ReplaceCommand`, which can be used to replace the currently selected string,
-will return a `SubstitutionOutcome` and a `SetNewCursor` outcome,
-which in turn are translated into a `FileModification` and a `CursorModification`.
+A `Command` can be called by the user by entering
+the corresponding letter,
+for example, `"s"` to call the skip command in `snify`.
+When executed, a command returns a list of
+`CommandOutcome`s, which can then be handled by the stepper.
 
-In some cases, the conversion to `Modification`s is not necessary
-and `CommandOutcome`s can be applied directly.
+## Interface
 
-A `CommandCollection` holds all commands that can be executed in a particular situation.
+Instead of printing directly to the commandline,
+the stepper package provides a custom methods
+for displaying (and styling) strings and getting user input.
+This abstraction makes it possible to
 
+* support different kinds of terminals
+* support different color schemes
+* have a browser interface
+* make user interface tests (future work)
+
+## Documents
+
+Often a stepper iterates over documents.
+The `Document` class provides methods to
+get the document format, the language,
+the plain text content, or the formulae.
+
+## Stepper
+
+A `Stepper` maintains a `State` with a cursor that keeps track of the current position.
+In general, the `State` should store all relevant information so that it
+can be stored (pickled) to resume the session at a later point.
+
+For undoing/redoing, the stepper keeps track of a sequence of
+`Modification`s, e.g. moving the cursor or changes to a file,
+that can be (un)done.
+
+There are various stepper extensions that can be included via
+multiple inheritance.
+This is both convenient (just add `QuittableStepper` as a super class
+to have support for the `QuitCommand`) and slightly annoying because
+multiple inheritance feels unnecessarily complicated.
