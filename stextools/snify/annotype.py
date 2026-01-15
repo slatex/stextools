@@ -21,7 +21,7 @@ This is annoying, but it's the best way I've come up with so far.
 
 Performance remarks:
 - Every AnnoType is instantiated when snify starts, even if it is not used.
-  Therefore, initialization should and expensive setup should be deferred until the AnnoType is actually used.
+  Therefore, expensive setup should be deferred until the AnnoType is actually used.
 """
 import abc
 import dataclasses

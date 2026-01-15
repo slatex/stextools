@@ -189,7 +189,7 @@ class AddStemToSrSkip(Command):
 class _IgnoreList:
     def __init__(self, lang: str):
         self.lang = lang
-        self.path = CONFIG_DIR / 'srify_ignore.{self.lang}.txt'
+        self.path = CONFIG_DIR / f'srify_ignore.{self.lang}.txt'
         self.path.parent.mkdir(parents=True, exist_ok=True)
         if not self.path.exists():
             self.path.write_text('')

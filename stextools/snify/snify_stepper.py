@@ -2,6 +2,7 @@ from collections import namedtuple
 from typing import Optional
 
 from stextools.snify.annotype import AnnoType, StepperStatus
+from stextools.snify.formula_anno.formula_anno_type import FormulaAnnoType
 from stextools.snify.snify_commands import RescanOutcome
 from stextools.snify.snify_state import SnifyState, SnifyCursor, SetOngoingAnnoTypeModification
 from stextools.snify.stex_dependency_addition import DependencyModificationOutcome
@@ -16,6 +17,7 @@ from stextools.stepper.stepper_extensions import QuittableStepper, CursorModifyi
 ANNO_TYPES: list[AnnoType] = [
     TextAnnoType('stex'),
     TextAnnoType('wikidata'),
+    FormulaAnnoType(),
 ]
 
 ANNO_TYPE_LOOKUP: dict[str, AnnoType] = {

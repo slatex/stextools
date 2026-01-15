@@ -1,21 +1,19 @@
-import fnmatch
 import functools
 from typing import Optional, Literal, cast
 
-from stextools.config import get_config
 from stextools.snify.annotype import AnnoType, StepperStatus
 from stextools.snify.displaysupport import display_snify_header, display_text_selection
+from stextools.snify.snify_commands import ExitFileCommand, SkipCommand, ViewCommand, RescanCommand, \
+    get_set_cursor_after_edit_function, View_i_Command
 from stextools.snify.text_anno.annotate import AnnotationCandidates, TextAnnotationCandidates, STeXAnnotateCommand, \
     STeXLookupCommand
+from stextools.snify.text_anno.catalog import Catalog
 from stextools.snify.text_anno.change_selection_commands import PreviousWordShouldBeIncluded, \
     FirstWordShouldntBeIncluded, NextWordShouldBeIncluded, LastWordShouldntBeIncluded
+from stextools.snify.text_anno.local_stex_catalog import LocalFlamsCatalog, local_flams_stex_catalogs
 from stextools.snify.text_anno.replace_command import ReplaceCommand
 from stextools.snify.text_anno.skip_and_ignore import SkipUntilFileEnd, SkipForRestOfSession, IgnoreCommand, \
     AddWordToSrSkip, AddStemToSrSkip, StemFocusCommand
-from stextools.snify.snify_commands import ExitFileCommand, SkipCommand, ViewCommand, RescanCommand, \
-    get_set_cursor_after_edit_function, View_i_Command
-from stextools.snify.text_anno.catalog import Catalog
-from stextools.snify.text_anno.local_stex_catalog import LocalFlamsCatalog, local_flams_stex_catalogs, LocalStexSymbol
 from stextools.snify.text_anno.text_anno_state import TextAnnoState, TextAnnoSetSelectionModification
 from stextools.snify.wikidata import get_wd_catalog, WdAnnotateCommand
 from stextools.stepper.command import CommandCollection, CommandSectionLabel
@@ -24,8 +22,6 @@ from stextools.stepper.document_stepper import EditCommand
 from stextools.stepper.interface import interface
 from stextools.stepper.stepper import Modification
 from stextools.stepper.stepper_extensions import QuitCommand, UndoCommand, RedoCommand
-from stextools.stex.local_stex import FlamsUri
-from stextools.utils.timer import timelogger
 
 
 @functools.cache
@@ -61,6 +57,8 @@ def get_catalog_for_lang(anno_format: str, lang: str, stem_focus: Optional[str])
 
 
 class TextAnnoType(AnnoType[TextAnnoState]):
+    _candidate_sorting_keys = {}    # we store them to ensure consistent ordering
+
     def __init__(self, anno_format: Literal['stex', 'wikidata']):
         self.anno_format = anno_format
 
@@ -152,6 +150,12 @@ class TextAnnoType(AnnoType[TextAnnoState]):
                                                       document.get_content()),
             symbols_to_ignore=set(),
         ) or (-1, -1, [])
+        sorting_keys = TextAnnoType._candidate_sorting_keys
+        for e in candidates:
+            if e not in sorting_keys:
+                # sort by number of usages, URI as tie-breaker
+                sorting_keys[e] = (-len(catalog.get_symb_verbs(e[0])), e[0].uri)
+        candidates.sort(key=sorting_keys.get)
         return TextAnnotationCandidates(candidates)
 
 

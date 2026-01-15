@@ -79,7 +79,7 @@ class ImportCommand(Command):
 
 @dataclasses.dataclass
 class _ImportInfo:
-    modules_in_scope: set[str]
+    modules_in_scope: dict[str, str]   # module uri -> module path
     structs_in_scope: set[str]
     top_use_pos: int
     use_pos: int
@@ -231,7 +231,7 @@ def get_modules_in_scope_and_import_locations(document: STeXDocument, offset: in
                     available_structs.append((value['uri']['uri'], str(document.path)))
 
     return _ImportInfo(
-        modules_in_scope = set(get_transitive_imports(available_modules)),
+        modules_in_scope = get_transitive_imports(available_modules),
         structs_in_scope = set(get_transitive_structs(available_structs)),
         top_use_pos = surrounding_envs[0].nodelist[0].pos if surrounding_envs else 0,
         use_pos = use_env.nodelist[0].pos if use_env else 0,

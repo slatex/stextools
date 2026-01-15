@@ -38,7 +38,7 @@ def snify(
                 annotation_format=anno_format,
                 include_dependencies=deep,
             ),
-            anno_types=['text-anno-stex'],
+            anno_types=['text-anno-stex', 'formula-anno-stex'],
             deep_mode=deep,
         )
         assert mode in {'text', 'math', 'both'}

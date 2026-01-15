@@ -1,5 +1,9 @@
 """
 copied from spotterbase (spotterbase would be an unnecessarily large dependency for this project)
+
+It introduces the ``LinkedStr`` class that represents a string where each character is linked to a position
+in an original document.
+These links are maintained even when creating substrings or modifying the string (e.g., replacing parts of it).
 """
 
 from __future__ import annotations

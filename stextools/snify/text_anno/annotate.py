@@ -244,3 +244,15 @@ class STeXLookupCommand(STeXAnnotateBase, Command):
 
 
 
+class Explain_i_Command(Command):
+    def __init__(self, state: SnifyState, candidates: AnnotationCandidates):
+        super().__init__(CommandInfo(
+            show=False,
+            pattern_presentation='x𝑖',
+            pattern_regex='^x[0-9]+$',
+            description_short=' explain candidate 𝑖',
+            description_long='Shows explanatory information for annotation candidate 𝑖')
+        )
+        self.state = state
+        self.candidates = candidates
+

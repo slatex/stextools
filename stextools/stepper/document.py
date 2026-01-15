@@ -12,10 +12,10 @@ from pylatexenc.latexwalker import LatexWalker, LatexMathNode, LatexCommentNode,
 from stextools.remote_repositories import get_mathhub_path, get_containing_archive
 from stextools.stepper.html_support import MyHtmlParser
 from stextools.stepper.interface import interface
-from stextools.stex.local_stex import lang_from_path, get_transitive_imports
+from stextools.stex.flams import FLAMS
+from stextools.stex.local_stex import lang_from_path
 from stextools.stex.stex_py_parsing import STEX_CONTEXT_DB, get_annotatable_plaintext, get_plaintext_approx, \
     PLAINTEXT_EXTRACTION_MACRO_RECURSION, PLAINTEXT_EXTRACTION_ENVIRONMENT_RULES
-from stextools.stex.flams import FLAMS
 from stextools.utils.json_iter import json_iter
 from stextools.utils.linked_str import LinkedStr, string_to_lstr
 
@@ -119,6 +119,36 @@ class STeXDocument(LocalFileDocument):
         return get_annotatable_plaintext(
             self.get_latex_walker()
         )
+
+    def get_annotatable_formulae(self) -> Iterable[LinkedStr[None]]:
+        walker = self.get_latex_walker()
+
+        def _recurse(nodes):
+            for node in nodes:
+                if node is None or node.nodeType() in {LatexCommentNode, LatexCharsNode, LatexSpecialsNode}:
+                    continue
+                elif node.nodeType() == LatexMathNode:
+                    yield string_to_lstr(self.get_content()[node.pos:node.pos+node.len], node.pos)
+                elif node.nodeType() == LatexMacroNode:
+                    # TODO: should we actually follow the plaintext extraction rules?
+                    if node.macroname in PLAINTEXT_EXTRACTION_MACRO_RECURSION:
+                        for arg_idx in PLAINTEXT_EXTRACTION_MACRO_RECURSION[node.macroname]:
+                            yield from _recurse([node.nodeargd.argnlist[arg_idx]])
+                elif node.nodeType() == LatexEnvironmentNode:
+                    if node.envname in PLAINTEXT_EXTRACTION_ENVIRONMENT_RULES:
+                        recurse_content, recurse_args = PLAINTEXT_EXTRACTION_ENVIRONMENT_RULES[node.envname]
+                    else:
+                        recurse_content, recurse_args = True, []
+                    for arg_idx in recurse_args:
+                        yield from _recurse([node.nodeargd.argnlist[arg_idx]])
+                    if recurse_content:
+                        yield from _recurse(node.nodelist)
+                elif node.nodeType() == LatexGroupNode:
+                    yield from _recurse(node.nodelist)
+                else:
+                    raise RuntimeError(f"Unexpected node type: {node.nodeType()}")
+
+        yield from _recurse(walker.get_latex_nodes()[0])
 
     def get_plaintext_approximation(self) -> LinkedStr:
         return get_plaintext_approx(self.get_latex_walker())
