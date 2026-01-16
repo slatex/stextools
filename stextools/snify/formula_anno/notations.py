@@ -3,16 +3,14 @@ import re
 from collections import defaultdict
 from typing import Optional
 
-from stextools.snify.snify_state import SnifyState
-from stextools.snify.stex_dependency_addition import get_modules_in_scope_and_import_locations, _ImportInfo
-from stextools.stepper.document import STeXDocument
+from stextools.snify.text_anno.local_stex_catalog import LocalStexSymbol
 from stextools.stex.flams import FLAMS
-from stextools.stex.local_stex import FlamsUri, OpenedStexFLAMSFile
+from stextools.stex.local_stex import OpenedStexFLAMSFile
 from stextools.utils.json_iter import json_iter
 
 
 @functools.cache   # TODO: cache must be invalidated if the file changes
-def extract_notations_from_file(path: str) -> dict[str, list[FlamsUri]]:
+def extract_notations_from_file(path: str) -> dict[str, list[tuple[LocalStexSymbol, str]]]:
     result = defaultdict(list)
     annos = FLAMS.get_file_annotations(path)
     of = OpenedStexFLAMSFile(path)
@@ -23,13 +21,14 @@ def extract_notations_from_file(path: str) -> dict[str, list[FlamsUri]]:
         if 'Symdef' in item:  # TODO: also support \notation
             # quick and dirty extraction of notation
             item = item['Symdef']
-            uri = FlamsUri(item['uri']['uri'])
+            uri = item['uri']['uri']
+            path = item['uri']['filepath']
 
             a, _ = of.flams_range_to_offsets(item['full_range'])
 
             line = of.text[a:].splitlines()[0]
 
-            main_def = re.match(r'\\symdef\{([^}]+)\}(?P<args>\[([^[\]]|\[[^\]]*\])*\])?(?P<rest>[^%]*)', line)
+            main_def = re.match(r'\\symdef\{(?P<macroname>[^}]+)\}(?P<args>\[([^[\]]|\[[^\]]*\])*\])?(?P<rest>[^%]*)', line)
 
             if not main_def:
                 continue
@@ -75,26 +74,41 @@ def extract_notations_from_file(path: str) -> dict[str, list[FlamsUri]]:
                 if not foundsomething:
                     cleanedup += rest[0]
                     rest = rest[1:]
-            result[cleanedup].append(uri)
+            result[cleanedup].append((LocalStexSymbol(uri, path), main_def.group('macroname')))
     return result
 
 
-def get_notations(snify_state: SnifyState) -> dict[str, list[FlamsUri]]:
-    """ returns notation -> symbol uris
-    (only considers symbols in scope at the moment)
-    """
-    document = snify_state.get_current_document()
-    assert isinstance(document, STeXDocument)
-
-    importinfo = get_modules_in_scope_and_import_locations(document, snify_state.cursor.in_doc_pos)
-
+@functools.cache
+def get_notations() -> dict[str, list[tuple[LocalStexSymbol, str]]]:
+    """ collects some notations from smglom """
+    all_files = FLAMS.get_all_files()
     result = defaultdict(list)
-
-    for module, path in importinfo.modules_in_scope.items():
-        for notation, uris in extract_notations_from_file(path).items():
-            result[notation].extend(uris)
-
+    for path in all_files:
+        # quick-and-dirty filtering
+        if 'smglom' in path and path.endswith('.en.tex') and (
+            'smglom/sets' in path
+        ):
+            for notation, symbols in extract_notations_from_file(path).items():
+                result[notation].extend(symbols)
     return result
+
+
+# def get_notations(snify_state: SnifyState) -> dict[str, list[tuple[FlamsUri, str]]]:
+#     """ returns notation -> symbol uris
+#     (only considers symbols in scope at the moment)
+#     """
+#     document = snify_state.get_current_document()
+#     assert isinstance(document, STeXDocument)
+#
+#     importinfo = get_modules_in_scope_and_import_locations(document, snify_state.cursor.in_doc_pos)
+#
+#     result = defaultdict(list)
+#
+#     for module, path in importinfo.modules_in_scope.items():
+#         for notation, uris in extract_notations_from_file(path).items():
+#             result[notation].extend(uris)
+#
+#     return result
 
 
 @functools.lru_cache(maxsize=2**14)
@@ -110,7 +124,10 @@ def get_notation_match(
             number_of_groups = i
             notation_regex = notation_regex.replace(f'\\#{i}', f'(?P<arg{i}>.+?)')
     notation_regex = f'^{notation_regex}$'
-    match = re.match(notation_regex, string)
+    try:
+        match = re.match(notation_regex, string)
+    except re.PatternError:
+        return None
     if not match:
         return None
     return [match.span(f'arg{i}') for i in range(1, number_of_groups + 1)]

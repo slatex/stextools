@@ -15,7 +15,7 @@ class FormulaAnnoState:
     sub_selection: tuple[int, int] | None = None
 
     # the arguments in the sub_selection
-    args_in_sub_selection: list[tuple[int, int]] | None = None
+    args_in_sub_selection: tuple[tuple[int, int], ...] | None = None
 
     @property
     def level(self) -> int:
@@ -67,8 +67,8 @@ class SetSubSelectionModification(SetStateAttributeModification[tuple[int, int] 
                  new_selection: tuple[int, int] | None):
         super().__init__(anno_type_name, 'sub_selection', old_selection, new_selection)
 
-class SetArgsInSubSelectionModification(SetStateAttributeModification[list[tuple[int, int]] | None]):
+class SetArgsInSubSelectionModification(SetStateAttributeModification[tuple[tuple[int, int], ...] | None]):
     def __init__(self, anno_type_name: str,
-                 old_args: list[tuple[int, int]] | None,
-                 new_args: list[tuple[int, int]] | None):
+                 old_args: tuple[tuple[int, int], ...] | None,
+                 new_args: tuple[tuple[int, int], ...] | None):
         super().__init__(anno_type_name, 'args_in_sub_selection', old_args, new_args)

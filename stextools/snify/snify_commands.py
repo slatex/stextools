@@ -119,11 +119,16 @@ class RescanCommand(Command):
 
 
 class SkipCommand(Command):
-    def __init__(self, state: SnifyState):
+    def __init__(
+            self,
+            state: SnifyState,
+            description_short: str = 'kip once',
+            description_long: str = 'Skips to the next possible annotation'
+    ):
         super().__init__(CommandInfo(
             pattern_presentation = 's',
-            description_short = 'kip once',
-            description_long = 'Skips to the next possible annotation')
+            description_short = description_short,
+            description_long = description_long)
         )
         self.state = state
 

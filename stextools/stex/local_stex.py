@@ -58,6 +58,9 @@ class FlamsUri:
     def __hash__(self):
         return hash(str(self))
 
+    def __repr__(self):
+        return f'FlamsUri({str(self)!r})'
+
 
 
 
