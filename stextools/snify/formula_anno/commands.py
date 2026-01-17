@@ -166,6 +166,7 @@ class MakeAnnotationCommand(Command):
             outcomes.extend(import_thing)
 
         state: FormulaAnnoState = self.snify_state.annotype_states[self.anno_type_name]
+
         main_subst = SubstitutionOutcome(substitution, state.sub_selection[0], state.sub_selection[1])
         outcomes.append(main_subst)
 
@@ -188,7 +189,7 @@ class MakeAnnotationCommand(Command):
                 self.anno_type_name, state.formula_selection,
                 (
                     state.formula_selection[0] + offset,
-                    state.formula_selection[1] - (state.sub_selection[1] - state.sub_selection[0]) + len(substitution)
+                    state.formula_selection[1] + offset - (state.sub_selection[1] - state.sub_selection[0]) + len(substitution)
                 )
             ),
         ])
