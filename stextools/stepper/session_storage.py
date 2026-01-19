@@ -207,7 +207,7 @@ class SessionStorage:
 
     def store_session_dialog(self, state: State):
         interface.write_text('\n\n')
-        if not interface.ask_yes_no('Would you like to save the current session?'):
+        if not interface.ask_yes_no('Would you like to save the current session?', default='no'):
             return
         if self.loaded_session:
             interface.write_text('You are in a session that was loaded from a file.\n')

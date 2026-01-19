@@ -63,6 +63,7 @@ STEX_MACRO_SPECS: list = [
     MacroSpec('definiens', '[{'),
     MacroSpec('definiens', '[{'),
     MacroSpec('vardef', '{[{'),
+    MacroSpec('mcc', '[{'),
 ]
 
 STEX_ENV_SPECS: list = [
@@ -198,6 +199,7 @@ PLAINTEXT_EXTRACTION_MACRO_RECURSION: dict[str, list[int]] = {
     'inlineex': [1],
     'inlineass': [1],
     'definiens': [1],
+    'mcc': [1],
 }
 
 # By default, the content of environment is searched for potential annotations,

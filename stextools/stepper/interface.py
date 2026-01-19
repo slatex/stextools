@@ -139,8 +139,8 @@ class interface:
         return actual_interface.list_search(items)
 
     @staticmethod
-    def ask_yes_no(message: Optional[str] = None) -> bool:
-        return actual_interface.ask_yes_no(message)
+    def ask_yes_no(message: Optional[str] = None, default: Optional[Literal['yes', 'no']] = None) -> bool:
+        return actual_interface.ask_yes_no(message, default)
 
     @staticmethod
     def editable_string_field(message: str, string: str) -> str:
@@ -254,14 +254,21 @@ class Interface(ABC):
         self.write_text(text, style='pale')
         self.newline()
 
-    def ask_yes_no(self, message: Optional[str] = None) -> bool:
+    def ask_yes_no(self, message: Optional[str] = None, default: Optional[Literal['yes', 'no']] = None) -> bool:
         if message:
             self.write_text(message, style='default')
-        self.write_text(' (y/n): ', style='bold')
+        self.write_text({
+            'yes': ' (Y/n): ',
+            'no': ' (y/N): ',
+            None: ' (y/n): ',
+        }[default], style='bold')
         result = self.get_input().strip().lower()
-        while result not in {'y', 'n'}:
+        while result not in {'y', 'n'} and not (default is not None and result == ''):
             self.write_text('Please answer with "y" or "n": ', style='error')
             result = self.get_input().strip().lower()
+
+        if default is not None and result == '':
+            return default == 'yes'
         return result == 'y'
 
     def await_confirmation(self):
@@ -691,7 +698,7 @@ class ConsoleInterface(Interface):
 
 
     def get_input(self) -> str:
-        return click.prompt('', show_default=False, prompt_suffix='')
+        return click.prompt('', show_default=False, prompt_suffix='', default='')
 
     def show_code(
             self,
