@@ -1,0 +1,34 @@
+# SIGNATURES OF LATEX MACROS AND ENVIRONMENTS (STEX IN SEPARATE FILE)
+#
+# Macros/environments can be added here to extend the latex parser used by stextools
+# It also contains rules of what macros/environments should be recursively considered for annotation
+# You can add extend the list locally by adding a file ~/.config/stextools/latex_macros
+#
+# By default, macro and environment arguments are not searched for annotations,
+# but the content of environments is searched.
+#
+# Examples:
+# - "\mcc[{,1:feedback,2" indicates that
+#       * the macro `\mcc` has two arguments, the first one optional,
+#       * the first argument has key/value pairs and the value of the key `feedback` should be considered for annotation
+#       * the second argument should be considered for annotation
+# - "\begin{lstlisting}[,norec" indicates that
+#       * the environment `lstlisting` has one optional argument
+#       * the content of the environment should NOT be considered for annotation (`norec`)
+# - "\inputref*[{" indicates that
+#       * the macro `\inputref` has one optional argument and one mandatory argument
+#       * the macro may be used with or without the star
+#       * neither argument should be considered for annotation
+
+
+\emph{,1
+\textbf{,1
+\textit{,1
+\lstset{
+\lstinputlisting[{
+\ednote{
+
+\begin{lstlisting}[,norec
+\begin{frame}[
+\begin{tikzpicture}[,norec
+

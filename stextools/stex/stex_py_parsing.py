@@ -2,111 +2,139 @@
 Code for parsing sTeX files.
 This is not based on FLAMS (FLAMS only extracts annotations, and we need the informal content as well).
 """
+import logging
+from pathlib import Path
 from typing import Iterable, Optional
 
 from pylatexenc.latexwalker import get_default_latex_context_db, LatexWalker, LatexMathNode, LatexCommentNode, \
     LatexSpecialsNode, LatexMacroNode, LatexEnvironmentNode, LatexGroupNode, LatexCharsNode, LatexNode
 from pylatexenc.macrospec import MacroSpec, std_environment, VerbatimArgsParser, ParsedMacroArgs
 
+from stextools.config import CONFIG_DIR
 from stextools.stepper.interface import interface
 from stextools.utils.linked_str import LinkedStr, string_to_lstr, fixed_range_lstr, concatenate_lstrs
 
-STEX_MACRO_SPECS: list = [
-    # from section 3.5 of the stex manual (targets modules)
-    MacroSpec('importmodule', '[{'),
-    MacroSpec('requiremodule', '[{'),
-    MacroSpec('usemodule', '[{'),
+logger = logging.getLogger(__name__)
 
-    # from section 2.2 of the stex manual (targets tex files)
-    MacroSpec('inputref', '*[{'),
-    MacroSpec('mhinput', '*[{'),
-
-    # targets non-tex files
-    MacroSpec('mhgraphics', '[{'),
-    MacroSpec('cmhgraphics', '[{'),
-    MacroSpec('mhtikzinput', '[{'),
-    MacroSpec('cmhtikzinput', '[{'),
-    MacroSpec('lstinputmhlisting', '[{'),
-    MacroSpec('addmhbibresource', '[{'),
-
-    # others
-    MacroSpec('includeproblem', '[{'),
-    MacroSpec('includeassignment', '[{'),
-
-    # from section 1.3 of the stex manual (targets lib/ directory)
-    MacroSpec('libinput', '[{'),
-    MacroSpec('libusepackage', '[{'),
-    MacroSpec('libusetikzlibrary', '[{'),
-
-    # various others
-    MacroSpec('MSC', '{'),
-    MacroSpec('notation', '{[{'),
-    MacroSpec('symdecl', '*{'),
-    MacroSpec('symdef', '{[{'),
-    MacroSpec('definiendum', '[{{'),
-    MacroSpec('definame', '[{'),
-    MacroSpec('Definame', '[{'),
-    MacroSpec('sn', '[{'),
-    MacroSpec('sns', '[{'),
-    MacroSpec('Sn', '[{'),
-    MacroSpec('Sns', '[{'),
-    MacroSpec('sr', '[{{'),
-    MacroSpec('objective', '{{'),
-    MacroSpec('sref', '[{'),
-    MacroSpec('usestructure', '{'),
-    MacroSpec('slink', '{'),
-    MacroSpec('varseq', '{{{'),
-    MacroSpec('nlex', '{'),
-    MacroSpec('inlinedef', '[{'),
-    MacroSpec('inlineex', '[{'),
-    MacroSpec('inlineass', '[{'),
-    MacroSpec('definiens', '[{'),
-    MacroSpec('definiens', '[{'),
-    MacroSpec('vardef', '{[{'),
-    MacroSpec('mcc', '[{'),
-]
-
-STEX_ENV_SPECS: list = [
-    std_environment('smodule', '[{'),
-    std_environment('sdefinition', '['),
-    std_environment('sproblem', '['),
-    std_environment('sexample', '['),
-    std_environment('sparagraph', '['),
-    std_environment('sfragment', '[{'),
-    std_environment('assignment', '['),
-    std_environment('nparagraph', '['),
-    std_environment('mathstructure', '{['),
-    std_environment('extstructure', '*{[{'),
-    std_environment('textsymdecl', '{[{'),
-    std_environment('scb', '['),
-    std_environment('smcb', '['),
-]
-
-
+STEX_MACRO_SPECS: list = [ ]
+STEX_ENV_SPECS: list = [ ]
 STANDARD_MACRO_SPECS: list = [
     MacroSpec('lstinline', args_parser=VerbatimArgsParser(verbatim_arg_type="verb-macro")),
-    MacroSpec('lstset', '{'),
-    MacroSpec('lstinputlisting', '[{'),
-
-    # less standard
-    MacroSpec('ednote', '{'),
-    MacroSpec('wdalign', '{{')   # wikidata alignment
+    MacroSpec('wdalign', '{{'),   # wikidata alignment (non-standard)
 ]
+STANDARD_ENV_SPECS: list = [ ]
 
-STANDARD_ENV_SPECS: list = [
-    std_environment('lstlisting', '['),
-    std_environment('frame', '['),
-    std_environment('tikzpicture', '['),
-]
+# By default, macros are not searched for potential annotations.
+# This is a list of exceptions to this rule.
+# The keys are the names of the macros (note that they should be in the pylatexenc context).
+# The values are the indices of the arguments that should be searched.
+# For key/value arguments, specific values can be specified as tuples (arg_index, key_name).
+PLAINTEXT_EXTRACTION_MACRO_RECURSION: dict[str, list[int | tuple[int, str]]] = { }
+
+# By default, the content of environment is searched for potential annotations,
+# but the arguments are not.
+# This is a list of exceptions to this rule.
+# The keys are the names of the environments (note that they should be in the pylatexenc context).
+# The values are pairs (a, b), where
+#   - a is a boolean indicating whether the environment content should be searched
+#   - b is a list of indices of the arguments that should be searched (like in the macro case).
+PLAINTEXT_EXTRACTION_ENVIRONMENT_RULES: dict[str, tuple[bool, list[int | tuple[int, str]]]] = { }
 
 STEX_CONTEXT_DB = get_default_latex_context_db()
-STEX_CONTEXT_DB.add_context_category('stex', macros=STEX_MACRO_SPECS, environments=STEX_ENV_SPECS)
-STEX_CONTEXT_DB.add_context_category('std', macros=STANDARD_MACRO_SPECS, environments=STANDARD_ENV_SPECS)
-try:
-    STEX_CONTEXT_DB.freeze()
-except AttributeError:   # freeze is only available in newer pylatexenc versions
+
+
+class InvalidMacroSpecError(Exception):
     pass
 
+
+def _populate_stex_context_db():
+    for path in [
+        Path(__file__).parent / 'latex_macros',
+        Path(__file__).parent / 'stex_macros',
+        CONFIG_DIR / 'latex_macros',
+        CONFIG_DIR / 'stex_macros',
+    ]:
+        if not path.exists():
+            continue
+        logger.info(f'Loading LaTeX macros from {path}')
+        is_stex = path.name == 'stex_macros'
+        with open(path, 'r') as fp:
+            for i, line in enumerate(fp):
+                error = InvalidMacroSpecError(f"Invalid environment spec at {path}:{i+1}: {line}")
+                line = line.strip()
+                if line.startswith('#') or not line:
+                    continue  # comment/empty line
+                if line.startswith(r'\begin{'):  # environment
+                    if '}' not in line:
+                        raise error
+                    envname = line[len(r'\begin{'):line.index('}')]
+                    rest = [s.strip() for s in line[line.index('}') + 1:].split(',')]
+                    parens = rest[0] if rest else ''
+                    if not all(s in {'[', '{'} for s in parens):
+                        raise error
+                    if len(rest) > 1:
+                        recurse = True
+                        argrecurse = []
+                        for r in rest[1:]:
+                            if r == 'norec':
+                                recurse = False
+                            elif r.isdigit():
+                                if int(r) > len(parens):
+                                    raise error
+                                argrecurse.append(int(r) - 1)
+                            else:
+                                rr = r.split(':')
+                                if len(rr) != 2 or not rr[0].isdigit() or not rr[1].isalpha() or int(rr[0]) > len(parens):
+                                    raise error
+                                argrecurse.append((int(rr[0]) - 1, rr[1]))
+                        PLAINTEXT_EXTRACTION_ENVIRONMENT_RULES[envname] = (recurse, argrecurse)
+
+                    env_spec = std_environment(envname, parens)
+                    if is_stex:
+                        STEX_ENV_SPECS.append(env_spec)
+                    else:
+                        STANDARD_ENV_SPECS.append(env_spec)
+                else:   # macro
+                    parts = [s.strip() for s in line.split(',')]
+                    parens_index = len(parts[0])
+                    while parens_index > 0 and parts[0][parens_index - 1] in {'[', '{'}:
+                        parens_index -= 1
+                    if parts[0][0] != '\\' or not all(p.isalpha() or p == '*' for p in parts[0][1:parens_index]):
+                        raise error
+                    macroname = parts[0][1:parens_index]
+                    parens = parts[0][parens_index:]
+                    recursion_rules = []
+                    for p in parts[1:]:
+                        if p.isdigit():
+                            if int(p) > len(parens):
+                                raise error
+                            recursion_rules.append(int(p) - 1)
+                        else:
+                            pp = p.split(':')
+                            if len(pp) != 2 or not pp[0].isdigit() or not pp[1].isalpha() or int(pp[0]) > len(parens):
+                                raise error
+                            recursion_rules.append((int(pp[0]) - 1, pp[1]))
+
+                    if recursion_rules:
+                        PLAINTEXT_EXTRACTION_MACRO_RECURSION[macroname] = recursion_rules
+
+                    macro_spec = MacroSpec(macroname, parens)
+                    if is_stex:
+                        STEX_MACRO_SPECS.append(macro_spec)
+                    else:
+                        STANDARD_MACRO_SPECS.append(macro_spec)
+
+
+
+
+    STEX_CONTEXT_DB.add_context_category('stex', macros=STEX_MACRO_SPECS, environments=STEX_ENV_SPECS)
+    STEX_CONTEXT_DB.add_context_category('std', macros=STANDARD_MACRO_SPECS, environments=STANDARD_ENV_SPECS)
+    try:
+        STEX_CONTEXT_DB.freeze()
+    except AttributeError:   # freeze is only available in newer pylatexenc versions
+        pass
+
+_populate_stex_context_db()
 
 #############
 # UTILITIES FOR MACRO ARGUMENTS
@@ -185,34 +213,6 @@ class OptArgKeyVals:
 #############
 # PLAIN TEXT EXTRACTION FOR ANNOTATIONS
 #############
-
-
-# By default, macros are not searched for potential annotations.
-# This is a list of exceptions to this rule.
-# The keys are the names of the macros (note that they should be in the pylatexenc context).
-# The values are the indices of the arguments that should be searched (-1 for last argument is a common choice).
-PLAINTEXT_EXTRACTION_MACRO_RECURSION: dict[str, list[int]] = {
-    'emph': [0],
-    'textbf': [0],
-    'textit': [0],
-    'inlinedef': [1],
-    'inlineex': [1],
-    'inlineass': [1],
-    'definiens': [1],
-    'mcc': [1],
-}
-
-# By default, the content of environment is searched for potential annotations,
-# but the arguments are not.
-# This is a list of exceptions to this rule.
-# The keys are the names of the environments (note that they should be in the pylatexenc context).
-# The values are pairs (a, b), where
-#   - a is a boolean indicating whether the environment content should be searched
-#   - b is a list of indices of the arguments that should be searched
-PLAINTEXT_EXTRACTION_ENVIRONMENT_RULES: dict[str, tuple[bool, list[int]]] = {
-    'lstlisting': (False, []),
-    'tikzpicture': (False, []),
-}
 
 
 def get_annotatable_plaintext(
@@ -310,7 +310,8 @@ def get_plaintext_approx(
             elif node.nodeType() == LatexMacroNode:
                 if node.macroname in PLAINTEXT_EXTRACTION_MACRO_RECURSION:
                     for arg_idx in PLAINTEXT_EXTRACTION_MACRO_RECURSION[node.macroname]:
-                        _recurse([node.nodeargd.argnlist[arg_idx]])
+                        if isinstance(arg_idx, int):
+                            _recurse([node.nodeargd.argnlist[arg_idx]])
                 elif node.macroname in {
                     'definiendum', 'definame', 'Definame',
                     'sn', 'sns', 'Sn', 'Sns', 'sr',
@@ -323,7 +324,8 @@ def get_plaintext_approx(
                 else:
                     recurse_content, recurse_args = True, []
                 for arg_idx in recurse_args:
-                    _recurse([node.nodeargd.argnlist[arg_idx]])
+                    if isinstance(arg_idx, int):
+                        _recurse([node.nodeargd.argnlist[arg_idx]])
                 if recurse_content:
                     _recurse(node.nodelist)
             elif node.nodeType() == LatexGroupNode:

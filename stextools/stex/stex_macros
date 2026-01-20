@@ -1,0 +1,61 @@
+# SIGNATURES OF STEX MACROS AND ENVIRONMENTS (GENERAL LATEX MACROS IN SEPARATE FILE)
+# (see `latex_macros` for explanation)
+# You can add extend the list locally by adding a file ~/.config/stextools/stex_macros
+
+# MACROS
+\importmodule[{
+\requiremodule[{
+\usemodule[{
+\inputref*[{
+\mhinput*[{
+\mhgraphics[{
+\cmhgraphics[{
+\mhtikzinput[{
+\cmhtikzinput[{
+\lstinputmhlisting[{
+\addmhbibresource[{
+\includeproblem[{
+\includeassignment[{
+\libinput[{
+\libusepackage[{
+\libusetikzlibrary[{
+\MSC{
+\notation{[{
+\symdecl*{
+\symdef{[{
+\definiendum[{{
+\definame[{
+\Definame[{
+\sn[{
+\sns[{
+\Sn[{
+\Sns[{
+\sr[{{
+\objective{{
+\sref[{
+\usestructure{
+\slink{
+\varseq{{{
+\nlex{
+\inlinedef[{,2
+\inlineex[{,2
+\inlineass[{,2
+\definiens[{,2
+\definiens[{
+\vardef{[{
+\mcc[{,2
+
+# ENVIRONMENTS
+\begin{smodule}[{
+\begin{sdefinition}[
+\begin{sproblem}[
+\begin{sexample}[
+\begin{sparagraph}[
+\begin{sfragment}[{
+\begin{assignment}[
+\begin{nparagraph}[
+\begin{mathstructure}{[
+\begin{extstructure*}{[{
+\begin{textsymdecl}{[{
+\begin{scb}[
+\begin{smcb}[
