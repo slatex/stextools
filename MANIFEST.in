@@ -1,0 +1,4 @@
+include stextools/stex/stex_macros
+include stextools/stex/latex_macros
+include stextools/stepper/resources/*.css
+include stextools/stepper/resources/*.js
