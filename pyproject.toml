@@ -8,7 +8,7 @@ description = "sTeX tooling"
 readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
-    "pylatexenc >= 2.10",
+    "pylatexenc >= 3.0a33",
     "click >= 8.1",
     "nltk",
     # the following are only needed for some commands,
