@@ -3,6 +3,7 @@ Code for working with local sTeX archives.
 
 This is mostly generic code, more specific code is in separate modules (for example for the catalogs).
 """
+from collections import deque
 from functools import cached_property
 from pathlib import Path
 from typing import Optional, Iterable
@@ -186,4 +187,38 @@ def get_transitive_imports(modules: list[tuple[str, str]]) -> dict[str, str]:
 
     return result
 
+
+def get_module_import_sequence(available_modules: list[tuple[str, str]], target_module: str) -> Optional[list[tuple[str, str]]]:
+    """
+    if available_modules are (module_uri, module_path) pairs that are currently available,
+    it returns None if target_module is not transitively available from them,
+    and otherwise an import sequence (list of (module_uri, module_path) pairs) that leads to target_module
+    """
+    covered_modules: dict[str, str] = { uri: path for uri, path in available_modules }
+    predecessors: dict[str, str] = {}
+    to_process: deque[tuple[str, str]] = deque(available_modules)
+
+    # bfs to find shortest import path
+    while to_process:
+        uri, path = to_process.popleft()
+        if uri == target_module:
+            # reconstruct path
+            result: list[tuple[str, str]] = [(uri, path)]
+            while uri in predecessors:
+                uri = predecessors[uri]
+                path = covered_modules[uri]
+                result.append((uri, path))
+            result.reverse()
+            return result
+
+        annos = FLAMS.get_file_annotations(path)
+
+        module = _find_module(annos, uri)
+        if module is None:
+            continue
+        for import_uri, import_path in _find_imports(module):
+            if import_uri not in covered_modules:
+                covered_modules[import_uri] = import_path
+                predecessors[import_uri] = uri
+                to_process.append((import_uri, import_path))
 

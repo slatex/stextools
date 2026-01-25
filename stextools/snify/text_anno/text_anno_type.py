@@ -10,6 +10,7 @@ from stextools.snify.text_anno.annotate import AnnotationCandidates, TextAnnotat
 from stextools.snify.text_anno.catalog import Catalog
 from stextools.snify.text_anno.change_selection_commands import PreviousWordShouldBeIncluded, \
     FirstWordShouldntBeIncluded, NextWordShouldBeIncluded, LastWordShouldntBeIncluded
+from stextools.snify.text_anno.explain_command import Explain_i_Command
 from stextools.snify.text_anno.local_stex_catalog import LocalFlamsCatalog, local_flams_stex_catalogs
 from stextools.snify.text_anno.replace_command import ReplaceCommand
 from stextools.snify.text_anno.skip_and_ignore import SkipUntilFileEnd, SkipForRestOfSession, IgnoreCommand, \
@@ -208,6 +209,7 @@ class TextAnnoType(AnnoType[TextAnnoState]):
                 StemFocusCommand(stepper_status.stepper_ref, scope='remaining_files', anno_type_name=self.name),
 
                 CommandSectionLabel('\nViewing and editing'),
+                Explain_i_Command(self.get_annotation_candidates().candidates, self.snify_state),
                 ViewCommand(document),
                 View_i_Command(self.get_annotation_candidates().candidates)
                     if isinstance(self.get_annotation_candidates(), TextAnnotationCandidates)
