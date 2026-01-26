@@ -64,36 +64,38 @@ def _populate_stex_context_db():
                 line = line.strip()
                 if line.startswith('#') or not line:
                     continue  # comment/empty line
+
                 if line.startswith(r'\begin{'):  # environment
                     if '}' not in line:
                         raise error
-                    envname = line[len(r'\begin{'):line.index('}')]
-                    rest = [s.strip() for s in line[line.index('}') + 1:].split(',')]
-                    parens = rest[0] if rest else ''
-                    if not all(s in {'[', '{'} for s in parens):
-                        raise error
-                    if len(rest) > 1:
-                        recurse = True
-                        argrecurse = []
-                        for r in rest[1:]:
-                            if r == 'norec':
-                                recurse = False
-                            elif r.isdigit():
-                                if int(r) > len(parens):
-                                    raise error
-                                argrecurse.append(int(r) - 1)
-                            else:
-                                rr = r.split(':')
-                                if len(rr) != 2 or not rr[0].isdigit() or not rr[1].isalpha() or int(rr[0]) > len(parens):
-                                    raise error
-                                argrecurse.append((int(rr[0]) - 1, rr[1]))
-                        PLAINTEXT_EXTRACTION_ENVIRONMENT_RULES[envname] = (recurse, argrecurse)
+                    envname_raw = line[len(r'\begin{'):line.index('}')]
+                    for envname in list({envname_raw, envname_raw.rstrip('*')}):  # handle both starred and unstarred versions
+                        rest = [s.strip() for s in line[line.index('}') + 1:].split(',')]
+                        parens = rest[0] if rest else ''
+                        if not all(s in {'[', '{'} for s in parens):
+                            raise error
+                        if len(rest) > 1:
+                            recurse = True
+                            argrecurse = []
+                            for r in rest[1:]:
+                                if r == 'norec':
+                                    recurse = False
+                                elif r.isdigit():
+                                    if int(r) > len(parens):
+                                        raise error
+                                    argrecurse.append(int(r) - 1)
+                                else:
+                                    rr = r.split(':')
+                                    if len(rr) != 2 or not rr[0].isdigit() or not rr[1].isalpha() or int(rr[0]) > len(parens):
+                                        raise error
+                                    argrecurse.append((int(rr[0]) - 1, rr[1]))
+                            PLAINTEXT_EXTRACTION_ENVIRONMENT_RULES[envname] = (recurse, argrecurse)
 
-                    env_spec = std_environment(envname, parens)
-                    if is_stex:
-                        STEX_ENV_SPECS.append(env_spec)
-                    else:
-                        STANDARD_ENV_SPECS.append(env_spec)
+                        env_spec = std_environment(envname, parens)
+                        if is_stex:
+                            STEX_ENV_SPECS.append(env_spec)
+                        else:
+                            STANDARD_ENV_SPECS.append(env_spec)
                 else:   # macro
                     parts = [s.strip() for s in line.split(',')]
                     parens_index = len(parts[0])
@@ -104,16 +106,21 @@ def _populate_stex_context_db():
                     macroname = parts[0][1:parens_index]
                     parens = parts[0][parens_index:]
                     recursion_rules = []
+                    index_shift = -1
+                    if macroname.endswith('*'):
+                        parens = '*' + parens
+                        macroname = macroname[:-1]
+                        index_shift = 0
                     for p in parts[1:]:
                         if p.isdigit():
                             if int(p) > len(parens):
                                 raise error
-                            recursion_rules.append(int(p) - 1)
+                            recursion_rules.append(int(p) + index_shift)
                         else:
                             pp = p.split(':')
                             if len(pp) != 2 or not pp[0].isdigit() or not pp[1].isalpha() or int(pp[0]) > len(parens):
                                 raise error
-                            recursion_rules.append((int(pp[0]) - 1, pp[1]))
+                            recursion_rules.append((int(pp[0]) + index_shift, pp[1]))
 
                     if recursion_rules:
                         PLAINTEXT_EXTRACTION_MACRO_RECURSION[macroname] = recursion_rules
