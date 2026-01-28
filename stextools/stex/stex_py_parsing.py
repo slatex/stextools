@@ -143,6 +143,8 @@ _populate_stex_context_db()
 
 def _arglist_recursion_helper(recursion_function, arglist, rules: list[int | tuple[int, str]]):
     for i, arg in enumerate(arglist):
+        if arg is None:
+            continue
         if i in rules:
             yield from recursion_function([arg])
         elif any(isinstance(r, tuple) and r[0] == i for r in rules):
