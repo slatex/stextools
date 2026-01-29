@@ -49,13 +49,15 @@ class STeXAnnotateBase(Command):
         document = snify_state.get_current_document()
         assert isinstance(document, STeXDocument) or isinstance(document, LocalFtmlDocument)
         self.document: STeXDocument = document
+        self._import_info = None
 
     @property
-    @functools.cache
     def importinfo(self):
         if not isinstance(self.document, STeXDocument):
             raise RuntimeError('Import info is only available for STeX documents')
-        return get_modules_in_scope_and_import_locations(self.document, self.state.selection[0])
+        if self._import_info is None:
+            self._import_info = get_modules_in_scope_and_import_locations(self.document, self.state.selection[0])
+        return self._import_info
 
     @property
     def state(self) -> TextAnnoState:
