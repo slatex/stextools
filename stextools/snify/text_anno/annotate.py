@@ -1,14 +1,17 @@
 import dataclasses
+import functools
 import math
 from copy import deepcopy
 from typing import Any, Callable
+
+from sympy import substitution
 
 from stextools.snify.snify_state import SnifyState, SnifyCursor, SetOngoingAnnoTypeModification
 from stextools.snify.stex_dependency_addition import AnnotationAborted, get_modules_in_scope_and_import_locations, \
     get_import
 from stextools.snify.text_anno.catalog import Verbalization
 from stextools.snify.text_anno.text_anno_state import TextAnnoState
-from stextools.stepper.document import STeXDocument
+from stextools.stepper.document import STeXDocument, LocalFtmlDocument
 from stextools.stex.local_stex import FlamsUri
 from stextools.snify.text_anno.local_stex_catalog import LocalStexSymbol, LocalFlamsCatalog
 from stextools.stepper.document_stepper import SubstitutionOutcome
@@ -44,9 +47,15 @@ class STeXAnnotateBase(Command):
         self.show_state_fun = show_state_fun
         self.anno_type_name = anno_type_name
         document = snify_state.get_current_document()
-        assert isinstance(document, STeXDocument)
+        assert isinstance(document, STeXDocument) or isinstance(document, LocalFtmlDocument)
         self.document: STeXDocument = document
-        self.importinfo = get_modules_in_scope_and_import_locations(self.document, self.state.selection[0])
+
+    @property
+    @functools.cache
+    def importinfo(self):
+        if not isinstance(self.document, STeXDocument):
+            raise RuntimeError('Import info is only available for STeX documents')
+        return get_modules_in_scope_and_import_locations(self.document, self.state.selection[0])
 
     @property
     def state(self) -> TextAnnoState:
@@ -55,6 +64,34 @@ class STeXAnnotateBase(Command):
         return state
 
     def annotate_symbol(self, symbol: LocalStexSymbol) -> list[CommandOutcome]:
+        if isinstance(self.document, STeXDocument):
+            return self.annotate_symbol_tex(symbol)
+        elif isinstance(self.document, LocalFtmlDocument):
+            return self.annotate_symbol_html(symbol)
+        else:
+            raise RuntimeError(f'Annotation not supported for document type {type(self.document)}')
+
+    def annotate_symbol_html(self, symbol: LocalStexSymbol) -> list[CommandOutcome]:
+        substitution = SubstitutionOutcome(
+            f'<span data-ftml-term="OMID" data-ftml-head="{symbol.uri}" data-ftml-notationid="">'
+            f'<span class="ftml-comp" data-ftml-comp="">{self.state.get_selected_text(self.snify_state)}</span></span>',
+            self.state.selection[0],
+            self.state.selection[1]
+        )
+        c = self.snify_state.cursor
+        offset = len(substitution.new_str) - (substitution.end_pos - substitution.start_pos)
+        new_cursor = SnifyCursor(
+            document_index=c.document_index,
+            banned_annotypes=c.banned_annotypes | {self.snify_state.ongoing_annotype},
+            in_doc_pos=c.in_doc_pos + offset,
+        )
+        return [
+            substitution,
+            SetOngoingAnnoTypeModification(self.snify_state.ongoing_annotype, None),
+            SetCursorOutcome(new_cursor=new_cursor),
+        ]
+
+    def annotate_symbol_tex(self, symbol: LocalStexSymbol) -> list[CommandOutcome]:
         state = self.state
         outcomes: list[Any] = []
 
@@ -169,18 +206,19 @@ class STeXAnnotateCommand(STeXAnnotateBase, Command):
         style = interface.apply_style
         for i, (symbol, verbalization) in enumerate(self.options):
             assert isinstance(symbol, LocalStexSymbol)
-            module_uri_f = FlamsUri(symbol.uri)
-            if '/' in module_uri_f.module:  # TODO: better way to identify structures
-                structure = deepcopy(module_uri_f)
-                structure.module, _, structure.symbol = module_uri_f.module.rpartition('/')
-                is_available = str(structure) in self.importinfo.structs_in_scope
-            else:
-                module_uri_f.symbol = None
-                is_available = str(module_uri_f) in self.importinfo.modules_in_scope
             symbol_display = ' '
-            symbol_display += (
-                style('✓', 'correct-weak') if is_available else style('✗', 'error-weak')
-            )
+            if isinstance(self.document, STeXDocument):
+                module_uri_f = FlamsUri(symbol.uri)
+                if '/' in module_uri_f.module:  # TODO: better way to identify structures
+                    structure = deepcopy(module_uri_f)
+                    structure.module, _, structure.symbol = module_uri_f.module.rpartition('/')
+                    is_available = str(structure) in self.importinfo.structs_in_scope
+                else:
+                    module_uri_f.symbol = None
+                    is_available = str(module_uri_f) in self.importinfo.modules_in_scope
+                symbol_display += (
+                    style('✓', 'correct-weak') if is_available else style('✗', 'error-weak')
+                )
             uri = FlamsUri(symbol.uri)
             symbol_display += ' ' + stex_symbol_style(uri)
 

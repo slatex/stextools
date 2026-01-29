@@ -72,10 +72,10 @@ def get_pygments_lexer(format):
         return MarkdownLexer(stripnl=False, stripall=False, ensurenl=False)
     elif format == 'txt' or format is None:
         return TextLexer(stripnl=False, stripall=False, ensurenl=False)
-    elif format == 'wdHTML':
+    elif format in {'wdHTML', 'FTML'}:
         return HtmlLexer(stripnl=False, stripall=False, ensurenl=False)
     else:
-        raise ValueError(f"Unknown format: {format!r}. Supported formats are 'tex', 'sTeX', and 'myst'.")
+        raise ValueError(f"Unknown format: {format!r}. Supported formats are 'tex', 'sTeX', 'wdHTML', 'FTML', and 'myst'.")
 
 
 class interface:
@@ -409,6 +409,10 @@ class BrowserInterface(Interface):
 <script src="http://localhost:{port}/static/browser_interface.js"></script>
 <link rel="stylesheet" href="http://localhost:{port}/static/browser_interface.css">
 <link rel="stylesheet" href="http://localhost:{port}/static/pygments.css">
+<!--
+    ftml.js doesn't work (presumably because the content is loaded dynamically)
+    <script src="https://mathhub.info/ftml.js"></script>
+-->
 </head>
 <body>
     <div id="content">

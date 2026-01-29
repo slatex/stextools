@@ -184,6 +184,7 @@ def get_wd_descriptions() -> dict[str, str]:
 
 @functools.cache
 def get_wd_catalog(lang: str) -> Catalog[WdSymbol, Verbalization]:
+    print('GETTING WIKIDATA CATALOG')
     catalog = Catalog[WdSymbol, Verbalization](lang=lang)
     for uri, verbs in _get_cached_verbs(lang).items():
         symbol = WdSymbol(identifier=uri.split('/')[-1])
@@ -243,7 +244,7 @@ class WdAnnotateCommand(Command):
             prevlen = len(label) + len(id) + 3
             description = '\n'.join(textwrap.wrap(
                 ' ' * prevlen +
-                get_wd_descriptions().get(symb.identifier) or "no description",
+                (get_wd_descriptions().get(symb.identifier) or "no description"),
                 width=80, tabsize=6,
             ))
             description = description.strip()

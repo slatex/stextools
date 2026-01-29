@@ -3,7 +3,7 @@ Various helper functions for displaying snify content.
 """
 from stextools.config import get_config
 from stextools.snify.snify_state import SnifyState
-from stextools.stepper.document import Document, WdAnnoHtmlDocument
+from stextools.stepper.document import Document, WdAnnoHtmlDocument, LocalFtmlDocument
 from stextools.stepper.interface import interface, BrowserInterface
 
 
@@ -16,7 +16,10 @@ def display_snify_header(state: SnifyState):
     )
 
 def display_text_selection(doc: Document, selection: tuple[int, int] | None):
-    if isinstance(interface.get_object(), BrowserInterface) and isinstance(doc, WdAnnoHtmlDocument):
+    if isinstance(interface.get_object(), BrowserInterface) and (
+            isinstance(doc, WdAnnoHtmlDocument)
+            or isinstance(doc, LocalFtmlDocument)
+    ):
         # render the HTML, rather than its source
         if isinstance(selection, tuple):
             a, b = selection

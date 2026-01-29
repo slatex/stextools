@@ -18,7 +18,8 @@ from stextools.snify.text_anno.skip_and_ignore import SkipUntilFileEnd, SkipForR
 from stextools.snify.text_anno.text_anno_state import TextAnnoState, TextAnnoSetSelectionModification
 from stextools.snify.wikidata import get_wd_catalog, WdAnnotateCommand
 from stextools.stepper.command import CommandCollection, CommandSectionLabel
-from stextools.stepper.document import Document, STeXDocument, WdAnnoTexDocument, WdAnnoHtmlDocument, LocalFileDocument
+from stextools.stepper.document import Document, STeXDocument, WdAnnoTexDocument, WdAnnoHtmlDocument, LocalFileDocument, \
+    LocalFtmlDocument
 from stextools.stepper.document_stepper import EditCommand
 from stextools.stepper.interface import interface
 from stextools.stepper.stepper import Modification
@@ -71,10 +72,11 @@ class TextAnnoType(AnnoType[TextAnnoState]):
         return TextAnnoState()
 
     def is_applicable(self, document: Document) -> bool:
+        print('CHECK', self.anno_format, type(document), self.snify_state.mode)
         if 'text' not in self.snify_state.mode:
             return False
         if self.anno_format == 'stex':
-            return isinstance(document, STeXDocument)
+            return isinstance(document, STeXDocument) or isinstance(document, LocalFtmlDocument)
         elif self.anno_format == 'wikidata':
             return isinstance(document, WdAnnoTexDocument) or isinstance(document, WdAnnoHtmlDocument)
         raise ValueError(f'Unknown annotation format: {self.anno_format}')
