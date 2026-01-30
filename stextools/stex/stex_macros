@@ -26,6 +26,10 @@
 \definiendum[{{
 \definame[{
 \Definame[{
+\definames[{
+\Definames[{
+\prerequisite{{
+\fillinsol[{
 \sn[{
 \sns[{
 \Sn[{
@@ -59,3 +63,5 @@
 \begin{textsymdecl}{[{
 \begin{scb}[
 \begin{smcb}[
+\begin{sproof}[{,2
+
