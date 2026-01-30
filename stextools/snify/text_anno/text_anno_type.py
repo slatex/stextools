@@ -73,7 +73,6 @@ class TextAnnoType(AnnoType[TextAnnoState]):
         return TextAnnoState()
 
     def is_applicable(self, document: Document) -> bool:
-        print('CHECK', self.anno_format, type(document), self.snify_state.mode)
         if 'text' not in self.snify_state.mode:
             return False
         if self.anno_format == 'stex':

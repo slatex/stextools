@@ -47,6 +47,8 @@ def snify(
         else:
             state.mode = {mode}
 
+        mode |= {'objectives'}  # TODO: this should be configurable (maybe via "+" suffix for mode?)
+
     stepper = SnifyStepper(state)
 
     try:
