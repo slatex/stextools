@@ -20,3 +20,15 @@
 [data-wd-align] {
     color: #0bb;
 }
+
+.ftml-comp { /* make sure that existing annotations are highlighted */
+  color: dodgerblue;
+}
+
+div.ftml-comp {
+    display: inline;
+}
+
+div.snify-annotation {
+    display: contents;
+}

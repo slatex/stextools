@@ -46,7 +46,7 @@ class MyHtmlParser(HTMLParser):
     def handle_starttag(self, tag, attrs):
         d_attrs = dict(attrs)
         if self.resume_depth is None:
-            if tag in {'head', 'script', 'style', 'math', 'svg'} or 'data-wd-align' in d_attrs:
+            if tag in {'head', 'script', 'style', 'math', 'svg'} or 'data-wd-align' in d_attrs or 'data-ftml-comp' in d_attrs:
                 if tag == 'math':
                     self.current_formula_start = self.get_offset()
                 self.resume_depth = len(self.tag_stack)

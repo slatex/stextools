@@ -261,17 +261,17 @@ class WdAnnoTexDocument(LocalFileDocument):
     get_plaintext_approximation = STeXDocument.get_plaintext_approximation
 
 
-class WdAnnoHtmlDocument(LocalFileDocument):
-    """ A (local) HTML document that is supposed to be annotated with WikiData annotations (not sTeX/FLAMS). """
-    def __init__(self, path: Path, language: str):
-        super().__init__(path, language, 'wdHTML')
+class LocalHtmlDocument(LocalFileDocument):
+    """ A (local) HTML document """
+    def __init__(self, path: Path, language: str, format: str):
+        super().__init__(path, language, format)
 
         self.html_parser: Optional[MyHtmlParser] = None
 
     def set_content(self, content: str):
         super().set_content(content)
         self.html_parser = None
-        with open('/tmp/test2.html', 'w') as fp:
+        with open(self.path, 'w') as fp:
             fp.write(content)
 
     def _get_html_parser(self) -> MyHtmlParser:
@@ -291,11 +291,22 @@ class WdAnnoHtmlDocument(LocalFileDocument):
     def get_annotatable_plaintext(self) -> Iterable[LinkedStr[None]]:
         return iter(self._get_html_parser().annotatable_plaintext_ranges)
 
-
     def get_annotatable_formulae(self) -> Iterable[LinkedStr[None]]:
         content = self.get_content()
         for start, end in self._get_html_parser().formula_ranges:
             yield string_to_lstr(content[start:end], start)
+
+
+class WdAnnoHtmlDocument(LocalHtmlDocument):
+    """ A (local) HTML document that is supposed to be annotated with WikiData annotations (not sTeX/FLAMS). """
+    def __init__(self, path: Path, language: str):
+        super().__init__(path, language, 'wdHTML')
+
+
+class LocalFtmlDocument(LocalHtmlDocument):
+    """ A (local) FTML document """
+    def __init__(self, path: Path, language: str):
+        super().__init__(path, language, 'FTML')
 
 
 def documents_from_paths(
@@ -333,9 +344,9 @@ def documents_from_paths(
             files = [path]
         else:
             files = list(path.rglob('*.tex'))
-            if annotation_format == 'wikidata':
-                for html_path in path.rglob('*.html'):
-                    files.append(html_path)
+            # if annotation_format == 'wikidata':
+            for html_path in path.rglob('*.html'):
+                files.append(html_path)
 
         for path in files:
             path = path.resolve()
@@ -368,6 +379,8 @@ def documents_from_paths(
             new_doc = WdAnnoTexDocument(path=path, language=lang_from_path(path))
         elif annotation_format == 'wikidata' and path.suffix == '.html':
             new_doc = WdAnnoHtmlDocument(path=path, language=lang_from_path(path))
+        elif annotation_format == 'stex' and path.suffix == '.html':
+            new_doc = LocalFtmlDocument(path=path, language=lang_from_path(path))
         else:
             raise ValueError(f"Unsupported file format for path {path} with suffix {path.suffix}")
 
