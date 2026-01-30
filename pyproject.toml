@@ -14,7 +14,9 @@ dependencies = [
     # the following are only needed for some commands,
     # but they should be sufficiently lightweight to always be installed
     "pygments",
-    "python-gitlab"
+    "python-gitlab",
+    "orjson",
+    "cffi"
 ]
 
 [project.scripts]

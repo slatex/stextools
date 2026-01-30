@@ -1,10 +1,7 @@
 import dataclasses
-import functools
 import math
 from copy import deepcopy
 from typing import Any, Callable
-
-from sympy import substitution
 
 from stextools.snify.snify_state import SnifyState, SnifyCursor, SetOngoingAnnoTypeModification
 from stextools.snify.stex_dependency_addition import AnnotationAborted, get_modules_in_scope_and_import_locations, \
