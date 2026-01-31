@@ -28,7 +28,6 @@
 \Definame[{
 \definames[{
 \Definames[{
-\prerequisite{{
 \fillinsol[{
 \sn[{
 \sns[{
@@ -36,18 +35,19 @@
 \Sns[{
 \sr[{{
 \objective{{
+\prerequisite{{
 \sref[{
 \usestructure{
 \slink{
-\varseq{{{
+\varseq{[{{
 \nlex{
 \inlinedef[{,2
 \inlineex[{,2
 \inlineass[{,2
 \definiens[{,2
-\definiens[{
 \vardef{[{
 \mcc[{,1:feedback,2
+\STEXexport{
 
 # ENVIRONMENTS
 \begin{smodule}[{
@@ -56,7 +56,7 @@
 \begin{sproblem}[
 \begin{sexample}[,1:title
 \begin{sassertion}[,1:title
-\begin{sparagraph}[
+\begin{sparagraph}[,1:title
 \begin{sfragment}[{
 \begin{assignment}[
 \begin{nparagraph}[
