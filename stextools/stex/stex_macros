@@ -53,7 +53,9 @@
 \begin{smodule}[{
 \begin{sdefinition}[
 \begin{sproblem}[
-\begin{sexample}[
+\begin{sproblem}[
+\begin{sexample}[,1:title
+\begin{sassertion}[,1:title
 \begin{sparagraph}[
 \begin{sfragment}[{
 \begin{assignment}[
