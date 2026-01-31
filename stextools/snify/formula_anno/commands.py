@@ -7,7 +7,7 @@ from stextools.snify.formula_anno.formula_anno_state import SetSubSelectionModif
 from stextools.snify.snify_state import SnifyState, SnifyCursor
 from stextools.snify.stex_dependency_addition import get_modules_in_scope_and_import_locations, get_import, \
     AnnotationAborted
-from stextools.snify.text_anno.annotate import stex_symbol_style
+from stextools.snify.displaysupport import stex_symbol_style
 from stextools.snify.text_anno.local_stex_catalog import LocalStexSymbol
 from stextools.stepper.command import Command, CommandInfo, CommandOutcome
 from stextools.stepper.document import STeXDocument

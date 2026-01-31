@@ -77,6 +77,7 @@ Should I do that for you?''')
                 interface.write_text(f'Successfully downloaded and extracted FLAMS library to {path}.')
 
         lib: Any = self.ffi.dlopen(path)
+        print('INITIALIZE')
         lib.initialize()
         return lib
 
@@ -128,7 +129,9 @@ Should I do that for you?''')
         return self._cstr_to_json(self.lib.list_of_all_files())
 
     def reset_global_backend(self):
+        print('RESET')
         self.lib.reset_global_backend()
+
 
     @property
     def ffi_version(self) -> int:

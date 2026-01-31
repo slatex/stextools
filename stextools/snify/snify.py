@@ -38,7 +38,7 @@ def snify(
                 annotation_format=anno_format,
                 include_dependencies=deep,
             ),
-            anno_types=['text-anno-stex', 'formula-anno-stex', 'text-anno-wikidata'],
+            anno_types=['text-anno-stex', 'formula-anno-stex', 'text-anno-wikidata', 'objective-anno'],
             deep_mode=deep,
         )
         assert mode in {'text', 'math', 'both'}
@@ -47,7 +47,7 @@ def snify(
         else:
             state.mode = {mode}
 
-        mode |= {'objectives'}  # TODO: this should be configurable (maybe via "+" suffix for mode?)
+        state.mode |= {'objectives'}  # TODO: this should be configurable (maybe via "+" suffix for mode?)
 
     stepper = SnifyStepper(state)
 

@@ -86,6 +86,10 @@ class OpenedStexFLAMSFile:
             result.append(value)
         return result
 
+    def line_col_to_offset(self, line: int, col: int) -> int:
+        lc = self._linecharcount
+        return lc[line] + col
+
     def flams_range_to_offsets(self, flams_range) -> tuple[int, int]:
         lc = self._linecharcount
         start = lc[flams_range['start']['line']] + flams_range['start']['col']

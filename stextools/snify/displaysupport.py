@@ -5,6 +5,7 @@ from stextools.config import get_config
 from stextools.snify.snify_state import SnifyState
 from stextools.stepper.document import Document, WdAnnoHtmlDocument, LocalFtmlDocument
 from stextools.stepper.interface import interface, BrowserInterface
+from stextools.stex.local_stex import FlamsUri
 
 
 def display_snify_header(state: SnifyState):
@@ -46,3 +47,13 @@ def display_text_selection(doc: Document, selection: tuple[int, int] | None):
             highlight_range=selection if isinstance(selection, tuple) else None,
             limit_range=get_config().getint('stextools.snify', 'display_context_lines', fallback=5)
         )
+
+
+def stex_symbol_style(uri: FlamsUri) -> str:
+    style = interface.apply_style
+    return (
+        style(uri.archive, 'highlight1') +
+        ' ' + uri.path + '?' +
+        style(uri.module, 'highlight2') +
+        '?' + style(uri.symbol, 'highlight3')
+    )

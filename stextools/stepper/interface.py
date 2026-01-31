@@ -154,10 +154,11 @@ class interface:
             highlight_range: Optional[tuple[int, int]] = None,
             limit_range: Optional[int] = None,    # only shows this many lines before/after the highlight_range
             show_line_numbers: bool = True,
+            first_line_number: int = 1,
     ) -> None:
         actual_interface.show_code(
             code, format=format, highlight_range=highlight_range, limit_range=limit_range,
-            show_line_numbers=show_line_numbers
+            show_line_numbers=show_line_numbers, first_line_number=first_line_number
         )
 
 
@@ -314,10 +315,12 @@ class Interface(ABC):
             highlight_range: Optional[tuple[int, int]] = None,
             limit_range: Optional[int] = None,    # only shows this many lines before/after the highlight_range
             show_line_numbers: bool = True,
+            first_line_number: int = 1,
     ):
         del format   # default implementation does no syntax highlighting
 
         a, b, c, line_no = self._code_highlight_prep(code, highlight_range, limit_range)
+        line_no = line_no + first_line_number - 1
         last_printed_line_no = None
 
         for source, style in [(a, 'default'), (b, 'highlight'), (c, 'default')]:
@@ -510,6 +513,7 @@ class BrowserInterface(Interface):
             highlight_range: Optional[tuple[int, int]] = None,
             limit_range: Optional[int] = None,    # only shows this many lines before/after the highlight_range
             show_line_numbers: bool = True,
+            first_line_number: int = 1,
     ):
         lexer = get_pygments_lexer(format or 'txt')
 
@@ -520,6 +524,7 @@ class BrowserInterface(Interface):
             return result
 
         a, b, c, line_no = self._code_highlight_prep(code, highlight_range, limit_range)
+        line_no = line_no + first_line_number - 1
 
 
         # formatted_code = code_format(a) + self.apply_style(b, 'highlight') + code_format(c)
@@ -712,8 +717,10 @@ class ConsoleInterface(Interface):
             highlight_range: Optional[tuple[int, int]] = None,
             limit_range: Optional[int] = None,    # only shows this many lines before/after the highlight_range
             show_line_numbers: bool = True,
+            first_line_number: int = 1,
     ):
         a, b, c, line_no = self._code_highlight_prep(code, highlight_range, limit_range)
+        line_no = line_no + first_line_number - 1
 
         def code_format(string: str) -> str:
             style = 'vs' if self.light_mode else 'monokai'

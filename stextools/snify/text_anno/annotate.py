@@ -3,6 +3,7 @@ import math
 from copy import deepcopy
 from typing import Any, Callable
 
+from stextools.snify.displaysupport import stex_symbol_style
 from stextools.snify.snify_state import SnifyState, SnifyCursor, SetOngoingAnnoTypeModification
 from stextools.snify.stex_dependency_addition import AnnotationAborted, get_modules_in_scope_and_import_locations, \
     get_import
@@ -235,16 +236,6 @@ class STeXAnnotateCommand(STeXAnnotateBase, Command):
 
         symbol, _ = self.options[int(call)]
         return self.annotate_symbol(symbol)
-
-
-def stex_symbol_style(uri: FlamsUri) -> str:
-    style = interface.apply_style
-    return (
-        style(uri.archive, 'highlight1') +
-        ' ' + uri.path + '?' +
-        style(uri.module, 'highlight2') +
-        '?' + style(uri.symbol, 'highlight3')
-    )
 
 
 class STeXLookupCommand(STeXAnnotateBase, Command):
