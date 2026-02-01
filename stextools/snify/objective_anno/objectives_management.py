@@ -18,8 +18,9 @@ def get_content_start(flams_json: dict, osff: OpenedStexFLAMSFile) -> tuple[int,
     for i, line in enumerate(lines[lineno:], start=lineno):
         line = line.strip()
         # this is a somewhat crude way, but should work reasonably well in practice...
-        if line.startswith('%') or line.startswith(r'\usemodule') or line.startswith(r'\objective') or \
-                line.startswith(r'\importmodule') or line == '':
+        if (not line) or any(line.startswith(prefix) for prefix in (
+                '%', r'\usemodule', r'\objective', r'\importmodule', r'\usestructure'
+        )):
             lineno = i + 1
         else:
             break

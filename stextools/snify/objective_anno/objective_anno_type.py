@@ -5,7 +5,7 @@ from stextools.snify.displaysupport import display_snify_header, stex_symbol_sty
 from stextools.snify.objective_anno.objective_anno_state import ObjectiveAnnoState, DIMENSIONS, ObjectiveStatus, \
     DIM_TO_LETTER
 from stextools.snify.objective_anno.objectives_management import get_content_start, ObjectiveModificationCommand
-from stextools.snify.snify_commands import ExitFileCommand, SkipCommand
+from stextools.snify.snify_commands import ExitFileCommand, SkipCommand, ViewCommand
 from stextools.stepper.command import CommandCollection
 from stextools.stepper.document import Document, STeXDocument
 from stextools.stepper.interface import interface
@@ -116,6 +116,7 @@ class ObjectiveAnnoType(AnnoType[ObjectiveAnnoState]):
                 QuitCommand(),
                 ObjectiveModificationCommand(problem_json, osff, self.snify_state),
                 ExitFileCommand(self.snify_state),
+                ViewCommand(self.snify_state.get_current_document()),
                 UndoCommand(is_possible=stepper_status.can_undo),
                 RedoCommand(is_possible=stepper_status.can_redo),
                 SkipCommand(self.snify_state, description_short='kip (stop annotating objectives)'),
