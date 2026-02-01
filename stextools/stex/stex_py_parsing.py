@@ -270,7 +270,10 @@ def get_annotatable_plaintext(
             else:
                 yield from standard_recurse(_recurse, [node])
 
-    return list(_recurse(walker.get_latex_nodes()[0]))
+    nodes = walker.get_latex_nodes()[0]
+    if nodes is None:
+        raise Exception(f'Failed to parse {walker.s!r}')
+    return list(_recurse(nodes))
 
 
 def verbalization_from_macro(node: LatexMacroNode) -> str:
