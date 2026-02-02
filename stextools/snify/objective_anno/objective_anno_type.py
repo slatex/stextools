@@ -5,9 +5,10 @@ from stextools.snify.displaysupport import display_snify_header, stex_symbol_sty
 from stextools.snify.objective_anno.objective_anno_state import ObjectiveAnnoState, DIMENSIONS, ObjectiveStatus, \
     DIM_TO_LETTER
 from stextools.snify.objective_anno.objectives_management import get_content_start, ObjectiveModificationCommand
-from stextools.snify.snify_commands import ExitFileCommand, SkipCommand, ViewCommand
+from stextools.snify.snify_commands import ExitFileCommand, SkipCommand, ViewCommand, get_set_cursor_after_edit_function
 from stextools.stepper.command import CommandCollection
-from stextools.stepper.document import Document, STeXDocument
+from stextools.stepper.document import Document, STeXDocument, LocalFileDocument
+from stextools.stepper.document_stepper import EditCommand
 from stextools.stepper.interface import interface
 from stextools.stepper.stepper import Modification
 from stextools.stepper.stepper_extensions import QuitCommand, UndoCommand, RedoCommand
@@ -110,13 +111,17 @@ class ObjectiveAnnoType(AnnoType[ObjectiveAnnoState]):
 
     def get_command_collection(self, stepper_status: StepperStatus) -> CommandCollection:
         problem_json, osff = self.get_flams_problem_json()
+        document = self.snify_state.get_current_document()
+        assert isinstance(document, LocalFileDocument)
         return CommandCollection(
             f'snify:{self.name}',
             [
                 QuitCommand(),
                 ObjectiveModificationCommand(problem_json, osff, self.snify_state),
                 ExitFileCommand(self.snify_state),
-                ViewCommand(self.snify_state.get_current_document()),
+                ViewCommand(document),
+                EditCommand(1, document, get_set_cursor_after_edit_function(self.snify_state)),
+                EditCommand(2, document, get_set_cursor_after_edit_function(self.snify_state)),
                 UndoCommand(is_possible=stepper_status.can_undo),
                 RedoCommand(is_possible=stepper_status.can_redo),
                 SkipCommand(self.snify_state, description_short='kip (stop annotating objectives)'),
