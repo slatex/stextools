@@ -403,7 +403,8 @@ def documents_from_paths(
         if inputted:
             if include_inputted_files is None:
                 include_inputted_files = interface.ask_yes_no(
-                    'Some of the documents input other documents. Should these also be included?'
+                    'Some of the documents input other documents. Should these also be included?',
+                    default='yes'
                 )
             if include_inputted_files:
                 for doc in inputted:
