@@ -36,7 +36,7 @@ class ObjectiveAnnoType(AnnoType[ObjectiveAnnoState]):
     def get_next_annotation_suggestion(
             self, document: Document, position: int
     ) -> Optional[tuple[int, list[Modification]]]:
-        flams_json, osff = self.get_flams_json()
+        flams_json, osff = self.get_flams_json(document)
 
         candidates = []
         for e in json_iter(flams_json):
@@ -50,8 +50,11 @@ class ObjectiveAnnoType(AnnoType[ObjectiveAnnoState]):
         return None
 
 
-    def get_flams_json(self) -> tuple[dict, OpenedStexFLAMSFile]:
-        document = self.snify_state.get_current_document()
+    def get_flams_json(self, document: Optional[Document] = None) -> tuple[dict, OpenedStexFLAMSFile]:
+        if document is None:
+            # This is important for get_next_annotation_suggestion
+            # because the cursor is not updated yet when that is called
+            document = self.snify_state.get_current_document()
         assert isinstance(document, STeXDocument)
         path = str(document.path)
         return FLAMS.get_file_annotations(path, load=True), OpenedStexFLAMSFile(path)
