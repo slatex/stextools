@@ -8,10 +8,10 @@ from gitlab.v4.objects import Group
 
 
 def get_mathhub_path() -> Path:
-    path = os.environ.get("MATHHUB")
-    if path is None:
+    path_str = os.environ.get("MATHHUB")
+    if path_str is None:
         raise RuntimeError("MATHHUB environment variable not set")
-    path = Path(path).expanduser().resolve()
+    path = Path(path_str).expanduser().resolve()
     if not path.exists():
         raise RuntimeError(f"MATHHUB path {path} does not exist")
     return path

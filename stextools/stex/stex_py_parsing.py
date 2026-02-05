@@ -76,7 +76,7 @@ def _populate_stex_context_db():
                             raise error
                         if len(rest) > 1:
                             recurse = True
-                            argrecurse = []
+                            argrecurse: list[int | tuple[int, str]] = []
                             for r in rest[1:]:
                                 if r == 'norec':
                                     recurse = False
@@ -105,7 +105,7 @@ def _populate_stex_context_db():
                         raise error
                     macroname = parts[0][1:parens_index]
                     parens = parts[0][parens_index:]
-                    recursion_rules = []
+                    recursion_rules: list[int | tuple[int, str]] = []
                     index_shift = -1
                     if macroname.endswith('*'):
                         parens = '*' + parens

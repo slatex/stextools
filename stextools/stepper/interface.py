@@ -17,6 +17,7 @@ from typing import Literal, Optional, TypeAlias, Callable, Any
 
 import click
 from pygments import highlight
+from pygments.formatter import Formatter
 from pygments.formatters.html import HtmlFormatter
 from pygments.formatters.terminal import TerminalFormatter
 from pygments.formatters.terminal256 import TerminalTrueColorFormatter
@@ -376,9 +377,9 @@ class BrowserInterface(Interface):
     def __init__(self, port: int = 8080):
         self.port = port
 
-        write_queue = Queue()
+        write_queue: Queue = Queue()
         self.write_queue: Queue = write_queue
-        input_queue = Queue()
+        input_queue: Queue = Queue()
         self.input_queue: Queue = input_queue
 
         formatter = HtmlFormatter(style='vs')
@@ -502,8 +503,8 @@ class BrowserInterface(Interface):
     def write_header(
             self, text: str, style: Literal['default', 'error', 'warning', 'subdialog', 'section'] = 'default'
     ):
-        style = HEADER_STYLE_MAP[style]
-        self.write_text(f'<div class="{style} header">{text}</div>', prestyled=True)
+        css_class = HEADER_STYLE_MAP[style]
+        self.write_text(f'<div class="{css_class} header">{text}</div>', prestyled=True)
 
     def show_code(
             self,
@@ -591,7 +592,7 @@ class ConsoleInterface(Interface):
 
     def editable_string_field(self, message: str, string: str) -> str:
         try:
-            import gnureadline as readline
+            import gnureadline as readline   # type: ignore
         except ImportError:
             import readline
             if 'libedit' in readline.__doc__:
@@ -726,7 +727,7 @@ class ConsoleInterface(Interface):
             style = 'vs' if self.light_mode else 'monokai'
 
             if self.true_color:
-                formatter = TerminalTrueColorFormatter(style=style)
+                formatter: Formatter = TerminalTrueColorFormatter(style=style)
             else:
                 formatter = TerminalFormatter(style=style)
 
