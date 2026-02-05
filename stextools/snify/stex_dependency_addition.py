@@ -132,7 +132,12 @@ class _ImportInfo:
                 yield SubstitutionOutcome('', from_, to)
 
 
-def get_modules_in_scope_and_import_locations(document: STeXDocument, offset: int) -> _ImportInfo:
+def get_modules_in_scope_and_import_locations(
+        document: STeXDocument,
+        offset: int,
+        flams_annos: Optional[dict] = None,
+        osf_file: Optional[OpenedStexFLAMSFile] = None,
+) -> _ImportInfo:
     """
     collects import information and potential import locations in the document.
     Uses both FLAMS and pylatexenc.
@@ -142,8 +147,8 @@ def get_modules_in_scope_and_import_locations(document: STeXDocument, offset: in
     so, as a quick hack, I use the positions instead.
     """
 
-    annos = FLAMS.get_file_annotations(document.path)
-    file = OpenedStexFLAMSFile(str(document.path))
+    annos = FLAMS.get_file_annotations(document.path) if flams_annos is None else flams_annos
+    file = OpenedStexFLAMSFile(str(document.path)) if osf_file is None else osf_file
     surrounding_envs = get_surrounding_envs(document, offset)
     surrounding_envs_pos = [e.pos for e in surrounding_envs]
 

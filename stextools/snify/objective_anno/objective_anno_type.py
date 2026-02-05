@@ -4,7 +4,8 @@ from stextools.snify.annotype import AnnoType, StateType, StepperStatus
 from stextools.snify.displaysupport import display_snify_header, stex_symbol_style
 from stextools.snify.objective_anno.objective_anno_state import ObjectiveAnnoState, DIMENSIONS, ObjectiveStatus, \
     DIM_TO_LETTER
-from stextools.snify.objective_anno.objectives_management import get_content_start, ObjectiveModificationCommand
+from stextools.snify.objective_anno.objectives_management import get_content_start, ObjectiveModificationCommand, \
+    FinalizedObjectivesCommand
 from stextools.snify.snify_commands import ExitFileCommand, SkipCommand, ViewCommand, get_set_cursor_after_edit_function
 from stextools.stepper.command import CommandCollection
 from stextools.stepper.document import Document, STeXDocument, LocalFileDocument
@@ -43,7 +44,14 @@ class ObjectiveAnnoType(AnnoType[ObjectiveAnnoState]):
             if (not isinstance(e, dict)) or 'Problem' not in e:
                 continue
             range_ = osff.flams_range_to_offsets(e['Problem']['full_range'])
-            if position <= range_[1]:
+
+            # check if we have a marker that objectives are up-to-date
+            has_marker = False
+            for line in osff.text[range_[0]:get_content_start(e['Problem'], osff)[0]].splitlines():
+                if line.strip() == '% snify-marker: objectives-up-to-date':
+                    has_marker = True
+                    break
+            if position <= range_[1] and not has_marker:
                 candidates.append(range_[1])
         if candidates:
             return min(candidates), []
@@ -127,7 +135,8 @@ class ObjectiveAnnoType(AnnoType[ObjectiveAnnoState]):
                 EditCommand(2, document, get_set_cursor_after_edit_function(self.snify_state)),
                 UndoCommand(is_possible=stepper_status.can_undo),
                 RedoCommand(is_possible=stepper_status.can_redo),
-                SkipCommand(self.snify_state, description_short='kip (stop annotating objectives)'),
+                SkipCommand(self.snify_state, description_short='top annotating objectives'),
+                FinalizedObjectivesCommand(problem_json, osff, self.snify_state),
             ],
             have_help=True,
         )

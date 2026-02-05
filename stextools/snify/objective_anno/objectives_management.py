@@ -2,6 +2,7 @@ from typing import Sequence
 
 from stextools.snify.objective_anno.objective_anno_state import ObjectiveStatus, DIM_TO_LETTER, DIMENSIONS, \
     DIM_BY_LETTER
+from stextools.snify.snify_commands import SkipCommand
 from stextools.snify.snify_state import SnifyState, SnifyCursor
 from stextools.stepper.command import Command, CommandInfo, CommandOutcome
 from stextools.stepper.document_stepper import SubstitutionOutcome
@@ -12,6 +13,7 @@ from stextools.utils.json_iter import json_iter
 
 
 def get_content_start(flams_json: dict, osff: OpenedStexFLAMSFile) -> tuple[int, int]:
+    # returns (offset, lineno)
     lineno = flams_json['full_range']['start']['line']
     lineno += 1  # move to the line after \begin{sproblem}
     lines = osff.text.splitlines(keepends=True)
@@ -26,6 +28,63 @@ def get_content_start(flams_json: dict, osff: OpenedStexFLAMSFile) -> tuple[int,
             break
 
     return osff.line_col_to_offset(lineno, 0), lineno
+
+
+def clear_objectives_marker_finalized(
+        flams_json: dict,
+        osff: OpenedStexFLAMSFile,
+        position: int,
+) -> list[SubstitutionOutcome]:
+    results: list[SubstitutionOutcome] = []   # can be multiple, in particular if problems are nested
+    # find problem environments
+    for e in json_iter(flams_json):
+        if (not isinstance(e, dict)) or 'Problem' not in e:
+            continue
+        problem = e['Problem']
+        problem_from, problem_to = osff.flams_range_to_offsets(problem['full_range'])
+        if not (problem_from <= position <= problem_to):
+            continue
+        _insert_pos, insert_lineno = get_content_start(problem, osff)
+        start_line_no = problem['full_range']['start']['line'] + 1
+        for lineno, line in enumerate(osff.text.splitlines()[start_line_no:insert_lineno], start_line_no):
+            if line.strip() == '% snify-marker: objectives-up-to-date':
+                results.append(SubstitutionOutcome(
+                    '',
+                    osff.line_col_to_offset(lineno, 0),
+                    osff.line_col_to_offset(lineno + 1, 0)
+                ))
+    return results
+
+
+
+class FinalizedObjectivesCommand(Command):
+    def __init__(self, flams_problem_json: dict, osff: OpenedStexFLAMSFile, snify_state: SnifyState):
+        Command.__init__(
+            self,
+            CommandInfo(
+                pattern_presentation='S',
+                description_short='top annotating these objectives and mark them as finalized.'
+            )
+        )
+
+        self.flams_problem_json = flams_problem_json
+        self.osff = osff
+        self.snify_state = snify_state
+
+    def execute(self, command_str: str) -> Sequence[CommandOutcome]:
+        insert_pos, insert_lineno = get_content_start(self.flams_problem_json, self.osff)
+        lines = self.osff.text.splitlines(keepends=True)
+        indent = ''
+        for c in lines[insert_lineno-1]:
+            if c.isspace():
+                indent += c
+            else:
+                break
+
+        return SkipCommand.get_skip_outcome(self.snify_state) + [
+            SubstitutionOutcome(indent + '% snify-marker: objectives-up-to-date\n', insert_pos, insert_pos)
+        ]
+
 
 
 class ObjectiveModificationCommand(Command):

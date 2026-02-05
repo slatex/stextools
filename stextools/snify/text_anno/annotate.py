@@ -1,16 +1,19 @@
 import dataclasses
 import math
 from copy import deepcopy
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 from stextools.snify.displaysupport import stex_symbol_style
+from stextools.snify.objective_anno.objectives_management import clear_objectives_marker_finalized
 from stextools.snify.snify_state import SnifyState, SnifyCursor, SetOngoingAnnoTypeModification
 from stextools.snify.stex_dependency_addition import AnnotationAborted, get_modules_in_scope_and_import_locations, \
     get_import
 from stextools.snify.text_anno.catalog import Verbalization
 from stextools.snify.text_anno.text_anno_state import TextAnnoState
+from stextools.stepper import document
 from stextools.stepper.document import STeXDocument, LocalFtmlDocument
-from stextools.stex.local_stex import FlamsUri
+from stextools.stex.flams import FLAMS
+from stextools.stex.local_stex import FlamsUri, OpenedStexFLAMSFile
 from stextools.snify.text_anno.local_stex_catalog import LocalStexSymbol, LocalFlamsCatalog
 from stextools.stepper.document_stepper import SubstitutionOutcome
 from stextools.stepper.command import Command, CommandInfo, CommandOutcome
@@ -48,13 +51,33 @@ class STeXAnnotateBase(Command):
         assert isinstance(document, STeXDocument) or isinstance(document, LocalFtmlDocument)
         self.document: STeXDocument = document
         self._import_info = None
+        self._flams_json: Optional[dict] = None
+        self._osff: Optional[OpenedStexFLAMSFile] = None
+
+    @property
+    def flams_json(self) -> dict:
+        if not isinstance(self.document, STeXDocument):
+            raise RuntimeError('FLAMS JSON is only available for STeX documents')
+        if self._flams_json is None:
+            self._flams_json = FLAMS.get_file_annotations(self.document.path)
+        return self._flams_json
+
+    @property
+    def osff(self) -> OpenedStexFLAMSFile:
+        if not isinstance(self.document, STeXDocument):
+            raise RuntimeError('OpenedStexFLAMSFile is only available for STeX documents')
+        if self._osff is None:
+            self._osff = OpenedStexFLAMSFile(str(self.document.path))
+        return self._osff
 
     @property
     def importinfo(self):
         if not isinstance(self.document, STeXDocument):
             raise RuntimeError('Import info is only available for STeX documents')
         if self._import_info is None:
-            self._import_info = get_modules_in_scope_and_import_locations(self.document, self.state.selection[0])
+            self._import_info = get_modules_in_scope_and_import_locations(
+                self.document, self.state.selection[0], self.flams_json, self.osff
+            )
         return self._import_info
 
     @property
@@ -113,6 +136,7 @@ class STeXAnnotateBase(Command):
         outcomes.append(
             SubstitutionOutcome(sr, state.selection[0], state.selection[1])
         )
+        outcomes.extend(clear_objectives_marker_finalized(self.flams_json, self.osff, state.selection[0]))
 
         # at this point, we only have substitutions
         # -> sort them and update the offsets
