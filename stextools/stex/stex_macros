@@ -22,6 +22,7 @@
 \MSC{
 \notation{[{
 \symdecl*{
+\textsymdecl{[{
 \symdef{[{
 \definiendum[{{
 \definame[{
@@ -48,11 +49,13 @@
 \vardef{[{
 \mcc[{,1:feedback,2
 \STEXexport{
+\spfstep[,1:title
+\assign{{
+\examdata{
 
 # ENVIRONMENTS
 \begin{smodule}[{
 \begin{sdefinition}[
-\begin{sproblem}[
 \begin{sproblem}[
 \begin{sexample}[,1:title
 \begin{sassertion}[,1:title
@@ -66,4 +69,5 @@
 \begin{scb}[
 \begin{smcb}[
 \begin{sproof}[{,2
+\begin{testheading}[
 
