@@ -36,10 +36,12 @@ class ObjectiveStatus:
         for e in json_iter(flams_json, ignore_keys={'full_range', 'parsed_args', 'name_range'}):
             if not isinstance(e, dict):
                 continue
-            if 'SymName' in e and e['SymName']['uri']:
-                uri = e['SymName']['uri'][0]['uri']
-                if uri not in objectives:
-                    objectives[uri] = ObjectiveStatus(uri=uri, dimension=set())
+            if 'SymName' in e or 'Symref' in e:
+                key = 'SymName' if 'SymName' in e else 'Symref'
+                if e[key]['uri']:
+                    uri = e[key]['uri'][0]['uri']
+                    if uri not in objectives:
+                        objectives[uri] = ObjectiveStatus(uri=uri, dimension=set())
             if 'Objective' in e and e['Objective']['uri']:
                 uri = e['Objective']['uri'][0]['uri']
                 if uri not in objectives:
