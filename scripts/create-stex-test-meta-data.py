@@ -86,6 +86,8 @@ for course in courses:
                 data['date'] = date_str
             if mode == 'exam':
                 data['retake'] = 'true' if 'retake' in path.name.lower() else 'false'
+            if num is not None:
+                data['num'] = num
             annotation = f'\n\\{mode}data{{\n    ' + ',\n    '.join(f'{k}={{{v}}}' for k, v in data.items()) + '\n}\n'
 
             print('+++++++++++++++++++++++')
