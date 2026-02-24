@@ -75,8 +75,8 @@ for course in courses:
                 date_str = date.group(1)
             else:
                 date_str = None
-            if date_str is None and mode != 'exam':
-                date_str = get_last_commit_date(path)
+            # if date_str is None and mode != 'exam':
+            #     date_str = get_last_commit_date(path)
 
             data = {
                 'course': coursename,
