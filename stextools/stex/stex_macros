@@ -54,6 +54,8 @@
 \examdata{
 \anscls[{,1:feedback,2
 \numberproblemsin{
+\setnotation{
+
 # ENVIRONMENTS
 \begin{smodule}[{
 \begin{sdefinition}[
