@@ -55,6 +55,9 @@
 \anscls[{,1:feedback,2
 \numberproblemsin{
 \setnotation{
+\useSGvar{
+\setSGvar{{
+\ifSGvar{{{,2,3
 
 # ENVIRONMENTS
 \begin{smodule}[{

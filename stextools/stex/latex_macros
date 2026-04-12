@@ -27,6 +27,7 @@
 \lstset{
 \lstinputlisting[{
 \ednote{
+\InputIfFileExists{{{
 
 \begin{lstlisting}[,norec
 \begin{frame}[
