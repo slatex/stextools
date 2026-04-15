@@ -57,7 +57,8 @@
 \setnotation{
 \useSGvar{
 \setSGvar{{
-\ifSGvar{{{,2,3
+\ifSGvar{{{,3
+\renamedecl{[{
 
 # ENVIRONMENTS
 \begin{smodule}[{
