@@ -2,6 +2,7 @@ import configparser
 import functools
 import logging
 from pathlib import Path
+from typing import Literal
 
 logger = logging.getLogger(__name__)
 
@@ -20,3 +21,7 @@ def get_config() -> configparser.ConfigParser:
     else:
         logger.info(f'No config file found at {config_path}. Using defaults.')
     return config
+
+
+class Config:
+    auto_download_flams: bool = False

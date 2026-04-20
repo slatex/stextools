@@ -124,7 +124,8 @@ def _find_module(annotations, uri: str) -> Optional[dict]:
                 return result
     return None
 
-def _find_imports(module_annotation) -> Iterable[tuple[str, str]]:
+def get_imports_from_module_annotation(module_annotation) -> Iterable[tuple[str, str]]:
+    """ returns (uri, path) pairs """
     if isinstance(module_annotation, dict):
         for k, v in module_annotation.items():
             if k == 'ImportModule':
@@ -132,10 +133,10 @@ def _find_imports(module_annotation) -> Iterable[tuple[str, str]]:
             elif k in {'UseModule', 'Symdef', 'Symref', 'SymName', 'Notation', 'SemanticMacro'}:
                 continue
             else:
-                yield from _find_imports(v)
+                yield from get_imports_from_module_annotation(v)
     elif isinstance(module_annotation, list):
         for item in module_annotation:
-            result = _find_imports(item)
+            result = get_imports_from_module_annotation(item)
             if result is not None:
                 yield from result
 
@@ -181,7 +182,7 @@ def get_transitive_imports(modules: list[tuple[str, str]]) -> dict[str, str]:
         module = _find_module(annos, uri)
         if module is None:
             return
-        for import_uri, import_path in _find_imports(module):
+        for import_uri, import_path in get_imports_from_module_annotation(module):
             if import_uri not in result:
                 result[import_uri] = import_path
                 search(import_uri, import_path)
@@ -220,7 +221,7 @@ def get_module_import_sequence(available_modules: list[tuple[str, str]], target_
         module = _find_module(annos, uri)
         if module is None:
             continue
-        for import_uri, import_path in _find_imports(module):
+        for import_uri, import_path in get_imports_from_module_annotation(module):
             if import_uri not in covered_modules:
                 covered_modules[import_uri] = import_path
                 predecessors[import_uri] = uri

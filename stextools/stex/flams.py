@@ -8,6 +8,7 @@ import logging
 import orjson
 from cffi import FFI
 
+from stextools.config import Config
 from stextools.stepper.interface import interface
 
 logger = logging.getLogger(__name__)
@@ -50,12 +51,13 @@ extern size_t FFI_VERSION;
             path = str(Path.home() / '.cache' / 'stextools' / filename)
 
         if not Path(path).exists():
-            download = interface.ask_yes_no(f'''The FLAMS library was not found at {path}.
-You can download it from https://github.com/FlexiFormal/FLAMS/releases/tag/latest
-Should I do that for you?''')
-            if not download:
-                interface.write_text(f'Cannot proceed without FLAMS library. Exiting.', 'error')
-                sys.exit(1)
+            if not Config.auto_download_flams:
+                download = interface.ask_yes_no(f'''The FLAMS library was not found at {path}.
+    You can download it from https://github.com/FlexiFormal/FLAMS/releases/tag/latest
+    Should I do that for you?''')
+                if not download:
+                    interface.write_text(f'Cannot proceed without FLAMS library. Exiting.', 'error')
+                    sys.exit(1)
             # download zip into temp file and extract
             import tempfile
             import zipfile
