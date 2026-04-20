@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 STEX_MACRO_SPECS: list = [ ]
 STEX_ENV_SPECS: list = [ ]
 STANDARD_MACRO_SPECS: list = [
-    MacroSpec('lstinline', args_parser=VerbatimArgsParser(verbatim_arg_type="verb-macro")),
+    MacroSpec('lstinline', args_parser=VerbatimArgsParser(verbatim_arg_type="verb-macro", verbatim_argspec='[')),
     MacroSpec('wdalign', '{{'),   # wikidata alignment (non-standard)
 ]
 STANDARD_ENV_SPECS: list = [ ]
