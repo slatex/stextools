@@ -48,10 +48,12 @@
 \definiens[{,2
 \vardef{[{
 \mcc[{,1:feedback,2
+\scc[{,1:feedback,2
 \STEXexport{
 \spfstep[,1:title
 \assign{{
 \examdata{
+\quizdata{
 \anscls[{,1:feedback,2
 \numberproblemsin{
 \setnotation{
