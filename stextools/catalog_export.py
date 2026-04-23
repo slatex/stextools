@@ -1,5 +1,6 @@
 import functools
 import gzip
+import sys
 from collections import defaultdict
 from pathlib import Path
 from typing import Any, Optional
@@ -88,7 +89,9 @@ def dependency_info():
 
 
 def main():
-    out_file = '/tmp/stextools_catalog_export.json.gz'
+    if len(sys.argv) != 2:
+        print('Expected the target filename as argument')
+    out_file = sys.argv[1]    # '/tmp/stextools_catalog_export.json.gz'
     module_dependencies, struct_dependencies = dependency_info()
     result: dict[str, Any] = {
         'catalog_by_archive': get_catalog_by_archive(),

@@ -79,7 +79,6 @@ extern size_t FFI_VERSION;
                 interface.write_text(f'Successfully downloaded and extracted FLAMS library to {path}.')
 
         lib: Any = self.ffi.dlopen(path)
-        print('INITIALIZE')
         lib.initialize()
         return lib
 
