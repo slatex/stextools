@@ -70,8 +70,11 @@ class MyHtmlParser(HTMLParser):
             self.formula_ranges.append((self.current_formula_start, formula_end))
             self.current_formula_start = None
 
-        while self.tag_stack.pop() != tag:
-            pass
+        try:
+            while self.tag_stack.pop() != tag:
+                pass
+        except IndexError:
+            raise RuntimeError(f'Unexpectedly closing tag {tag}')
         if self.resume_depth is not None and len(self.tag_stack) <= self.resume_depth:
             self.resume_depth = None
         if tag == 'body' and self.body_end is None:
