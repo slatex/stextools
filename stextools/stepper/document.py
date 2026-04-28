@@ -3,6 +3,7 @@ import dataclasses
 import functools
 import itertools
 import logging
+import re
 from pathlib import Path
 from typing import Iterable, Optional, TypeAlias, Literal, cast
 
@@ -380,7 +381,11 @@ def documents_from_paths(
         elif annotation_format == 'wikidata' and path.suffix == '.html':
             new_doc = WdAnnoHtmlDocument(path=path, language=lang_from_path(path))
         elif annotation_format == 'stex' and path.suffix == '.html':
-            new_doc = LocalFtmlDocument(path=path, language=lang_from_path(path))
+            if match := re.match(r' lang="(?P<lang>[a-z]+)"', path.read_text()):
+                language = match.group('lang')
+            else:
+                language = lang_from_path(path)
+            new_doc = LocalFtmlDocument(path=path, language=language)
         else:
             raise ValueError(f"Unsupported file format for path {path} with suffix {path.suffix}")
 
