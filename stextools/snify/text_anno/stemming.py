@@ -16,8 +16,10 @@ def get_stem_fun(lang: str):
         import nltk.stem.porter  # type: ignore
         return nltk.stem.porter.PorterStemmer().stem
     elif lang == 'de':
-        from nltk.stem import SnowballStemmer
-        return SnowballStemmer('german').stem
+        from nltk.stem.cistem import Cistem
+        return Cistem().stem   # allegedly better
+        # from nltk.stem import SnowballStemmer
+        # return SnowballStemmer('german').stem
     elif lang == 'fr':
         from nltk.stem import FrenchStemmer
         return FrenchStemmer().stem
