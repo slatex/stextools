@@ -1,4 +1,5 @@
 import re
+from copy import deepcopy
 from typing import TypeVar, Generic, Iterable, Optional, Hashable
 
 from stextools.snify.text_anno.stemming import string_to_stemmed_word_sequence_simplified, string_to_stemmed_word_sequence
@@ -164,5 +165,11 @@ def catalogs_from_stream(
             catalogs[lang] = Catalog[Symb, Verb](lang)
             for symbol in symbols:
                 catalogs[lang].add_symb(symbol)
-        catalogs[lang].add_symbverb(symb, verb)
+
+        # EXPERIMENT: for e.g. "natural number", also add just "number"
+        words = verb.verb.split()
+        for i in range(len(words)):
+            v = deepcopy(verb)
+            verb.verb = ' '.join(words[i:])
+            catalogs[lang].add_symbverb(symb, verb)
     return catalogs
