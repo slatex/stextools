@@ -9,6 +9,9 @@ from stextools.stepper.document import documents_from_paths
 from stextools.stepper.session_storage import SessionStorage, IgnoreSessions
 
 import logging
+
+from stextools.stepper.stepper_extensions import QuitOutcome
+
 logger = logging.getLogger(__name__)
 
 def snify(
@@ -22,9 +25,9 @@ def snify(
 
     session_storage = SessionStorage('snify2')
     result = session_storage.get_session_dialog()
-    if isinstance(result, Exit):
+    if isinstance(result, Exit) or isinstance(result, QuitOutcome):
         return
-    assert isinstance(result, SnifyState) or isinstance(result, IgnoreSessions)
+    assert isinstance(result, SnifyState) or isinstance(result, IgnoreSessions), f'Unexpected result type: {type(result)}'
     state: Optional[SnifyState] = result if isinstance(result, SnifyState) else None
 
     if state is None:
