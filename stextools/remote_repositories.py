@@ -1,3 +1,4 @@
+import functools
 import os
 import subprocess
 from pathlib import Path
@@ -6,11 +7,18 @@ from typing import Optional
 import gitlab
 from gitlab.v4.objects import Group
 
+from stextools.stepper.interface import interface
 
+
+@functools.cache
 def get_mathhub_path() -> Path:
     path_str = os.environ.get("MATHHUB")
     if path_str is None:
         raise RuntimeError("MATHHUB environment variable not set")
+    if ',' in path_str:
+        path_str = path_str.split(',')[0]
+        if not interface.ask_yes_no(f'MATHHUB variable contains multiple paths. Is it ok if I use {path_str}?'):
+            raise RuntimeError("Currently there is no support to choose a different path")
     path = Path(path_str).expanduser().resolve()
     if not path.exists():
         raise RuntimeError(f"MATHHUB path {path} does not exist")
