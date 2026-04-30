@@ -165,7 +165,7 @@ class SessionStorage:
             interface.clear()
             interface.write_header('Session management')
             interface.newline()
-            interface.write_text('You have multiple existing sessions. What would you like to do?')
+            interface.write_text('You have multiple existing sessions. What would you like to do?\n')
             outcomes = CommandCollection(
                 name='session management',
                 commands=[

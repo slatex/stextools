@@ -77,6 +77,16 @@ class LocalFileDocument(Document, abc.ABC):
             language=language
         )
 
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        # we don't want to serialize the content, as it can be large and can be reloaded from the file
+        state['_content'] = None
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self._content = None
+
     def get_content(self) -> str:
         if self._content is None:
             self._content = self.path.read_text()
@@ -98,22 +108,19 @@ class LocalFileDocument(Document, abc.ABC):
 
 class STeXDocument(LocalFileDocument):
     """ A local stex document. """
-    _latex_walker: Optional[LatexWalker] = None
 
     def __init__(self, path: Path, language: str):
         super().__init__(path, language, 'sTeX')
 
     def on_modified(self, reset_content: bool = True):
-        self._latex_walker = None
+        # self.get_latex_walker.cache_clear()
         FLAMS.load_file(self.identifier)
         LocalFileDocument.on_modified(self, reset_content=reset_content)
 
     def get_latex_walker(self) -> LatexWalker:
         """ Returns a LatexWalker for the document content. """
-        if self._latex_walker is None:
-            content = self.get_content()
-            self._latex_walker = LatexWalker(content, latex_context=STEX_CONTEXT_DB)
-        return self._latex_walker
+        content = self.get_content()
+        return LatexWalker(content, latex_context=STEX_CONTEXT_DB)
 
     def get_annotatable_plaintext(self) -> Iterable[LinkedStr[None]]:
         return get_annotatable_plaintext(
@@ -210,14 +217,12 @@ class STeXDocument(LocalFileDocument):
 class WdAnnoTexDocument(LocalFileDocument):
     """ A local tex document that is supposed to be annotated with WikiData annotations (not sTeX). """
 
-    _latex_walker: Optional[LatexWalker] = None
-
     def __init__(self, path: Path, language: str):
         super().__init__(path, language, 'wdTeX')
 
     def set_content(self, content: str):
         super().set_content(content)
-        self._latex_walker = None
+        # self.get_latex_walker.cache_clear()
 
     def get_annotatable_formulae(self) -> Iterable[LinkedStr[None]]:
         result: list[LinkedStr] = []
