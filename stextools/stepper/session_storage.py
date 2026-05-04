@@ -222,7 +222,7 @@ class SessionStorage:
         if self.loaded_session:
             interface.write_text('You are in a session that was loaded from a file.\n')
             interface.write_text('  Description: ' + self.loaded_session.metadata['description'] + '\n')
-            interface.write_text('  Timestamp: ' + self.loaded_session.metadata['timestamp'] + '\n')
+            interface.write_text('  Time: ' + format_past_timestamp(datetime.fromtimestamp(self.loaded_session.metadata['timestamp'])) + '\n')
             if interface.ask_yes_no('Would you like to overwrite this session?'):
                 self.loaded_session.write(state)
                 return
