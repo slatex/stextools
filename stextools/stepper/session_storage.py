@@ -84,7 +84,12 @@ class PickSessionCommand(Command):
             )
 
     def execute(self, call: str) -> list[CommandOutcome]:
-        return [SessionChoiceOutcome(int(call), 'resume')]
+        i = int(call)
+        if i >= len(self.sessions):
+            interface.write_text('Invalid number', style='error')
+            interface.await_confirmation()
+            return []
+        return [SessionChoiceOutcome(i, 'resume')]
 
 
 class DeleteSessionCommand(Command):
@@ -99,7 +104,12 @@ class DeleteSessionCommand(Command):
         )
 
     def execute(self, call: str) -> list[CommandOutcome]:
-        return [SessionChoiceOutcome(int(call[1:]), 'delete')]
+        i = int(call[1:])
+        if i >= len(self.sessions):
+            interface.write_text('Invalid number', style='error')
+            interface.await_confirmation()
+            return []
+        return [SessionChoiceOutcome(i, 'delete')]
 
 
 class DeleteAllSessionsCommand(Command):
