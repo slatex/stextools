@@ -81,8 +81,9 @@
 \begin{testheading}[
 \begin{interpretmodule*}{{
 \begin{splitslide}{{
-\begin{splitslidea}{{
+\begin{splitslidea}{{{
 \begin{splitslidetikz}{{
 \begin{isplitslide}{{
-\begin{isplitslidea}{{
+\begin{isplitslidea}{{{
 \begin{isplitslidetikz}{{
+\begin{isplitslidetikza}{{{
