@@ -175,16 +175,25 @@ def local_flams_stex_catalogs() -> dict[str, LocalFlamsCatalog]:
 
     # ignore certain archives
 
-    filter_string = get_config().get('stextools.snify', 'ignore_archives', fallback='')
-    filter_parts = filter_string.split(',') if filter_string else []
+    ignore_string = get_config().get('stextools.snify', 'ignore_archives', fallback='')
+    ignore_parts = ignore_string.split(',') if ignore_string else []
+    only_string = get_config().get('stextools.snify', 'only_consider_archives', fallback='*')
+    only_parts = only_string.split(',') if only_string else []
 
     @functools.cache
-    def matches_ignore(uri) -> bool:
-        if not filter_parts:
-            return False
+    def discard_uri(uri) -> bool:
         flams_uri = FlamsUri(uri)
-        if any(fnmatch.fnmatch(flams_uri.archive, part) for part in filter_parts):
+        return discard_archive(flams_uri.archive)
+
+    @functools.cache
+    def discard_archive(archive: str) -> bool:
+        # must be in only_consider_archives
+        if not any(fnmatch.fnmatch(archive, part) for part in only_parts):
             return True
+        # must not be in ignore_archives
+        if any(fnmatch.fnmatch(archive, part) for part in ignore_parts):
+            return True
+        # keep if no reason to discard
         return False
 
     with timelogger(logger, 'Building catalogs'):
@@ -193,7 +202,7 @@ def local_flams_stex_catalogs() -> dict[str, LocalFlamsCatalog]:
                 (lang, get_symbol(uri, symb_path), LocalStexVerbalization(verb, path, (start, end)))
                 for path, entry in cache.items()
                 for lang, uri, symb_path, verb, start, end in entry['verbs']
-                if not matches_ignore(uri)
+                if not discard_uri(uri)
             ),
             (
                 symb
