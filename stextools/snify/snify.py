@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 def snify(
         files: list[Path],
         anno_format: str = 'stex',
-        mode: str = 'text',  # 'text', 'math', 'both'
+        mode: str = 'text,objectives',
         deep: bool = False,
 ):
     if anno_format not in {'stex', 'wikidata'}:
@@ -41,16 +41,14 @@ def snify(
                 annotation_format=anno_format,
                 include_dependencies=deep,
             ),
-            anno_types=['text-anno-stex', 'formula-anno-stex', 'text-anno-wikidata', 'objective-anno'],
+            anno_types=['text-anno-stex', 'formula-anno-stex', 'text-anno-wikidata', 'objective-anno', 'verbalization-anno'],
             deep_mode=deep,
         )
-        assert mode in {'text', 'math', 'both'}
-        if mode == 'both':
-            state.mode = {'text', 'math'}
-        else:
-            state.mode = {mode}
 
-        state.mode |= {'objectives'}  # TODO: this should be configurable (maybe via "+" suffix for mode?)
+        state.mode = set(e.strip().lower() for e in mode.split(','))
+        for e in state.mode:
+            if e not in {'text', 'math', 'objectives', 'verbalizations'}:
+                raise ValueError(f'Unexpected mode: {e}')
 
     stepper = SnifyStepper(state)
 

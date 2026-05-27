@@ -8,6 +8,7 @@ from stextools.snify.snify_commands import RescanOutcome
 from stextools.snify.snify_state import SnifyState, SnifyCursor, SetOngoingAnnoTypeModification
 from stextools.snify.stex_dependency_addition import DependencyModificationOutcome
 from stextools.snify.text_anno.text_anno_type import TextAnnoType
+from stextools.snify.verbalization_anno.verbalization_anno_type import VerbalizationAnnoType
 from stextools.stepper.command import CommandCollection, CommandOutcome
 from stextools.stepper.document_stepper import DocumentModifyingStepper
 from stextools.stepper.interface import interface
@@ -20,6 +21,7 @@ ANNO_TYPES: list[AnnoType] = [
     TextAnnoType('wikidata'),
     FormulaAnnoType(),
     ObjectiveAnnoType(),
+    VerbalizationAnnoType(),
 ]
 
 ANNO_TYPE_LOOKUP: dict[str, AnnoType] = {

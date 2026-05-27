@@ -12,10 +12,12 @@ from stextools.utils.json_iter import json_iter
 @functools.cache   # TODO: cache must be invalidated if the file changes
 def extract_notations_from_file(path: str) -> dict[str, list[tuple[LocalStexSymbol, str]]]:
     result = defaultdict(list)
+    # use FLAMS to get all annotations as JSON
     annos = FLAMS.get_file_annotations(path)
     of = OpenedStexFLAMSFile(path)
 
     for item in json_iter(annos):
+        # Find Symdef entries in JSON
         if not isinstance(item, dict):
             continue
         if 'Symdef' in item:  # TODO: also support \notation
@@ -33,7 +35,7 @@ def extract_notations_from_file(path: str) -> dict[str, list[tuple[LocalStexSymb
             if not main_def:
                 continue
 
-            record = {}
+            record = {}   # info from optional arguments
             arg_match = re.match(r'.*args=(?P<args>[^,\]]*)', main_def.group('args') or '')
             if arg_match:
                 args = arg_match.group('args')
@@ -42,7 +44,7 @@ def extract_notations_from_file(path: str) -> dict[str, list[tuple[LocalStexSymb
                 record['args'] = args
 
             rest = main_def.group('rest').strip()
-            rest = rest[1:-1]
+            rest = rest[1:-1]   # That's the notation string
             # remove some junk (also removing braces)
             cleanedup = ''
             while rest:
