@@ -43,6 +43,9 @@ extern size_t FFI_VERSION;
         elif sys.platform == 'linux':
             filename = 'libflams_ffi.so'
             zipfilename = 'ffi-linux.zip'
+        elif sys.platform == 'win32':
+            filename = 'flams_ffi.dll'
+            zipfilename = 'ffi-windows.zip'
         else:
             raise RuntimeError(f'Unsupported platform: {sys.platform}')
 

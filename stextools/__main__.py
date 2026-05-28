@@ -31,8 +31,8 @@ def cli(log_file):
 @cli.command(name='snify', help='\\sn-ify sTeX documents')
 @click.option('--anno-format', default='stex', type=click.Choice(['stex', 'wikidata']),
               help='Annotation type (wikidata support is prototypical only).')
-@click.option('--mode', default='text', type=click.Choice(['text', 'math', 'both']),
-              help='Annotation mode: text, math, or both (default: text). Note that math is experimental.')
+@click.option('--mode', default='text,objectives',
+              help='Annotation mode. Possible entries: text, objectives. Under development: math, verbalizations')
 @click.option('--deep', is_flag=True,
               help='Also include dependencies of the specified files (transitively).')
 @click.argument(
