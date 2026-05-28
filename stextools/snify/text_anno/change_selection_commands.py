@@ -153,8 +153,9 @@ class LastWordShouldntBeIncluded(Command):
                 i = 0
                 while i < len(words) and words[i].get_start_ref() < state.selection[1]:
                     i += 1
-                new_end = words[i - 2].get_end_ref()
-                if new_end <= state.selection[0]:
+
+
+                if i - 2 < 0 or (new_end := words[i - 2].get_end_ref()) <= state.selection[0]:
                     interface.admonition('Selection is getting too small', 'error', confirm=True)
                     return []
                 return [
