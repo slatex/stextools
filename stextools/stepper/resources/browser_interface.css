@@ -37,3 +37,8 @@ code {
     background-color: lightgrey;
 }
 
+img {
+    width: unset !important;
+    height: unset !important;
+}
+
