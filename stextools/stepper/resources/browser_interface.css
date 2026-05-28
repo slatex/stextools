@@ -32,3 +32,8 @@ div.ftml-comp {
 div.snify-annotation {
     display: contents;
 }
+
+code {
+    background-color: lightgrey;
+}
+
