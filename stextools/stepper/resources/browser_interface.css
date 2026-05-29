@@ -32,3 +32,13 @@ div.ftml-comp {
 div.snify-annotation {
     display: contents;
 }
+
+code {
+    background-color: lightgrey;
+}
+
+img {
+    width: unset !important;
+    height: unset !important;
+}
+
