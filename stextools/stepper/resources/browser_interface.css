@@ -33,7 +33,7 @@ div.snify-annotation {
     display: contents;
 }
 
-code {
+code, pre {
     background-color: lightgrey;
 }
 
