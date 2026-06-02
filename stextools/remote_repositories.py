@@ -44,7 +44,7 @@ def get_clone_uri(group, repo):
 gl: gitlab.Gitlab = gitlab.Gitlab(URL)
 
 
-def clone_group(group: Group | str, recurse: bool = True):
+def clone_group(group: Group | str, recurse: bool = True, use_ssh: bool = True):
     if isinstance(group, str):
         group = gl.groups.get(group)
     # TODO: deal properly with pagination (also below for subgroups)
@@ -57,7 +57,9 @@ def clone_group(group: Group | str, recurse: bool = True):
         if directory.exists():
             print(f'Skipping {project.name} (already exists)')
             continue
-        subprocess.run(['git', 'clone', project.ssh_url_to_repo], check=True, cwd=directory.parent)
+
+        url = project.ssh_url_to_repo if use_ssh else project.http_url_to_repo
+        subprocess.run(['git', 'clone', url], check=True, cwd=directory.parent)
 
     if recurse:
         groups = group.subgroups.list(per_page=1000)

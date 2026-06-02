@@ -68,11 +68,12 @@ def clear_cache():
 
 
 @cli.command(help='Recursively clone all public repositories in the specified MathHub groups.')
+@click.option('--use-https', is_flag=True, help='Use https instead of ssh')
 @click.argument('groups', nargs=-1)
-def clone_groups(groups):
+def clone_groups(use_https, groups):
     from stextools.remote_repositories import clone_group
     for group in groups:
-        clone_group(group)
+        clone_group(group, use_ssh=not use_https)
 
 @cli.command(name='version', help='Print the version of stextools.')
 def version():
