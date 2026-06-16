@@ -42,3 +42,11 @@ img {
     height: unset !important;
 }
 
+/* Unset style-attributes that mess the page layout up */
+#content > span:nth-child(2) * {
+    position: unset !important;
+    float: unset !important;
+    opacity: unset !important;
+    margin: unset !important;
+}
+
