@@ -12,7 +12,8 @@ from stextools.stepper.document_stepper import TextRewriteOutcome, SubstitutionO
 from stextools.stepper.interface import interface
 from stextools.stepper.stepper import Modification
 from stextools.stepper.stepper_extensions import QuitCommand, UndoCommand, RedoCommand
-
+from stextools.stex.flams import FLAMS
+from stextools.utils.json_iter import json_iter
 
 
 # python -m stextools snify --mode=text,verbalizations "C:\Users\ivana\Desktop\MathHub\smglom\ai-agents\source\mod\search-based-agent.en.tex"
@@ -198,14 +199,28 @@ class VerbalizationAnnoType(AnnoType[VerbalizationAnnoState]):
         interface.write_text('\nCurrent \\symdef:\n\n')
         interface.show_code(line, format='sTeX')
 
-        match = re.search(r'\\symdef\{([^}]*)\}', line)
-        symbol_name = match.group(1) if match else 'UNKNOWN'
+        # match = re.search(r'\\symdef\{([^}]*)\}', line)
+        # symbol_name = match.group(1) if match else 'UNKNOWN'
+
+        line_no = document_content[:position + 1].count('\n')
+        uri = None
+
+        annotations = FLAMS.get_file_annotations(str(self.snify_state.get_current_document().path), load=True)
+        for e in json_iter(annotations):
+            if isinstance(e, dict) and 'Symdef' in e:
+                e_line_no = e['Symdef']['uri']['range']['start']['line']
+                print('COMPARING', line_no, e_line_no)
+                if line_no == e_line_no:
+                    uri = e['Symdef']['uri']['uri']
+                    break
+        symbol_name = uri.split('s=')[-1] if uri else 'UNKNOWN'
+
         pattern = rf'\\verbalization\{{{re.escape(symbol_name)}\}}\[.*?\]\{{.*?\}}\{{.*?\}}'
         matches = list (re.finditer(pattern, document_content))
 
         catalog = get_stex_catalogs()['en']  # english catalog
         for symbol in catalog.symb_iter():
-            if symbol.uri.endswith('s=' + symbol_name):
+            if symbol.uri == uri:
                 for verbalization in catalog.symb_to_verb[symbol]:
                     print('I found ' + verbalization.verb)
 
