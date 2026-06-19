@@ -506,6 +506,10 @@ class BrowserInterface(Interface):
         css_class = HEADER_STYLE_MAP[style]
         self.write_text(f'<div class="{css_class} header">{text}</div>', prestyled=True)
 
+    def write_statistics(self, text: str):
+        self.write_text(f'<div class="statistics">{text}</div>', prestyled=True)
+
+
     def show_code(
             self,
             code: str,
@@ -633,6 +637,10 @@ class ConsoleInterface(Interface):
 
     def width(self):
         return shutil.get_terminal_size().columns
+
+    def write_statistics(self, text: str):
+        self.write_text(' ' * (self.width() - len(text)) + text, style='pale')
+        self.newline()
 
     @contextmanager
     def big_infopage(self):
