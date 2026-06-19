@@ -17,6 +17,11 @@
     text-align: center;
 }
 
+.statistics {
+    text-align: right;
+    color: gray;
+}
+
 [data-wd-align] {
     color: #0bb;
 }

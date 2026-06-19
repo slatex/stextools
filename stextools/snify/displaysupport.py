@@ -14,8 +14,9 @@ def display_snify_header(state: SnifyState):
     # TODO: add:
     #   * current annotation type
     #   * statistics (# annos, remaining/total documents, ...)
-    interface.write_header(
-        state.get_current_document().identifier
+    interface.write_header(state.get_current_document().identifier)
+    interface.write_statistics(
+        f'{str(state.cursor.document_index + 1).rjust(len(str(len(state.documents))))}/{len(state.documents)}   {state.get_current_document().format}:{state.get_current_document().language.upper()}   {state.ongoing_annotype}'
     )
 
 def display_text_selection(doc: Document, selection: tuple[int, int] | None):
