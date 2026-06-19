@@ -166,13 +166,27 @@ class STeXAnnotateBase(Command):
         return outcomes
 
 
-    def _symbname_unique(self, symbol: FlamsUri) -> bool:
+    def _get_disambiguated_symbname(self, symbol: FlamsUri) -> str:
+        unique_name = True
+        unique_module_name = True
         for s in self.catalog.symb_iter():
-            if FlamsUri(s.uri).symbol == symbol.symbol:
-                if str(FlamsUri(s.uri)) != str(symbol):
+            fu = FlamsUri(s.uri)
+            if fu.symbol == symbol.symbol:
+                # if str(FlamsUri(s.uri)) != str(symbol):
                     # Note: A policy variation would be to additionally check if the symbol was imported
-                    return False
-        return True
+                if fu != symbol:
+                    unique_name = False
+                    if fu.module == symbol.module:
+                        unique_module_name = False
+
+        if unique_name:
+            return symbol.symbol
+        elif unique_module_name:
+            return symbol.module + '?' + symbol.symbol
+        else:
+            # for now: do all (could sometimes be shortened, but that's left for future work as this case is rare enough already)
+            return f'{symbol.archive}/{symbol.path}?{symbol.module}?{symbol.symbol}'
+
 
     def get_sr(self, symbol_uri: str) -> str:
         symbol = FlamsUri(symbol_uri)
@@ -182,25 +196,22 @@ class STeXAnnotateBase(Command):
             raise RuntimeError('No text selected for annotation')
 
         symb_name = symbol.symbol
-        if self._symbname_unique(symbol):
-            symb_path = symb_name
-        else:
-            symb_path = symbol.module + '?' + symb_name
+        disambig_symb = self._get_disambiguated_symbname(symbol)
 
         if word == symb_name:
-            return '\\sn{' + symb_path + '}'
+            return '\\sn{' + disambig_symb + '}'
         elif word == symb_name + 's':
-            return '\\sns{' + symb_path + '}'
+            return '\\sns{' + disambig_symb + '}'
         elif word[0] == symb_name[0].upper() and word[1:] == symb_name[1:]:
-            return '\\Sn{' + symb_path + '}'
+            return '\\Sn{' + disambig_symb + '}'
         elif word[0] == symb_name[0].upper() and word[1:] == symb_name[1:] + 's':
-            return '\\Sns{' + symb_path + '}'
+            return '\\Sns{' + disambig_symb + '}'
         elif word.startswith(symb_name) and ' ' not in word[len(symb_name):]:
-            return f'\\sn[post={word[len(symb_name):]}]{{' + symb_path + '}'
+            return f'\\sn[post={word[len(symb_name):]}]{{' + disambig_symb + '}'
         elif word.endswith(symb_name) and ' ' not in word[:-len(symb_name)]:
-            return f'\\sn[pre={word[:-len(symb_name)]}]{{' + symb_path + '}'
+            return f'\\sn[pre={word[:-len(symb_name)]}]{{' + disambig_symb + '}'
         else:
-            return '\\sr{' + symb_path + '}' + '{' + word + '}'
+            return '\\sr{' + disambig_symb + '}' + '{' + word + '}'
 
 
 
