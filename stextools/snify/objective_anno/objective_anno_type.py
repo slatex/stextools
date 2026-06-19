@@ -1,5 +1,6 @@
 from typing import Optional
 
+from stextools.config import get_config
 from stextools.snify.annotype import AnnoType, StateType, StepperStatus
 from stextools.snify.displaysupport import display_snify_header, stex_symbol_style
 from stextools.snify.objective_anno.objective_anno_state import ObjectiveAnnoState, DIMENSIONS, ObjectiveStatus, \
@@ -94,7 +95,8 @@ class ObjectiveAnnoType(AnnoType[ObjectiveAnnoState]):
         display_snify_header(self.snify_state)
         interface.show_code(
             ''.join(osff.text[content_start:].splitlines(keepends=True)[
-                        :min(8, flams_json['full_range']['end']['line'] - lineno)])
+                        :min(get_config().getint('stextools.snify', 'display_context_lines', fallback=4) * 2 + 1,
+                             flams_json['full_range']['end']['line'] - lineno)])
             ,
             format='sTeX',
             show_line_numbers=True,

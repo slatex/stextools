@@ -37,10 +37,6 @@ def get_containing_archive(path: Path) -> Optional[Path]:
 URL = 'https://gl.mathhub.info'
 
 
-def get_clone_uri(group, repo):
-    return f'git@{URL.split("//")[0].rstrip("/")}:{group}/{repo}.git'
-
-
 gl: gitlab.Gitlab = gitlab.Gitlab(URL)
 
 
