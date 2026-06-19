@@ -2,7 +2,7 @@ import functools
 import re
 from logging import getLogger
 
-from stextools.utils.linked_str import LinkedStr
+from stextools.utils.linked_str import LinkedStr, string_to_lstr
 from stextools.utils.warnonce import warn_once
 
 logger = getLogger(__name__)
