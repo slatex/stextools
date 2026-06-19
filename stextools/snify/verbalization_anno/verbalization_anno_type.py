@@ -1,6 +1,8 @@
 from typing import Optional
 import re
+import functools
 
+from stextools.snify.text_anno.local_stex_catalog import local_flams_stex_catalogs
 from stextools.snify.annotype import AnnoType, StateType, StepperStatus
 from stextools.snify.objective_anno.objective_anno_state import ObjectiveAnnoState
 from stextools.snify.snify_commands import SkipCommand
@@ -16,7 +18,11 @@ from stextools.stepper.stepper_extensions import QuitCommand, UndoCommand, RedoC
 # python -m stextools snify --mode=text,verbalizations "C:\Users\ivana\Desktop\MathHub\smglom\ai-agents\source\mod\search-based-agent.en.tex"
 
 #control the doublon
-# add 
+# add
+
+@functools.cache
+def get_stex_catalogs() -> dict[str, LocalFlamsCatalog]:
+    return local_flams_stex_catalogs()
 
 class VerbalizationAnnoState:
     pass
@@ -162,6 +168,7 @@ class VerbalizationAnnoType(AnnoType[VerbalizationAnnoState]):
             return False
 
     def get_initial_state(self) -> StateType:
+        get_stex_catalogs()
         return VerbalizationAnnoState()
 
     def get_next_annotation_suggestion(
@@ -195,6 +202,12 @@ class VerbalizationAnnoType(AnnoType[VerbalizationAnnoState]):
         symbol_name = match.group(1) if match else 'UNKNOWN'
         pattern = rf'\\verbalization\{{{re.escape(symbol_name)}\}}\[.*?\]\{{.*?\}}\{{.*?\}}'
         matches = list (re.finditer(pattern, document_content))
+
+        catalog = get_stex_catalogs()['en']  # english catalog
+        for symbol in catalog.symb_iter():
+            if symbol.uri.endswith('s=' + symbol_name):
+                for verbalization in catalog.symb_to_verb[symbol]:
+                    print('I found ' + verbalization.verb)
 
         if not matches:
             interface.write_text(f'\nNo Verbalizations found for "{symbol_name}".\n'
