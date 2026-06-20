@@ -1,7 +1,7 @@
-from typing import Optional
+
 import re
 import functools
-
+from typing import Optional
 from stextools.snify.text_anno.local_stex_catalog import local_flams_stex_catalogs
 from stextools.snify.annotype import AnnoType, StateType, StepperStatus
 from stextools.snify.objective_anno.objective_anno_state import ObjectiveAnnoState
@@ -18,7 +18,7 @@ from stextools.utils.json_iter import json_iter
 
 # python -m stextools snify --mode=text,verbalizations "C:\Users\ivana\Desktop\MathHub\smglom\ai-agents\source\mod\search-based-agent.en.tex"
 
-#control the doublon
+
 # add
 
 @functools.cache
@@ -33,7 +33,6 @@ class AddVerbalizationCommand(Command):
     def __init__(self, position: int, symbol_name:str, document_content:str):
         self.position = position
         self.symbol_name= symbol_name
-        #self.snify_state = snify_state
         self.document_content = document_content
         super().__init__(CommandInfo(
             pattern_presentation='a',
@@ -47,13 +46,13 @@ class AddVerbalizationCommand(Command):
         #specifications     
         interface.write_text('\nPlease enter the specifications of the verbalization you want to add: ')
         specifications = interface.get_input()
-        num_arguments= len(re.findall(r'#\d+', specifications))
         
         
 
 # python -m stextools snify --mode=text,verbalizations "C:\Users\ivana\Desktop\MathHub\ai-agents\source\mod\utility-based-agent.en.tex"
 
         #annotation type
+        num_arguments= len(re.findall(r'#\d+', specifications))
         pos = [i for i, char in enumerate(specifications)
                if char==':']
         letter=  specifications[pos[-1]+1]
@@ -61,38 +60,30 @@ class AddVerbalizationCommand(Command):
             annotation_type= letter.upper()
         else:
             annotation_type= letter.upper() + str(num_arguments)
-        interface.write_text(f'is the annotation type {annotation_type} ? write y/n: ')
+        interface.write_text(f'is the annotation type {annotation_type} ? Press Enter to accept, or type the correct type: ')
         answ= interface.get_input()
-        if answ == "n" :
-            interface.write_text ('\nPlease enter the right annotation type: ')
-            annotation_type= interface.get_input()
+        if answ :
+            annotation_type= answ
 
-        
-
-        # name #1 total:A function:N from #2 to #3
+        # name 
         spec= re.sub(r'#\d+', '', specifications)
         spec= re.sub(r':[A-Za-z]+', '', spec)
         words= spec.split()
         name = "-".join(words)
 
-        #args
-        while True:
-            interface.write_text ('\nDo you need to enter the type of each argument c/d?\n Please answer with y/n:  ')
-            ans_args= interface.get_input()
-            if ans_args in ("y","n"):
-                break
-            interface.write_text("Please answer with y or n.\n")
-            
         args=""
-        if ans_args== "y":
-            while True:
-                interface.write_text ('please enter c/d for each argument that we have in the specifications: ')
-                entered_args= interface.get_input()
+        while True:
+            interface.write_text ('\nDo you need to enter the type of each argument c/d? just continue ("Enter") if not or enter the arguments:  ')
+            entered_args= interface.get_input().strip()
+            if entered_args =="":
+                break
+            
+        
+            if(all( ch in "cd" for ch in entered_args) and len(entered_args)==num_arguments):
+                args = entered_args
+                break
 
-                if (all( ch in "cd" for ch in entered_args) and len(entered_args)==num_arguments ):
-                    args = entered_args
-                    break
-                interface.write_text ('please enter exactly '+str(num_arguments) + ' character(s) consisting only of c and/or d.\n')
+            interface.write_text ('please enter exactly '+str(num_arguments) + ' character(s) consisting only of c and/or d.\n')
         optional=  f'[Name={name}]' if not args else f'[Name={name}, args={args}]'  
 
      
@@ -101,7 +92,6 @@ class AddVerbalizationCommand(Command):
             interface.write_text("This verbalization already exist.\n")   
             return[]  
         else:
-
             return [
                 SubstitutionOutcome(
                     f'\\verbalization{{{self.symbol_name}}}{optional}{{{annotation_type}}}{{{specifications}}}\n',
@@ -110,6 +100,7 @@ class AddVerbalizationCommand(Command):
             ]
         
 # python -m stextools snify --mode=text,verbalizations "C:\Users\ivana\Desktop\MathHub\smglom\ai-agents\source\mod\search-based-agent.en.tex"
+#  python -m stextools snify --mode=text,verbalizations "C:\Users\ivana\Desktop\MathHub\smglom\algebra\source\mod\divgroup.en.tex"
 
 class DeleteVerbalizationCommand(Command):
     def __init__(self, position: int, symbol_name:str, document_content:str):
@@ -131,7 +122,7 @@ class DeleteVerbalizationCommand(Command):
                     )
             return []
         
-        interface.write_text(f' Existing verbalization for "{self.symbol_name}": \n')
+        interface.write_text(f' Existing verbalizations for "{self.symbol_name}": \n')
 
         for i, match in enumerate(matches, start =1):
             interface.write_text(f"{i}) {match.group(0)}\n"         
@@ -148,8 +139,16 @@ class DeleteVerbalizationCommand(Command):
             interface.write_text('\nInvalid choice.\n')
             return[]
         
-
-        return[ SubstitutionOutcome('', selected_match.start(), selected_match.end())]
+        start= selected_match.start()
+        end = selected_match.end()
+        while (
+        end < len(self.document_content)
+        and self.document_content[end] in '\n\r'
+        ):
+           end += 1
+        return [
+           SubstitutionOutcome( '', start, end)
+            ]
     
 
 class VerbalizationAnnoType(AnnoType[VerbalizationAnnoState]):
@@ -199,8 +198,6 @@ class VerbalizationAnnoType(AnnoType[VerbalizationAnnoState]):
         interface.write_text('\nCurrent \\symdef:\n\n')
         interface.show_code(line, format='sTeX')
 
-        # match = re.search(r'\\symdef\{([^}]*)\}', line)
-        # symbol_name = match.group(1) if match else 'UNKNOWN'
 
         line_no = document_content[:position + 1].count('\n')
         uri = None
@@ -209,21 +206,14 @@ class VerbalizationAnnoType(AnnoType[VerbalizationAnnoState]):
         for e in json_iter(annotations):
             if isinstance(e, dict) and 'Symdef' in e:
                 e_line_no = e['Symdef']['uri']['range']['start']['line']
-                print('COMPARING', line_no, e_line_no)
+                #print('COMPARING', line_no, e_line_no)
                 if line_no == e_line_no:
                     uri = e['Symdef']['uri']['uri']
                     break
-        symbol_name = uri.split('s=')[-1] if uri else 'UNKNOWN'
+        symbol_name = uri.split('s=')[-1] if (uri and 's=') else 'UNKNOWN'
 
         pattern = rf'\\verbalization\{{{re.escape(symbol_name)}\}}\[.*?\]\{{.*?\}}\{{.*?\}}'
         matches = list (re.finditer(pattern, document_content))
-
-        catalog = get_stex_catalogs()['en']  # english catalog
-        for symbol in catalog.symb_iter():
-            if symbol.uri == uri:
-                for verbalization in catalog.symb_to_verb[symbol]:
-                    print('I found ' + verbalization.verb)
-
         if not matches:
             interface.write_text(f'\nNo Verbalizations found for "{symbol_name}".\n'
                     )
@@ -233,7 +223,7 @@ class VerbalizationAnnoType(AnnoType[VerbalizationAnnoState]):
 
         for i, match in enumerate(matches, start =1):
             interface.write_text(f"{i}) {match.group(0)}\n"         
-            )
+            )    
         
 
     def get_command_collection(self, stepper_status: StepperStatus) -> CommandCollection:
@@ -241,10 +231,32 @@ class VerbalizationAnnoType(AnnoType[VerbalizationAnnoState]):
         document_content = self.snify_state.get_current_document().get_content()
         string = document_content[position:]
 
-        line= string.splitlines()[0]
+        #line= string.splitlines()[0]
 
-        match = re.search(r'\\symdef\{([^}]*)\}' , line)
-        symbol_name = match.group(1) if match else 'UNKNOWN'
+        line_no = document_content[:position + 1].count('\n')
+        uri = None
+
+        annotations = FLAMS.get_file_annotations(str(self.snify_state.get_current_document().path), load=True)
+        for e in json_iter(annotations):
+            if isinstance(e, dict) and 'Symdef' in e:
+                e_line_no = e['Symdef']['uri']['range']['start']['line']
+                #print('COMPARING', line_no, e_line_no)
+                if line_no == e_line_no:
+                    uri = e['Symdef']['uri']['uri']
+                    break
+        symbol_name = uri.split('s=')[-1] if (uri and 's=') else 'UNKNOWN'
+        catalog = get_stex_catalogs()['en']  # english catalog
+        suggestions=[]
+        for symbol in catalog.symb_iter():
+            if symbol.uri == uri:
+                for verbalization in catalog.symb_to_verb[symbol]:    
+                    if verbalization.verb not in suggestions:
+                        suggestions.append(verbalization.verb.replace('\n', ' '))      
+        if suggestions:
+            print('\nHier are some suggestions for any verbalization:', suggestions)
+
+
+        
         AddVerbalizationCommand(position, symbol_name, document_content)
         position = position + 1 + string.find('\n')
 
