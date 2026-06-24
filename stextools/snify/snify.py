@@ -3,7 +3,7 @@ from typing import Optional
 
 from click.exceptions import Exit
 
-from stextools.snify.snify_stepper import SnifyStepper
+from stextools.snify.snify_stepper import SnifyStepper, ANNO_TYPES, ANNO_TYPE_LOOKUP
 from stextools.snify.snify_state import SnifyState, SnifyCursor
 from stextools.stepper.document import documents_from_paths
 from stextools.stepper.session_storage import SessionStorage, IgnoreSessions
@@ -31,6 +31,14 @@ def snify(
     state: Optional[SnifyState] = result if isinstance(result, SnifyState) else None
 
     if state is None:
+        mode = set(e.strip().lower() for e in mode.split(','))
+
+        if 'verbalizations' in mode:
+            # dynamically added for robustness while the extension is being developed
+            from stextools.snify.verbalization_anno.verbalization_anno_type import VerbalizationAnnoType
+            ANNO_TYPES.append(VerbalizationAnnoType())
+            ANNO_TYPE_LOOKUP[ANNO_TYPES[-1].name] = ANNO_TYPES[-1]
+
         state = SnifyState(
             SnifyCursor(
                 document_index=0,
@@ -41,11 +49,12 @@ def snify(
                 annotation_format=anno_format,
                 include_dependencies=deep,
             ),
-            anno_types=['text-anno-stex', 'formula-anno-stex', 'text-anno-wikidata', 'objective-anno', 'verbalization-anno'],
+            anno_types=['text-anno-stex', 'formula-anno-stex', 'text-anno-wikidata', 'objective-anno'] + (['verbalization-anno'] if 'verbalizations' in mode else []),
             deep_mode=deep,
         )
 
-        state.mode = set(e.strip().lower() for e in mode.split(','))
+        state.mode = mode
+
         for e in state.mode:
             if e not in {'text', 'math', 'objectives', 'verbalizations'}:
                 raise ValueError(f'Unexpected mode: {e}')
