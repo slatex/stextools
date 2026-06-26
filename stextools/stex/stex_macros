@@ -3,6 +3,7 @@
 # You can add extend the list locally by adding a file ~/.config/stextools/stex_macros
 
 # MACROS
+\stexdoctitle{
 \verbalization{[{{
 \importmodule[{
 \requiremodule[{
