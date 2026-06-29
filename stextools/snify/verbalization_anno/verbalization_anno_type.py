@@ -1,6 +1,7 @@
 
 import re
 import functools
+import nltk
 from typing import Optional
 from stextools.snify.text_anno.local_stex_catalog import local_flams_stex_catalogs
 from stextools.snify.annotype import AnnoType, StateType, StepperStatus
@@ -15,6 +16,7 @@ from stextools.stepper.stepper_extensions import QuitCommand, UndoCommand, RedoC
 from stextools.stex.flams import FLAMS
 from stextools.utils.json_iter import json_iter
 
+#print(dir(interface))
 
 # python -m stextools snify --mode=text,verbalizations "C:\Users\ivana\Desktop\MathHub\smglom\ai-agents\source\mod\search-based-agent.en.tex"
 
@@ -30,10 +32,15 @@ class VerbalizationAnnoState:
 
 
 class AddVerbalizationCommand(Command):
-    def __init__(self, position: int, symbol_name:str, document_content:str):
+    def __init__(self, position: int, symbol_name:str, document_content:str, uri:str, num_args: int, suggestions):
         self.position = position
         self.symbol_name= symbol_name
         self.document_content = document_content
+        self.uri= uri
+        self.num_args= num_args
+        self.suggestions= suggestions
+        #self.snify_state= snify_state
+
         super().__init__(CommandInfo(
             pattern_presentation='a',
             description_short='dd verbalization',
@@ -43,11 +50,81 @@ class AddVerbalizationCommand(Command):
     def execute(self, call: str) -> list[CommandOutcome]:
         """ this is called when the user presses 'a' """
         
-        #specifications     
-        interface.write_text('\nPlease enter the specifications of the verbalization you want to add: ')
-        specifications = interface.get_input()
+        catalog = get_stex_catalogs()['en']  # english catalog
+        correspondances=[]
+        for symbol in catalog.symb_iter():
+            if symbol.uri == self.uri:
+                for verbalization in catalog.symb_to_verb[symbol]:    
+                    if verbalization.verb not in correspondances:
+                        correspondances.append(verbalization.verb.replace('\n', ' '))      
+        suggestions=[]   
         
+        for correspondance in correspondances:
+            tokens = nltk.word_tokenize(correspondance)
+            tags = nltk.pos_tag(tokens)
+            converted= []
+            for word, pos in tags:
+                if pos in ('TO', 'IN'):
+                    continue
+                elif pos in ('JJ','RB'):
+                    converted.append((word, ':A'))
+                elif pos in ('NN', 'NNS'):
+                    converted.append((word, ':N'))
+                elif pos.startswith('VB'):
+                    converted.append((word, ':V'))
+                else:
+                    converted.append((word, ''))              
+                
+           
+            suggestion=""
+            if self.num_args==1:
+                for word,tag in converted:
+                    suggestion += f'{word }{tag} '
+                suggestion += "#1"
+                suggestions.append(suggestion.strip())
+
+            elif self.num_args==2:   
+                suggestion +="#1 "
+                for word,tag in converted:
+                    suggestion += f'{word }{tag} '
+                suggestion += "#2"
+                suggestions.append(suggestion.strip())
+
+            elif self.num_args==3:
+                suggestion +="#1 "
+                for word,tag in converted:
+                    suggestion+= f'{word }{tag} '
+                suggestion += "from #2 to #3"
+                suggestions.append(suggestion.strip())
+            
+        if suggestions:
+            print(f'\n suggestions:')
+        for i, suggestion in enumerate(suggestions, start=1):
+            print(f"{i}) {suggestion}")
         
+        if suggestions:
+            interface.write_text("\nyou can choose a verbalization or write another one: \n")
+            answer= interface.get_input()
+        
+            try:
+                choice= int(answer)
+                if 1<= choice<=len(suggestions):
+                    specifications= suggestions[choice-1]
+                    #specifications= interface.editable_string_field("Edit the specification:", specifications)
+                    interface.write_text(f"\n Selected suggestion:\n{specifications}\n" "press enter to accept or type a modified version:\n")
+                    modified= interface.get_input().strip()
+                    if modified:
+                      specifications= modified
+                
+                else : 
+                    interface.write_text("invalid suggestion number.\n")
+                    return []
+            except ValueError:
+                specifications= answer
+
+        else:
+            interface.write_text('\nPlease enter the specifications of the verbalization you want to add: ')
+            specifications = interface.get_input()
 
 # python -m stextools snify --mode=text,verbalizations "C:\Users\ivana\Desktop\MathHub\ai-agents\source\mod\utility-based-agent.en.tex"
 
@@ -55,6 +132,9 @@ class AddVerbalizationCommand(Command):
         num_arguments= len(re.findall(r'#\d+', specifications))
         pos = [i for i, char in enumerate(specifications)
                if char==':']
+        if not pos:
+            interface.write_text("No annotation tag found.\n")
+            return []
         letter=  specifications[pos[-1]+1]
         if num_arguments== 1:
             annotation_type= letter.upper()
@@ -99,14 +179,14 @@ class AddVerbalizationCommand(Command):
                 )
             ]
         
-# python -m stextools snify --mode=text,verbalizations "C:\Users\ivana\Desktop\MathHub\smglom\ai-agents\source\mod\search-based-agent.en.tex"
 #  python -m stextools snify --mode=text,verbalizations "C:\Users\ivana\Desktop\MathHub\smglom\algebra\source\mod\divgroup.en.tex"
-
 class DeleteVerbalizationCommand(Command):
     def __init__(self, position: int, symbol_name:str, document_content:str):
         self.position = position
         self.symbol_name= symbol_name
         self.document_content = document_content
+        
+
         super().__init__(CommandInfo(
             pattern_presentation='d',
             description_short='elete verbalization',
@@ -225,13 +305,18 @@ class VerbalizationAnnoType(AnnoType[VerbalizationAnnoState]):
             interface.write_text(f"{i}) {match.group(0)}\n"         
             )    
         
+#  python -m stextools snify --mode=text,verbalizations "C:\Users\ivana\Desktop\MathHub\smglom\calculus\source\mod\derivative.en.tex"
 
     def get_command_collection(self, stepper_status: StepperStatus) -> CommandCollection:
         position = self.snify_state.cursor.in_doc_pos
         document_content = self.snify_state.get_current_document().get_content()
         string = document_content[position:]
 
-        #line= string.splitlines()[0]
+        num_args=0
+        line= string.splitlines()[0]
+        match = re.search('args=(\\d+)', line)
+        if match:
+            num_args= int( match.group(1))
 
         line_no = document_content[:position + 1].count('\n')
         uri = None
@@ -246,18 +331,62 @@ class VerbalizationAnnoType(AnnoType[VerbalizationAnnoState]):
                     break
         symbol_name = uri.split('s=')[-1] if (uri and 's=') else 'UNKNOWN'
         catalog = get_stex_catalogs()['en']  # english catalog
-        suggestions=[]
+        correspondances=[]
         for symbol in catalog.symb_iter():
             if symbol.uri == uri:
                 for verbalization in catalog.symb_to_verb[symbol]:    
-                    if verbalization.verb not in suggestions:
-                        suggestions.append(verbalization.verb.replace('\n', ' '))      
+                    if verbalization.verb not in correspondances:
+                        correspondances.append(verbalization.verb.replace('\n', ' '))      
+           
+        suggestions=[]   
+        
+        for correspondance in correspondances:
+            tokens = nltk.word_tokenize(correspondance)
+            tags = nltk.pos_tag(tokens)
+            converted= []
+            for word, pos in tags:
+                if pos in ('TO', 'IN'):
+                    continue
+                elif pos in ('JJ','RB'):
+                    converted.append((word, ':A'))
+                elif pos in ('NN', 'NNS'):
+                    converted.append((word, ':N'))
+                elif pos.startswith('VB'):
+                    converted.append((word, ':V'))
+                else:
+                    converted.append((word, ''))              
+                
+        
+            suggestion=""
+            if num_args==1:
+                for word,tag in converted:
+                    suggestion += f'{word }{tag} '
+                suggestion += "#1"
+                suggestions.append(suggestion)
+
+            elif num_args==2:   
+                suggestion +="#1 "
+                for word,tag in converted:
+                    suggestion += f'{word }{tag} '
+                suggestion += "#2"
+                suggestions.append(suggestion.strip())
+
+            elif num_args==3:
+                suggestion +="#1 "
+                for word,tag in converted:
+                    suggestion+= f'{word }{tag} '
+                suggestion += "from #2 to #3"
+                suggestions.append(suggestion.strip())
+            
         if suggestions:
-            print('\nHier are some suggestions for any verbalization:', suggestions)
+            print(f'\n suggestions:')
+        for i, suggestion in enumerate(suggestions, start=1):
+            print(f"{i}) {suggestion}")
+        
 
 
         
-        AddVerbalizationCommand(position, symbol_name, document_content)
+        AddVerbalizationCommand(position, symbol_name, document_content, uri, num_args, correspondances)
         position = position + 1 + string.find('\n')
 
         return CommandCollection(
@@ -267,7 +396,7 @@ class VerbalizationAnnoType(AnnoType[VerbalizationAnnoState]):
                 UndoCommand(is_possible=stepper_status.can_undo),
                 RedoCommand(is_possible=stepper_status.can_redo),
                 SkipCommand(self.snify_state, description_short='kip'),
-                AddVerbalizationCommand(position, symbol_name, document_content),
+                AddVerbalizationCommand(position, symbol_name, document_content, uri, num_args, correspondances),
                 DeleteVerbalizationCommand(position, symbol_name, document_content),
             ],
             have_help=True,
