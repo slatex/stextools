@@ -1,3 +1,10 @@
+# version check
+import sys
+
+if not sys.version_info[:2] >= (3, 12):
+    print(f"Python 3.12 or higher is required, but you are using {sys.version_info.major}.{sys.version_info.minor}.")
+    sys.exit(1)
+
 import importlib.metadata
 import logging
 import shutil

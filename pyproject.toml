@@ -6,7 +6,7 @@ authors = [
 ]
 description = "sTeX tooling"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.12"
 dependencies = [
     "pylatexenc >= 3.0a33",
     "click >= 8.1",
