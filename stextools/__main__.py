@@ -48,6 +48,37 @@ def snify_command(anno_format, mode, deep, files, interface):
     snify(files, anno_format=anno_format, mode=mode, deep=deep)
 
 
+@cli.command(name='trans', help='Create a target-language translation template from an English sTeX file, auto-filling known term translations.')
+@click.argument('file', type=click.Path(exists=True, path_type=Path))
+@click.option('--lang', '-l', 'lang', default=None, help='Target language code or alias (e.g. de, german, zhs, fr).')
+@click.option('--out', '-o', default=None, type=click.Path(path_type=Path), help='Output path (default: <stem>.<lang>.tex next to the input).')
+@click.option('--non-interactive', '--auto', 'non_interactive', is_flag=True,
+              help='Do not prompt on ambiguous terms; take the top-ranked translation.')
+@click.option('--no-fill', 'no_fill', is_flag=True, help='Do not fill translations via FLAMS; only insert placeholders.')
+@click.option('--no-report', 'no_report', is_flag=True, help='Do not write the .json report.')
+def trans_command(file, lang, out, non_interactive, no_fill, no_report):
+    """Click entry point for `stextools trans`.
+    args:
+        file: Path to the input English (annotated) sTeX file.
+        lang: Target language code or alias; required (errors if None).
+        out: Optional output path (default <stem>.<lang>.tex next to the input).
+        non_interactive: If set, take the top-ranked translation without prompting.
+        no_fill: If set, only insert placeholders (skip the FLAMS fill step).
+        no_report: If set, do not write the .json report.
+    returns:
+        None. Delegates to run_trans(), which writes the output files.
+    """
+    from stextools.trans.patterns import lang_flag_tokens
+    if lang is None:
+        raise click.UsageError(
+            'Target language not specified. Use --lang <code>, e.g. one of: '
+            + ', '.join(lang_flag_tokens())
+        )
+    from stextools.trans.trans import run_trans
+    run_trans(file, lang, out=out, interactive=not non_interactive,
+              fill=not no_fill, write_report=not no_report)
+
+
 @cli.command(name='lexgen', help='lexicon generation (experimental and work-in-progress)')
 @click.argument(
     'files', nargs=-1, type=click.Path(exists=True, path_type=Path),
