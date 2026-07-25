@@ -193,8 +193,11 @@ def compute_fills(text: str, path: str, lang: str, select=None) -> Tuple[Dict[Tu
             choice = default
         else:
             s, e = item["span"]
-            context = re.sub(r"\s+", " ", text[max(0, s - 50):e + 30]).strip()
-            choice = select(item, ordered, context, default)
+            # context split around the term so the selector can highlight it
+            before = re.sub(r"\s+", " ", text[max(0, s - 50):s]).lstrip()
+            target = re.sub(r"\s+", " ", text[s:e])
+            after = re.sub(r"\s+", " ", text[e:e + 30]).rstrip()
+            choice = select(item, ordered, (before, target, after), default)
 
         if choice is None:
             stats["kept_placeholder"] += 1

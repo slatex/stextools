@@ -21,13 +21,16 @@ def _interactive_select(item, candidates, context, default):
     Args:
         item: the symbol's metadata (type, key, plural)
         candidates: the list of candidate translations
-        context: a string describing the context in which the symbol appears
+        context: a (before, target, after) tuple of the source around the term; `target`
+            (the annotation being translated) is highlighted in the prompt
         default: the default translation to use if the author presses Enter
     """
 
     plural = " (plural)" if item.get("plural") else ""
+    before, target, after = context
+    highlighted = before + click.style(target, fg="cyan", bold=True) + after
     click.echo()
-    click.echo(f"  …{context}…")
+    click.echo(f"  …{highlighted}…")
     click.echo(f"  \\{item['type']}{{{item['key']}}}{plural}")
     for i, c in enumerate(candidates, 1):
         mark = "  (default)" if c == default else ""
