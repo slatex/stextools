@@ -75,7 +75,7 @@ def _single_arg_surface(head: str, key: str) -> Tuple[str, bool]:
     opt_m = re.search(r'\[([^\]]*)\]', head)
     post_m = re.search(r'post\s*=\s*([^,\]]+)', opt_m.group(1)) if opt_m else None
 
-    if token.lower() == 'sns':          # plural symbol-name reference (\sns / \Sns)
+    if token.lower() in ('sns', 'definames'):   # plural forms: \sns/\Sns and \definames/\Definames
         return _pluralize(base), True
     if post_m:                          # surface suffix, e.g. post=s -> "operations"
         suffix = post_m.group(1).strip()

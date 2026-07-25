@@ -35,7 +35,7 @@ def _normalize_sn_key(key_raw: str) -> str:
 # returns:
 #     A tuple containing the modified text and the number of replacements made.
 def _replace_definame(slice_text: str, key: str, placeholder: str) -> Tuple[str, int]:
-    pat = re.compile(r'\\[dD]efiname(?:\[.*?\])?\{' + re.escape(key) + r'\}(?!\{)', re.DOTALL)
+    pat = re.compile(r'\\[dD]efinames?(?:\[.*?\])?\{' + re.escape(key) + r'\}(?!\{)', re.DOTALL)
 
     # Build the \definiendum replacement (key + placeholder) for a matched \definame.
     def _repl(m: re.Match) -> str:

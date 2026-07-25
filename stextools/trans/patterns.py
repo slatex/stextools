@@ -49,8 +49,9 @@ RE_IMPORT = re.compile(r'\\importmodule(?:\[[^\]]*\])?\{(?P<mod>[^}]+)\}')
 RE_USES = re.compile(r'\\usestructure\{(?P<id>[^}]+)\}')
 RE_EXTSTRUCT = re.compile(r'\\begin\{extstructure\}\{(?P<id>[^}]+)\}\s*(?:\[(?P<opts>[^\]]*)\])?', re.MULTILINE)
 RE_DEFINIENDUM = re.compile(r'\\definiendum(?:\[[^\]]*\])?\{(?P<key>[^}]+)\}\{(?P<text>[^}]+)\}')
-# \definame and its capitalized variant \Definame (single-argument defined term)
-RE_DEFINAME= re.compile(r'\\[dD]efiname(?:\[.*?\])?\{(?P<key>[^}]+)\}(?!\{)')
+# \definame, its plural \definames, and their capitalized \Definame/\Definames variants
+# (single-argument defined term; the plural form is treated like \sns is for \sn)
+RE_DEFINAME= re.compile(r'\\[dD]efinames?(?:\[.*?\])?\{(?P<key>[^}]+)\}(?!\{)')
 RE_SR = re.compile(r'\\sr\{(?P<key>[^}]+)\}\{(?P<text>[^}]+)\}')
 # Symbol-name references: \sn, plural \sns, and capitalized \Sn/\Sns, each with an
 # optional [..] option (e.g. \sn[post=y]{sensor}).
