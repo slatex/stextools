@@ -56,19 +56,38 @@ def snify_command(anno_format, mode, deep, files, interface):
               help='Do not prompt on ambiguous terms; take the top-ranked translation.')
 @click.option('--no-fill', 'no_fill', is_flag=True, help='Do not fill translations via FLAMS; only insert placeholders.')
 @click.option('--no-report', 'no_report', is_flag=True, help='Do not write the .json report.')
-def trans_command(paths, lang, out, non_interactive, no_fill, no_report):
+@click.option('--referenced', 'referenced', is_flag=True,
+              help='Large-scale mode: translate the (reference) closure of the input documents — the '
+                   'definitions of everything they reference that lacks a target-language version.')
+@click.option('--out-dir', 'out_dir', default='trans-staging', type=click.Path(path_type=Path),
+              help='Staging directory for --referenced output (default: ./trans-staging).')
+@click.option('--depth', 'depth', default=1, type=int,
+              help='--referenced: how far to follow references (1 = only directly referenced defs).')
+@click.option('--only-archives', 'only_archives', default=None,
+              help='--referenced: comma-separated archive ids to restrict the closure to.')
+@click.option('--with-seeds', 'with_seeds', is_flag=True,
+              help='--referenced: also translate the seed documents themselves.')
+@click.option('--yes', '-y', 'yes', is_flag=True, help='--referenced: skip the confirmation prompt.')
+def trans_command(paths, lang, out, non_interactive, no_fill, no_report,
+                  referenced, out_dir, depth, only_archives, with_seeds, yes):
     """Click entry point for `stextools trans`.
     args:
-        paths: One or more input paths. A file is used directly; a directory is expanded
-            to all `*.en.tex` files under it (recursively). Already-translated outputs are
-            skipped.
+        paths: One or more input paths. In normal mode a file is translated directly and a
+            directory is expanded to its `*.en.tex` files. In --referenced mode these are the
+            seed documents whose references drive the closure.
         lang: Target language code or alias; required (errors if None).
-        out: Optional output path; only allowed with a single input file.
+        out: Optional output path; only allowed with a single input file (normal mode).
         non_interactive: If set, take the top-ranked translation without prompting.
         no_fill: If set, only insert placeholders (skip the FLAMS fill step).
         no_report: If set, do not write the .json report.
+        referenced: Large-scale reference-closure mode (see run_referenced).
+        out_dir: Staging directory for --referenced output.
+        depth: --referenced closure depth (1 = only directly referenced definitions).
+        only_archives: --referenced comma-separated archive allowlist.
+        with_seeds: --referenced also translates the seed files.
+        yes: --referenced skip the confirmation prompt.
     returns:
-        None. Delegates to run_batch(), which writes the output files.
+        None. Delegates to run_referenced() (large-scale) or run_batch() (normal).
     """
     from stextools.trans.patterns import lang_flag_tokens
     if lang is None:
@@ -76,7 +95,25 @@ def trans_command(paths, lang, out, non_interactive, no_fill, no_report):
             'Target language not specified. Use --lang <code>, e.g. one of: '
             + ', '.join(lang_flag_tokens())
         )
-    # expand directories to their English sTeX sources, keep files as given
+
+    if referenced:
+        # seeds: files as given; a directory expands to all sTeX sources under it
+        seeds = []
+        for p in paths:
+            if p.is_dir():
+                seeds.extend(sorted(f for f in p.rglob('*.tex')))
+            else:
+                seeds.append(p)
+        if not seeds:
+            raise click.UsageError('No seed documents. Provide file(s) or a directory of sTeX sources.')
+        archives = [a for a in only_archives.split(',')] if only_archives else None
+        from stextools.trans.trans import run_referenced
+        run_referenced(seeds, lang, out_dir=out_dir, depth=depth, only_archives=archives,
+                       translate_seeds=with_seeds, interactive=not non_interactive, yes=yes,
+                       write_report=not no_report)
+        return
+
+    # normal mode: translate the given files (a directory expands to its *.en.tex sources)
     files = []
     for p in paths:
         if p.is_dir():

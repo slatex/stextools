@@ -32,6 +32,11 @@ def _interactive_select(item, candidates, context, default):
     click.echo()
     click.echo(f"  …{highlighted}…")
     click.echo(f"  \\{item['type']}{{{item['key']}}}{plural}")
+    if not candidates:
+        # a new defined term with no existing translation: ask the author to provide one
+        val = click.prompt("  no existing translation — enter one (Enter to keep placeholder)",
+                           default="", show_default=False).strip()
+        return val or None
     for i, c in enumerate(candidates, 1):
         mark = "  (default)" if c == default else ""
         click.echo(f"    {i}. {c}{mark}")
@@ -154,3 +159,116 @@ def run_trans(file, lang_arg, out=None, interactive=True, fill=True, write_repor
     """Backward-compatible single-file wrapper around run_batch()."""
     run_batch([file], lang_arg, out=out, interactive=interactive, fill=fill,
               write_report=write_report, placeholders=placeholders, review_comments=review_comments)
+
+
+def _staging_path(src, out_dir, lang) -> Path:
+    """Where a translated module is written in the staging dir, mirroring its archive path
+    (e.g. .../smglom/sets/source/mod/set.en.tex -> <out_dir>/smglom/sets/source/mod/set.de.tex)."""
+    s = str(src).replace("\\", "/")
+    if "/source/" in s:
+        prefix, suffix = s.split("/source/", 1)
+        rel = Path("/".join(prefix.split("/")[-2:])) / "source" / suffix
+    else:
+        rel = Path(Path(s).name)
+    stem = re.sub(r"\.en$", "", Path(rel).stem)
+    return Path(out_dir) / rel.with_name(f"{stem}.{lang}.tex")
+
+
+def run_referenced(
+        seeds,
+        lang_arg: str,
+        out_dir,
+        depth: Optional[int] = 1,
+        only_archives=None,
+        translate_seeds: bool = False,
+        interactive: bool = True,
+        yes: bool = False,
+        write_report: bool = True,
+        placeholders: bool = True,
+        review_comments: bool = True,
+):
+    """Translate the reference closure of the seed documents into a staging directory.
+
+    Collects the symbols the seeds reference that lack a target-language verbalization,
+    finds the local English modules that define them (transitively, up to `depth`), orders
+    them so definitions come before uses, previews the plan, asks for confirmation, then
+    translates each in order --- feeding every newly created verbalization forward so later
+    modules' references fill, and keeping the author's synonym choices consistent run-wide.
+    Args:
+        seeds: seed document paths whose references drive the closure.
+        lang_arg: target language code or alias.
+        out_dir: staging directory to write the generated templates into.
+        depth: how far to follow references (1 = only directly referenced definitions).
+        only_archives: optional iterable of archive ids to restrict the closure to.
+        translate_seeds: also translate the seed files themselves.
+        interactive: prompt on ambiguous terms and ask to confirm the closure.
+        yes: skip the confirmation prompt.
+        write_report/placeholders/review_comments: as for run_batch.
+    """
+    from .closure import reference_closure
+
+    lang = resolve_lang_alias(lang_arg)
+    out_dir = Path(out_dir)
+    index = build_index(lang)
+    if index is None:
+        click.echo(f"(no verbalization catalog for lang={lang}; translations cannot be suggested)")
+        index = {}
+
+    scope = None
+    if only_archives:
+        allowed = {a.strip() for a in only_archives}
+        scope = lambda a: a in allowed
+
+    seeds_abs = [str(Path(s).resolve()) for s in seeds]
+    order, report = reference_closure(seeds_abs, index, scope=scope,
+                                      translate_seeds=translate_seeds, max_depth=depth)
+
+    click.echo(f"\nReference closure (seeds={report['seeds']}, depth={depth}):")
+    click.echo(f"  {report['modules_to_translate']} module(s) to translate"
+               + (" [capped at the safety limit]" if report["capped"] else ""))
+    for a, n in sorted(report["by_archive"].items(), key=lambda x: -x[1]):
+        click.echo(f"      {n:4}  {a}")
+    if report["external_symbols"]:
+        click.echo(f"  {report['external_symbols']} referenced symbol(s) have no local source (skipped)")
+    if report["out_of_scope_symbols"]:
+        click.echo(f"  {report['out_of_scope_symbols']} referenced symbol(s) out of scope (skipped)")
+    if not order:
+        click.echo("Nothing to translate — every referenced concept already has a translation.")
+        return
+    if interactive and not yes:
+        if not click.confirm(f"\nTranslate {len(order)} module(s) into {out_dir}/?", default=False):
+            click.echo("Aborted.")
+            return
+
+    select = _interactive_select if interactive else None
+    chosen: dict = {}   # run-wide synonym consistency + feed-forward defaults
+    opts = {"insert_placeholders": placeholders, "add_review_comments": review_comments}
+    agg = {"filled": 0, "kept_placeholder": 0, "no_verbalization": 0, "unresolved": 0}
+
+    for i, m in enumerate(order, 1):
+        text = Path(m).read_text(encoding="utf-8")
+        fills, stats = compute_fills(text, m, lang, select, index=index, chosen_by_uri=chosen,
+                                     ask_new_definienda=True)
+        new_text, rep = build_template(text, lang, opts, fills)
+        rep["fill"] = stats
+        out_path = _staging_path(m, out_dir, lang)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(new_text, encoding="utf-8")
+        if write_report:
+            out_path.with_suffix(".json").write_text(
+                json.dumps(rep, indent=2, ensure_ascii=False), encoding="utf-8")
+        # feed forward: a newly translated definition becomes available for later modules
+        for uri, verb in stats["new_verbs"]:
+            index.setdefault(uri, [])
+            if verb not in index[uri]:
+                index[uri].append(verb)
+        for k in agg:
+            agg[k] += stats[k]
+        click.echo(f"[{i}/{len(order)}] ✓ {out_path}   ({_coverage(stats)})")
+
+    total = sum(agg.values())
+    pct = f"{100 * agg['filled'] / total:.0f}%" if total else "n/a"
+    click.echo(f"\n== closure: {len(order)} modules, filled {agg['filled']}/{total} ({pct}); "
+               f"{agg['kept_placeholder']} kept, {agg['no_verbalization']} untranslated, "
+               f"{agg['unresolved']} unresolved ==")
+    click.echo(f"Templates written under {out_dir}/ (staging — review before moving into archives).")

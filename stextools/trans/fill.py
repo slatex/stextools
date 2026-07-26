@@ -160,7 +160,8 @@ def build_index(lang: str):
         return _verb_index(lang)
 
 
-def compute_fills(text: str, path: str, lang: str, select=None, index=_BUILD_INDEX) -> Tuple[Dict[Tuple[int, int], str], Dict]:
+def compute_fills(text: str, path: str, lang: str, select=None, index=_BUILD_INDEX,
+                  chosen_by_uri=None, ask_new_definienda=False) -> Tuple[Dict[Tuple[int, int], str], Dict]:
     """Resolve + fill placeholders with target-language verbalizations.
 
     `select(item, candidates, context, default) -> chosen | None` is called only when a
@@ -173,11 +174,17 @@ def compute_fills(text: str, path: str, lang: str, select=None, index=_BUILD_IND
         path: The path to the sTeX file.
         lang: The target language code.
         select: A function to select a candidate verbalization, or None.
+        index: prebuilt uri -> [verbalizations] to reuse (built on demand otherwise).
+        chosen_by_uri: a dict of already-chosen translations per symbol URI to reuse and
+            extend. Pass a shared dict across files for run-wide consistency; the same dict
+            is updated in place with this file's choices.
     returns:
         A tuple containing:
         - A dictionary mapping (start, end) spans in the text to the chosen verbalization.
         - A statistics dictionary with counts of filled, kept placeholders, no verbalization,
-          unresolved symbols, and whether the catalog language is available.
+          unresolved symbols, whether the catalog language is available, the `todo` list, and
+          `new_verbs` (list of (uri, translation) for defined terms translated here — used to
+          feed the index forward during closure translation).
     """
     parsed = extract_items(text)
     items = parsed["items"]
@@ -187,15 +194,16 @@ def compute_fills(text: str, path: str, lang: str, select=None, index=_BUILD_IND
             index = _verb_index(lang)
 
     stats = {"filled": 0, "kept_placeholder": 0, "no_verbalization": 0, "unresolved": 0,
-             "catalog_language_available": index is not None, "todo": []}
+             "catalog_language_available": index is not None, "todo": [], "new_verbs": []}
     if index is None:
         index = {}
+    if chosen_by_uri is None:
+        chosen_by_uri = {}
 
     def _todo(item, reason):
         stats["todo"].append({"key": item["key"], "surface": item["text"], "reason": reason})
 
     fills: Dict[Tuple[int, int], str] = {}
-    chosen_by_uri: Dict[str, str] = {}
     title_by_key: Dict[str, str] = {}   # defined-term key -> its chosen translation (for the title)
     for item in sorted(items, key=lambda it: it["span"][0]):
         uri = _uri_for_item(item, annos)
@@ -205,6 +213,21 @@ def compute_fills(text: str, path: str, lang: str, select=None, index=_BUILD_IND
             continue
         cands = rank_candidates(index.get(uri, []), item.get("plural"))
         if not cands:
+            # a defined term with no existing translation: let the author supply one so it
+            # can be filled here and fed forward to later modules in a closure run
+            if ask_new_definienda and select is not None and item["type"] in ("definame", "definiendum"):
+                s, e = item["span"]
+                before = re.sub(r"\s+", " ", text[max(0, s - 50):s]).lstrip()
+                target = re.sub(r"\s+", " ", text[s:e])
+                after = re.sub(r"\s+", " ", text[e:e + 30]).rstrip()
+                choice = select(item, [], (before, target, after), None)
+                if choice:
+                    chosen_by_uri[uri] = choice
+                    fills[tuple(item["span"])] = choice
+                    stats["filled"] += 1
+                    stats["new_verbs"].append((uri, choice))
+                    title_by_key.setdefault(item["key"].strip().lower(), choice)
+                    continue
             stats["no_verbalization"] += 1
             _todo(item, "no-verbalization")
             continue
@@ -230,6 +253,7 @@ def compute_fills(text: str, path: str, lang: str, select=None, index=_BUILD_IND
         stats["filled"] += 1
         if item["type"] in ("definame", "definiendum"):
             title_by_key.setdefault(item["key"].strip().lower(), choice)
+            stats["new_verbs"].append((uri, choice))   # a new target-language verbalization
 
     # The module title verbalizes its primary defined term: reuse that term's translation.
     title = (parsed.get("title") or "").strip().lower()
