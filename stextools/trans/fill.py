@@ -144,7 +144,23 @@ def _uri_for_item(item: Dict, annos: List[Tuple[int, int, str]]) -> Optional[str
     return best[2] if best else None
 
 
-def compute_fills(text: str, path: str, lang: str, select=None) -> Tuple[Dict[Tuple[int, int], str], Dict]:
+_BUILD_INDEX = object()   # sentinel: build the verbalization index on demand
+
+
+def build_index(lang: str):
+    """Build the target-language verbalization index once, so it can be reused across many
+    files in a batch run (building the catalog is the expensive part). Pass the result as
+    the `index` argument of compute_fills().
+    args:
+        lang: the target language code.
+    returns:
+        uri -> [verbalization, ...] dict, or None if the language has no catalog.
+    """
+    with _silence_native_output():
+        return _verb_index(lang)
+
+
+def compute_fills(text: str, path: str, lang: str, select=None, index=_BUILD_INDEX) -> Tuple[Dict[Tuple[int, int], str], Dict]:
     """Resolve + fill placeholders with target-language verbalizations.
 
     `select(item, candidates, context, default) -> chosen | None` is called only when a
@@ -167,12 +183,16 @@ def compute_fills(text: str, path: str, lang: str, select=None) -> Tuple[Dict[Tu
     items = parsed["items"]
     with _silence_native_output():
         annos = _flams_annotations(path)
-        index = _verb_index(lang)
+        if index is _BUILD_INDEX:
+            index = _verb_index(lang)
 
     stats = {"filled": 0, "kept_placeholder": 0, "no_verbalization": 0, "unresolved": 0,
-             "catalog_language_available": index is not None}
+             "catalog_language_available": index is not None, "todo": []}
     if index is None:
         index = {}
+
+    def _todo(item, reason):
+        stats["todo"].append({"key": item["key"], "surface": item["text"], "reason": reason})
 
     fills: Dict[Tuple[int, int], str] = {}
     chosen_by_uri: Dict[str, str] = {}
@@ -181,10 +201,12 @@ def compute_fills(text: str, path: str, lang: str, select=None) -> Tuple[Dict[Tu
         uri = _uri_for_item(item, annos)
         if not uri:
             stats["unresolved"] += 1
+            _todo(item, "unresolved")
             continue
         cands = rank_candidates(index.get(uri, []), item.get("plural"))
         if not cands:
             stats["no_verbalization"] += 1
+            _todo(item, "no-verbalization")
             continue
         default = chosen_by_uri.get(uri, cands[0])
         ordered = [default] + [c for c in cands if c != default]
@@ -201,6 +223,7 @@ def compute_fills(text: str, path: str, lang: str, select=None) -> Tuple[Dict[Tu
 
         if choice is None:
             stats["kept_placeholder"] += 1
+            _todo(item, "kept")
             continue
         chosen_by_uri[uri] = choice
         fills[tuple(item["span"])] = choice

@@ -12,7 +12,7 @@ from typing import Optional
 import click
 
 from .builder import build_template
-from .fill import compute_fills
+from .fill import compute_fills, build_index, _BUILD_INDEX
 from .patterns import lang_flag_tokens, resolve_lang_alias
 
 
@@ -51,8 +51,52 @@ def _interactive_select(item, candidates, context, default):
         click.echo("  ? enter a number, k, c, or Enter")
 
 
-def run_trans(
-        file: Path,
+def _coverage(stats) -> str:
+    """One-line coverage summary from a fill-stats dict."""
+    total = stats["filled"] + stats["kept_placeholder"] + stats["no_verbalization"] + stats["unresolved"]
+    pct = f"{100 * stats['filled'] / total:.0f}%" if total else "n/a"
+    return (f"filled {stats['filled']}/{total} ({pct}); {stats['kept_placeholder']} kept, "
+            f"{stats['no_verbalization']} untranslated, {stats['unresolved']} unresolved")
+
+
+def _print_todo(stats, limit: Optional[int] = None):
+    """Print the checklist of terms still needing manual translation."""
+    todo = stats.get("todo", [])
+    if not todo:
+        return
+    click.echo("  still needs translation:")
+    for t in (todo if limit is None else todo[:limit]):
+        click.echo(f"    - {click.style(t['surface'], fg='yellow')}   [{t['key']}]  ({t['reason']})")
+    if limit is not None and len(todo) > limit:
+        click.echo(f"    … and {len(todo) - limit} more (see the .json report)")
+
+
+def _process_one(file: Path, lang: str, select, index, fill: bool, out: Optional[Path],
+                 write_report: bool, placeholders: bool, review_comments: bool):
+    """Translate a single file. Returns (out_path, fill_stats | None)."""
+    in_path = Path(file)
+    text = in_path.read_text(encoding="utf-8")
+
+    fills, fill_stats = {}, None
+    if fill:
+        fills, fill_stats = compute_fills(text, str(in_path.resolve()), lang, select, index=index)
+
+    opts = {"insert_placeholders": placeholders, "add_review_comments": review_comments}
+    new_text, report = build_template(text, lang, opts, fills)
+    if fill_stats is not None:
+        report["fill"] = fill_stats
+
+    stem = re.sub(r"\.(en)$", "", in_path.stem)
+    out_path = Path(out) if out else in_path.with_name(f"{stem}.{lang}.tex")
+    out_path.write_text(new_text, encoding="utf-8")
+    if write_report:
+        out_path.with_suffix(".json").write_text(
+            json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
+    return out_path, fill_stats
+
+
+def run_batch(
+        files,
         lang_arg: str,
         out: Optional[Path] = None,
         interactive: bool = True,
@@ -61,63 +105,52 @@ def run_trans(
         placeholders: bool = True,
         review_comments: bool = True,
 ):
-    """Create a target-language sTeX translation template from an English (annotated) module.
+    """Translate one or more English (annotated) sTeX modules to target-language templates.
+
+    The verbalization catalog (the expensive part of filling) is built once and reused
+    across all files. For each file a coverage summary and a checklist of the terms still
+    needing translation are printed; a per-run aggregate is printed for multiple files.
     Args:
-        file: Path to the input English sTeX module.
-        lang_arg: Target language code (e.g., 'de', 'fr').
-        out: Optional path for the output translated template. If not provided, a default
-            path will be generated based on the input file name and target language.
-        interactive: If True, prompt the author to choose translations when multiple
-            candidates are available. If False, use the default translation or keep
-            placeholders.
-        fill: If True, auto-fill known translations from the SMGloM domain model (via FLAMS).
-            If False, no auto-filling will be performed.
-        write_report: If True, write a JSON report of the translation process alongside
-            the output template.
-        placeholders: If True, insert placeholders for terms without known translations.
-        review_comments: If True, add review comments in the output template for terms
-            that were auto-filled or kept as placeholders.
+        files: An iterable of input file paths (already expanded from files/directories).
+        lang_arg: Target language code or alias (e.g. 'de', 'fr').
+        out: Output path; only valid when translating a single file.
+        interactive: Prompt on ambiguous terms (default); if False, take the top candidate.
+        fill: Auto-fill known translations via FLAMS; if False, only insert placeholders.
+        write_report: Write a .json report next to each output.
+        placeholders: Insert placeholders for untranslated terms.
+        review_comments: Add the review-comment header to each output.
     """
+    files = list(files)
     lang = resolve_lang_alias(lang_arg)
-    in_path = Path(file)
-    text = in_path.read_text(encoding="utf-8")
+    select = _interactive_select if interactive else None
 
-    # Compute the fills for each symbol in the text, if requested. If `fill` is False, then
-    # `fills` will be an empty dict and `fill_stats` will be None.
-    fills = {}
-    fill_stats = None
+    index = _BUILD_INDEX
     if fill:
-        select = _interactive_select if interactive else None
-        fills, fill_stats = compute_fills(text, str(in_path.resolve()), lang, select)
+        index = build_index(lang)   # built once, reused for every file
+        if index is None:
+            click.echo(f"(no verbalization catalog for lang={lang}; producing placeholders only)")
 
-    # Build the translated template, passing in the computed fills and any options for placeholders and review comments. 
-    # The `build_template` function returns the new text and a report of the translation
-    opts = {"insert_placeholders": placeholders, "add_review_comments": review_comments}
-    new_text, report = build_template(text, lang, opts, fills)
-    if fill_stats is not None:
-        report["fill"] = fill_stats
+    agg = {"filled": 0, "kept_placeholder": 0, "no_verbalization": 0, "unresolved": 0}
+    for f in files:
+        out_path, stats = _process_one(f, lang, select, index, fill, out,
+                                       write_report, placeholders, review_comments)
+        click.echo(f"✓ {out_path}")
+        if stats is not None:
+            for k in agg:
+                agg[k] += stats[k]
+            click.echo("  " + _coverage(stats))
+            _print_todo(stats, limit=None if len(files) == 1 else 8)
 
-    # Write the translated template to the specified output path, or to a default path based on
-    # the input file name and target language.
-    if out:
-        out_path = Path(out)
-    else:
-        stem = re.sub(r"\.(en)$", "", in_path.stem)
-        out_path = in_path.with_name(f"{stem}.{lang}.tex")
-    out_path.write_text(new_text, encoding="utf-8")
-    click.echo(f"Translated template written to: {out_path}")
+    if fill and len(files) > 1:
+        total = sum(agg.values())
+        pct = f"{100 * agg['filled'] / total:.0f}%" if total else "n/a"
+        click.echo(f"\n== {len(files)} files: filled {agg['filled']}/{total} ({pct}); "
+                   f"{agg['kept_placeholder']} kept, {agg['no_verbalization']} untranslated, "
+                   f"{agg['unresolved']} unresolved ==")
 
-    # Write a report of the translation process to a JSON file alongside the output template.
-    if write_report:
-        json_path = out_path.with_suffix(".json")
-        json_path.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
-        click.echo(f"Report written to: {json_path}")
 
-    # Print a summary of the fill statistics to the console, if available.
-    if fill_stats is not None:
-        click.echo(f"Filled {fill_stats['filled']} term(s); "
-                   f"{fill_stats['kept_placeholder']} kept as placeholder, "
-                   f"{fill_stats['no_verbalization']} without a {lang} verbalization, "
-                   f"{fill_stats['unresolved']} unresolved.")
-        if not fill_stats["catalog_language_available"]:
-            click.echo(f"  (no verbalization catalog for lang={lang} -> nothing could be filled)")
+def run_trans(file, lang_arg, out=None, interactive=True, fill=True, write_report=True,
+              placeholders=True, review_comments=True):
+    """Backward-compatible single-file wrapper around run_batch()."""
+    run_batch([file], lang_arg, out=out, interactive=interactive, fill=fill,
+              write_report=write_report, placeholders=placeholders, review_comments=review_comments)

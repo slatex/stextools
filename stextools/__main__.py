@@ -48,25 +48,27 @@ def snify_command(anno_format, mode, deep, files, interface):
     snify(files, anno_format=anno_format, mode=mode, deep=deep)
 
 
-@cli.command(name='trans', help='Create a target-language translation template from an English sTeX file, auto-filling known term translations.')
-@click.argument('file', type=click.Path(exists=True, path_type=Path))
+@cli.command(name='trans', help='Create target-language translation templates from English sTeX files (or whole directories), auto-filling known term translations.')
+@click.argument('paths', nargs=-1, type=click.Path(exists=True, path_type=Path))
 @click.option('--lang', '-l', 'lang', default=None, help='Target language code or alias (e.g. de, german, zhs, fr).')
-@click.option('--out', '-o', default=None, type=click.Path(path_type=Path), help='Output path (default: <stem>.<lang>.tex next to the input).')
+@click.option('--out', '-o', default=None, type=click.Path(path_type=Path), help='Output path (single input only; default: <stem>.<lang>.tex next to the input).')
 @click.option('--non-interactive', '--auto', 'non_interactive', is_flag=True,
               help='Do not prompt on ambiguous terms; take the top-ranked translation.')
 @click.option('--no-fill', 'no_fill', is_flag=True, help='Do not fill translations via FLAMS; only insert placeholders.')
 @click.option('--no-report', 'no_report', is_flag=True, help='Do not write the .json report.')
-def trans_command(file, lang, out, non_interactive, no_fill, no_report):
+def trans_command(paths, lang, out, non_interactive, no_fill, no_report):
     """Click entry point for `stextools trans`.
     args:
-        file: Path to the input English (annotated) sTeX file.
+        paths: One or more input paths. A file is used directly; a directory is expanded
+            to all `*.en.tex` files under it (recursively). Already-translated outputs are
+            skipped.
         lang: Target language code or alias; required (errors if None).
-        out: Optional output path (default <stem>.<lang>.tex next to the input).
+        out: Optional output path; only allowed with a single input file.
         non_interactive: If set, take the top-ranked translation without prompting.
         no_fill: If set, only insert placeholders (skip the FLAMS fill step).
         no_report: If set, do not write the .json report.
     returns:
-        None. Delegates to run_trans(), which writes the output files.
+        None. Delegates to run_batch(), which writes the output files.
     """
     from stextools.trans.patterns import lang_flag_tokens
     if lang is None:
@@ -74,8 +76,20 @@ def trans_command(file, lang, out, non_interactive, no_fill, no_report):
             'Target language not specified. Use --lang <code>, e.g. one of: '
             + ', '.join(lang_flag_tokens())
         )
-    from stextools.trans.trans import run_trans
-    run_trans(file, lang, out=out, interactive=not non_interactive,
+    # expand directories to their English sTeX sources, keep files as given
+    files = []
+    for p in paths:
+        if p.is_dir():
+            files.extend(sorted(f for f in p.rglob('*.en.tex')))
+        else:
+            files.append(p)
+    if not files:
+        raise click.UsageError('No input files. Provide .en.tex file(s) or a directory containing them.')
+    if out is not None and len(files) > 1:
+        raise click.UsageError('--out can only be used with a single input file.')
+
+    from stextools.trans.trans import run_batch
+    run_batch(files, lang, out=out, interactive=not non_interactive,
               fill=not no_fill, write_report=not no_report)
 
 
