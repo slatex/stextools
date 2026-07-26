@@ -139,7 +139,7 @@ def run_batch(
     for f in files:
         out_path, stats = _process_one(f, lang, select, index, fill, out,
                                        write_report, placeholders, review_comments)
-        click.echo(f"✓ {out_path}")
+        click.echo(f"wrote {out_path}")
         if stats is not None:
             for k in agg:
                 agg[k] += stats[k]
@@ -264,7 +264,7 @@ def run_referenced(
                 index[uri].append(verb)
         for k in agg:
             agg[k] += stats[k]
-        click.echo(f"[{i}/{len(order)}] ✓ {out_path}   ({_coverage(stats)})")
+        click.echo(f"[{i}/{len(order)}] {out_path}   ({_coverage(stats)})")
 
     total = sum(agg.values())
     pct = f"{100 * agg['filled'] / total:.0f}%" if total else "n/a"
