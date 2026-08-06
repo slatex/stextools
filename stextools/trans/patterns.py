@@ -11,10 +11,14 @@ LANG_ALIASES: Dict[str, List[str]] = {
     "jp": ["jp", "japanese"],
 }
 
-# normalize language aliases to canonical codes
-# arg: a language code or alias (e.g., 'de', 'german', 'zhs', 'chinese')
-# returns: the canonical language code (e.g., 'de', 'zhs')  
 def resolve_lang_alias(arg: str) -> str:
+    """Normalize a language code or alias to its canonical code.
+
+    Args:
+        arg: a language code or alias (e.g. ``german``, ``chinese``, ``zh-cn``).
+    Returns:
+        The canonical code (e.g. ``de``, ``zhs``), or ``arg`` unchanged if it matches no alias.
+    """
     a = arg.lower()
     for canon, aliases in LANG_ALIASES.items():
         if a in aliases:
@@ -22,10 +26,15 @@ def resolve_lang_alias(arg: str) -> str:
     return arg
 
 
-# Every token that may be used as a shorthand CLI flag (e.g. de, german, zhs, chinese).
-# Derived from LANG_ALIASES so adding a language there automatically enables its flags.
-# returns: a sorted list of all language flag tokens
 def lang_flag_tokens() -> List[str]:
+    """Every token usable as a shorthand CLI flag (e.g. ``de``, ``german``, ``zhs``).
+
+    Derived from ``LANG_ALIASES``, so adding a language there automatically enables its
+    ``--<token>`` flags with nothing else to change.
+
+    Returns:
+        A sorted list of all canonical codes and their aliases.
+    """
     tokens = set(LANG_ALIASES)
     for aliases in LANG_ALIASES.values():
         tokens.update(aliases)

@@ -82,12 +82,23 @@ def _single_arg_surface(head: str, key: str) -> Tuple[str, bool]:
         return base + suffix, suffix == 's'
     return base, False
 
-# Extract all translatable items from the sTeX text.
-# args:
-#     text: The sTeX text to extract items from.
-# returns:
-#     A dictionary containing the extracted items.
 def extract_items(text: str) -> Dict[str, Any]:
+    """Parse an sTeX source into the structured pieces the templater needs.
+
+    Scans the text with conservative regexes (no full LaTeX parse) and returns a dict with the
+    module id and title, the English-only declarations to strip (imports, symdecls, symdefs,
+    structures), and---most importantly---``items``: the list of translatable term annotations
+    (``\\sn``/``\\sns``/``\\Sn``/``\\Sns``, ``\\definame``/``\\Definame``/``\\definames``,
+    ``\\sr``, ``\\definiendum``), each with its ``type``, semantic ``key``, surface ``text``,
+    source ``span``, and a ``plural`` flag. This is the input to ``build_template`` and to the
+    FLAMS-based ``compute_fills``.
+
+    Args:
+        text: the sTeX source to scan.
+    Returns:
+        A dict with keys ``module_id``, ``title``, ``imports``, ``symdecls``, ``symdefs``,
+        ``usestructure``, ``extstructure``, ``cmhtikz``, and ``items``.
+    """
     out = {
         "module_id": None,
         "title": None,

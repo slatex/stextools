@@ -1,7 +1,7 @@
 """Build a target-language sTeX translation template from an English source (optionally filling translations)."""
 import functools
 import re
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from .extractor import extract_items
 
@@ -71,7 +71,7 @@ def _replace_sn(slice_text: str, placeholder: str) -> Tuple[str, int]:
 #     placeholder: The placeholder for translation.
 # returns:
 #     A tuple containing the modified text and the number of replacements made.
-def _replace_item_text(slice_text: str, typ: Any|None, key: str, placeholder: str) -> Tuple[str, int]:
+def _replace_item_text(slice_text: str, typ: Optional[Any], key: str, placeholder: str) -> Tuple[str, int]:
     
     # if typ is definiendum, replace the display text with a placeholder (keeping any [..] option)
     if typ == 'definiendum':
@@ -297,18 +297,27 @@ def _add_review_comment(text: str, lang: str, report: Dict[str, Any]) -> str:
     report["actions"].append("Added header review comment")
     return header_comment + text
 
-# Build a translation template from the original text, replacing items with placeholders for translation and generating a report of the actions taken
-# Returns the modified text and a report dictionary containing the module ID, target language, items processed, and actions taken.
-# This is were the main processing of the translation template occurs, including extracting items, replacing them with placeholders, and cleaning up the text.
-# args:
-#     original_text: The original English text to be translated.
-#     lang: The target language code.
-#     opts: A dictionary of options for translation, including whether to insert placeholders and add review comments.
-#     fills: An optional dictionary mapping spans to their filled translations.
-# returns:
-#     A tuple containing the modified text and a report dictionary.
 def build_template(original_text: str, lang: str, opts: Dict[str, Any],
                    fills: Dict[Tuple[int, int], str] = None) -> Tuple[str, Dict[str, Any]]:
+    """Turn an English sTeX source into a target-language translation template.
+
+    This is the main templating entry point (the structural, language-agnostic stage). It
+    extracts the module's items, rewrites each term annotation into a form with a translatable
+    surface slot (inserting placeholders or the supplied translations), removes English-only
+    declarations, converts structure environments, and stamps the target language onto
+    ``\\documentclass``/``\\begin{smodule}``.
+
+    Args:
+        original_text: the original English sTeX source.
+        lang: the target language code (e.g. ``de``).
+        opts: options dict; recognized keys ``insert_placeholders`` and ``add_review_comments``.
+        fills: optional mapping of item span ``(start, end)`` -> chosen translation, as produced
+            by ``compute_fills``. A special key ``"title"`` carries the module-title translation.
+            When None, every term becomes a placeholder.
+    Returns:
+        ``(new_text, report)`` where ``report`` records the module id, language, the items
+        processed, and the structural actions taken.
+    """
     parsed = extract_items(original_text)
     report: Dict[str, Any] = {"module_id": parsed.get("module_id"), "lang": lang, "items": [], "actions": []}
 

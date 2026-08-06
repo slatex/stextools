@@ -49,6 +49,8 @@ def _topo_order(deps: Dict[str, Set[str]]) -> List[str]:
     order: List[str] = []
 
     def visit(n: str):
+        """DFS post-order visit: emit `n` after its dependencies; skip nodes already done or on
+        the current stack (the latter breaks dependency cycles)."""
         if state.get(n, 0) != 0:
             return                     # done, or on the stack (cycle) -> stop
         state[n] = 1
