@@ -16,3 +16,12 @@ pyvenv.cfg
 *~
 auto
 *.swp
+
+# local virtualenvs
+myvenv/
+.venv/
+venv/
+
+# generated translation templates from ad-hoc test runs in-tree
+stextools/test/*.de.tex
+stextools/test/*.de.json
