@@ -30,11 +30,11 @@ def _interactive_select(item, candidates, context, default):
     before, target, after = context
     highlighted = before + click.style(target, fg="cyan", bold=True) + after
     click.echo()
-    click.echo(f"  …{highlighted}…")
+    click.echo(f"  ...{highlighted}...")
     click.echo(f"  \\{item['type']}{{{item['key']}}}{plural}")
     if not candidates:
         # a new defined term with no existing translation: ask the author to provide one
-        val = click.prompt("  no existing translation — enter one (Enter to keep placeholder)",
+        val = click.prompt("  no existing translation - enter one (Enter to keep placeholder)",
                            default="", show_default=False).strip()
         return val or None
     for i, c in enumerate(candidates, 1):
@@ -73,7 +73,7 @@ def _print_todo(stats, limit: Optional[int] = None):
     for t in (todo if limit is None else todo[:limit]):
         click.echo(f"    - {click.style(t['surface'], fg='yellow')}   [{t['key']}]  ({t['reason']})")
     if limit is not None and len(todo) > limit:
-        click.echo(f"    … and {len(todo) - limit} more (see the .json report)")
+        click.echo(f"    ... and {len(todo) - limit} more (see the .json report)")
 
 
 def _process_one(file: Path, lang: str, select, index, fill: bool, out: Optional[Path],
@@ -233,7 +233,7 @@ def run_referenced(
     if report["out_of_scope_symbols"]:
         click.echo(f"  {report['out_of_scope_symbols']} referenced symbol(s) out of scope (skipped)")
     if not order:
-        click.echo("Nothing to translate — every referenced concept already has a translation.")
+        click.echo("Nothing to translate - every referenced concept already has a translation.")
         return
     if interactive and not yes:
         if not click.confirm(f"\nTranslate {len(order)} module(s) into {out_dir}/?", default=False):
@@ -271,4 +271,4 @@ def run_referenced(
     click.echo(f"\n== closure: {len(order)} modules, filled {agg['filled']}/{total} ({pct}); "
                f"{agg['kept_placeholder']} kept, {agg['no_verbalization']} untranslated, "
                f"{agg['unresolved']} unresolved ==")
-    click.echo(f"Templates written under {out_dir}/ (staging — review before moving into archives).")
+    click.echo(f"Templates written under {out_dir}/ (staging - review before moving into archives).")
