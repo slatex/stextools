@@ -103,13 +103,17 @@ def _process_one(file: Path, lang: str, select, index, fill: bool, out: Optional
         fills, fill_stats = compute_fills(text, str(in_path.resolve()), lang, select, index=index)
 
     opts = {"insert_placeholders": placeholders, "add_review_comments": review_comments,
-            "provenance": fingerprint_file(in_path)}
+            "provenance": fingerprint_file(in_path.resolve())}   # absolute -> cwd-independent marker
     new_text, report = build_template(text, lang, opts, fills)
     if fill_stats is not None:
         report["fill"] = fill_stats
 
     stem = re.sub(r"\.(en)$", "", in_path.stem)
     out_path = Path(out) if out else in_path.with_name(f"{stem}.{lang}.tex")
+    if out_path.resolve() == in_path.resolve():
+        # e.g. --lang en on a .en.tex, or --out equal to the input: refuse to destroy the source
+        raise ValueError("output path equals the input source; refusing to overwrite it "
+                         "(check --lang / --out)")
     out_path.write_text(new_text, encoding="utf-8")
     if write_report:
         out_path.with_suffix(".json").write_text(
@@ -154,8 +158,12 @@ def run_batch(
 
     agg = {"filled": 0, "kept_placeholder": 0, "no_verbalization": 0, "unresolved": 0}
     for f in files:
-        out_path, stats = _process_one(f, lang, select, index, fill, out,
-                                       write_report, placeholders, review_comments)
+        try:
+            out_path, stats = _process_one(f, lang, select, index, fill, out,
+                                           write_report, placeholders, review_comments)
+        except ValueError as e:   # e.g. output path would overwrite the input source
+            click.echo(f"  skipped {f}: {e}", err=True)
+            continue
         click.echo(f"wrote {out_path}")
         if stats is not None:
             for k in agg:
@@ -324,25 +332,36 @@ def run_check_stale(targets, source_root=None) -> int:
             continue
         files.extend(sorted(p.rglob("*.tex")) if p.is_dir() else [p])
 
-    counts = {"up-to-date": 0, "stale": 0, "source-missing": 0, "no-provenance": 0}
-    stale = []
+    counts = {"up-to-date": 0, "stale": 0, "source-missing": 0,
+              "malformed-provenance": 0, "no-provenance": 0, "error": 0}
+    problems = []   # stale / source-missing / malformed / unreadable -> nonzero exit
+    labels = {"up-to-date": "ok   ", "stale": "STALE", "source-missing": "MISS ",
+              "malformed-provenance": "MALF "}
     for f in files:
-        r = check_staleness(f, source_root)
+        try:
+            r = check_staleness(f, source_root)
+        except OSError as e:   # a single unreadable file must not abort the whole batch
+            counts["error"] += 1
+            problems.append(str(f))
+            click.echo(f"  ERROR  {f}: {e}", err=True)
+            continue
         counts[r["status"]] += 1
         if r["status"] == "no-provenance":
             continue
-        label = {"up-to-date": "ok   ", "stale": "STALE", "source-missing": "MISS "}[r["status"]]
-        click.echo(f"  {label}  {f}")
-        if r["status"] in ("stale", "source-missing"):
-            stale.append(str(f))
+        click.echo(f"  {labels[r['status']]}  {f}")
+        if r["status"] != "up-to-date":
+            problems.append(str(f))
 
-    tracked = counts["up-to-date"] + counts["stale"] + counts["source-missing"]
+    tracked = (counts["up-to-date"] + counts["stale"] + counts["source-missing"]
+               + counts["malformed-provenance"])
     click.echo(f"\n{tracked} tracked template(s): {counts['up-to-date']} up-to-date, "
-               f"{counts['stale']} stale, {counts['source-missing']} source-missing; "
-               f"{counts['no-provenance']} untracked (no provenance).")
-    if stale:
-        click.echo("\nStale / broken (English changed or moved since translation):")
-        for s in stale:
+               f"{counts['stale']} stale, {counts['source-missing']} source-missing, "
+               f"{counts['malformed-provenance']} malformed; "
+               f"{counts['no-provenance']} untracked (no provenance)"
+               + (f"; {counts['error']} unreadable" if counts["error"] else "") + ".")
+    if problems:
+        click.echo("\nStale / broken (English changed or moved, or marker unreadable):")
+        for s in problems:
             click.echo(f"  - {s}")
         click.echo("Re-translate them: --referenced --refresh (staging), or re-run trans on the sources.")
-    return 1 if stale else 0
+    return 1 if problems else 0

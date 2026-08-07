@@ -13,6 +13,8 @@ compares: matching hash = up to date, differing hash = the English changed since
 (stale), missing file = the source moved or was deleted. This module is pure standard library
 (no FLAMS), so staleness checking works even without stextools installed.
 
+The hash is taken over the *raw bytes* of the source with line endings normalized, so a
+non-UTF-8 source can never crash the check and a pure CRLF/LF change is not seen as a change.
 The marker is intentionally *deterministic* (no timestamps): re-translating an unchanged source
 produces byte-identical output, so it never creates spurious diffs.
 """
@@ -22,6 +24,7 @@ from pathlib import Path
 from typing import Dict, Optional
 
 PROV_VERSION = 1
+_MARKER_PREFIX = "% stex-trans-source:"
 
 # The header marker written into every generated template and parsed back out.
 _PROV_RE = re.compile(
@@ -30,29 +33,36 @@ _PROV_RE = re.compile(
 )
 
 
-def _normalize(text: str) -> str:
-    """Line-ending-independent view of the text so CRLF/LF churn is not seen as a change."""
-    return text.replace("\r\n", "\n").replace("\r", "\n")
+def _normalize_bytes(data: bytes) -> bytes:
+    """Line-ending-independent view of the bytes so CRLF/LF churn is not seen as a change."""
+    return data.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+
+
+def _sha256_bytes(data: bytes) -> str:
+    return hashlib.sha256(_normalize_bytes(data)).hexdigest()
 
 
 def source_sha256(text: str) -> str:
-    """SHA-256 of the (EOL-normalized) source text."""
-    return hashlib.sha256(_normalize(text).encode("utf-8")).hexdigest()
+    """SHA-256 of source text (EOL-normalized). Files are hashed by bytes; see :func:`fingerprint_file`."""
+    return _sha256_bytes(text.encode("utf-8"))
 
 
 def fingerprint_file(path) -> Dict:
     """Fingerprint an English source file for provenance recording.
 
+    Reads raw bytes (so a non-UTF-8 source does not raise) and hashes them EOL-normalized.
+
     Args:
         path: path to the English ``.en.tex`` source.
     Returns:
-        ``{"path": <forward-slashed path as given>, "sha256": <hex>, "bytes": <int>}``.
+        ``{"path": <forward-slashed path as given>, "sha256": <hex>, "bytes": <int>}``. Pass a
+        resolved/absolute path so the marker is independent of the working directory.
     """
-    text = Path(path).read_text(encoding="utf-8")
+    data = Path(path).read_bytes()
     return {
         "path": str(path).replace("\\", "/"),
-        "sha256": source_sha256(text),
-        "bytes": len(_normalize(text).encode("utf-8")),
+        "sha256": _sha256_bytes(data),
+        "bytes": len(_normalize_bytes(data)),
     }
 
 
@@ -66,8 +76,8 @@ def parse_provenance(template_text: str) -> Optional[Dict]:
 
     Returns:
         ``{"version": int, "sha256": str, "path": str}`` or ``None`` if the template carries no
-        marker (e.g. it was produced with ``--no-review-comments``/an older tool, or is not a
-        generated template at all).
+        (well-formed) marker. Use :func:`check_staleness` to distinguish a missing marker from a
+        malformed one.
     """
     m = _PROV_RE.search(template_text)
     if not m:
@@ -75,47 +85,63 @@ def parse_provenance(template_text: str) -> Optional[Dict]:
     return {"version": int(m.group("v")), "sha256": m.group("sha").lower(), "path": m.group("path")}
 
 
+def _resolve_source(recorded_path: str, source_root=None) -> Optional[Path]:
+    """Locate the current English source for a recorded provenance path.
+
+    Tries the recorded path as-is first. If it is missing and ``source_root`` is given, relocate
+    by matching a *tail* of the recorded path under the root (longest tail first, at least two
+    path segments) --- this handles a moved MathHub checkout without the ambiguity of matching an
+    unrelated file that merely shares a basename.
+    """
+    src = Path(recorded_path)
+    if src.exists():
+        return src
+    if source_root is not None:
+        root = Path(source_root)
+        parts = Path(recorded_path).parts
+        for i in range(len(parts)):
+            tail = parts[i:]
+            if len(tail) < 2:      # never relocate on the basename alone (would be ambiguous)
+                break
+            cand = root.joinpath(*tail)
+            if cand.exists():
+                return cand
+    return None
+
+
 def check_staleness(template_path, source_root=None) -> Dict:
     """Compare a translated template against its recorded English source.
 
     Args:
         template_path: path to a generated ``.<lang>.tex`` template.
-        source_root: optional base directory to resolve a relative recorded source path (or to
-            relocate the source by the path recorded in the marker). ``None`` uses the recorded
-            path as-is.
+        source_root: optional base directory to relocate the recorded source path (e.g. a
+            different MathHub checkout). ``None`` uses the recorded path as-is.
     Returns:
         A dict with ``status`` one of:
 
-        - ``up-to-date``     source found and its hash matches the recorded one
-        - ``stale``          source found but its hash differs (English changed since translation)
-        - ``source-missing`` the recorded source path no longer exists
-        - ``no-provenance``  the template carries no provenance marker (untracked)
+        - ``up-to-date``          source found and its hash matches the recorded one
+        - ``stale``               source found but its hash differs (English changed)
+        - ``source-missing``      the recorded source path no longer exists (even under source_root)
+        - ``no-provenance``       the template carries no provenance marker (untracked)
+        - ``malformed-provenance``a marker line is present but does not parse (tampered/truncated)
 
-        plus ``template`` and, when a marker was present, ``source``/``recorded_sha256`` and
-        (when the source exists) ``current_sha256``.
+        plus ``template`` and, when a marker was present, ``source``/``recorded_sha256`` and (when
+        the source was located) ``resolved_source``/``current_sha256``.
     """
-    tp = Path(template_path)
-    prov = parse_provenance(tp.read_text(encoding="utf-8"))
-    if not prov:
-        return {"status": "no-provenance", "template": str(template_path)}
-
-    src = Path(prov["path"])
-    if source_root is not None:
-        candidate = Path(source_root) / prov["path"] if not src.is_absolute() else src
-        if candidate.exists():
-            src = candidate
-        else:
-            # last resort: relocate by basename under source_root
-            by_name = Path(source_root) / Path(prov["path"]).name
-            if by_name.exists():
-                src = by_name
+    text = Path(template_path).read_text(encoding="utf-8", errors="replace")
+    prov = parse_provenance(text)
+    if prov is None:
+        status = "malformed-provenance" if _MARKER_PREFIX in text else "no-provenance"
+        return {"status": status, "template": str(template_path)}
 
     result = {"status": None, "template": str(template_path), "source": prov["path"],
               "recorded_sha256": prov["sha256"]}
-    if not src.exists():
+    src = _resolve_source(prov["path"], source_root)
+    if src is None:
         result["status"] = "source-missing"
         return result
-    cur = source_sha256(src.read_text(encoding="utf-8"))
+    result["resolved_source"] = str(src)
+    cur = _sha256_bytes(src.read_bytes())
     result["current_sha256"] = cur
     result["status"] = "up-to-date" if cur == prov["sha256"] else "stale"
     return result

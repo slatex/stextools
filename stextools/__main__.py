@@ -56,6 +56,8 @@ def snify_command(anno_format, mode, deep, files, interface):
               help='Do not prompt on ambiguous terms; take the top-ranked translation.')
 @click.option('--no-fill', 'no_fill', is_flag=True, help='Do not fill translations via FLAMS; only insert placeholders.')
 @click.option('--no-report', 'no_report', is_flag=True, help='Do not write the .json report.')
+@click.option('--no-placeholders', 'no_placeholders', is_flag=True, help='Do not insert translation placeholders.')
+@click.option('--no-review-comments', 'no_review_comments', is_flag=True, help='Do not add the review-comment header.')
 @click.option('--referenced', 'referenced', is_flag=True,
               help='Large-scale mode: translate the (reference) closure of the input documents — the '
                    'definitions of everything they reference that lacks a target-language version.')
@@ -75,6 +77,7 @@ def snify_command(anno_format, mode, deep, files, interface):
 @click.option('--source-root', 'source_root', default=None, type=click.Path(path_type=Path),
               help='--check-stale: base directory to locate the recorded source paths.')
 def trans_command(paths, lang, out, non_interactive, no_fill, no_report,
+                  no_placeholders, no_review_comments,
                   referenced, out_dir, depth, only_archives, with_seeds, yes,
                   refresh, check_stale, source_root):
     """Click entry point for `stextools trans`.
@@ -88,6 +91,8 @@ def trans_command(paths, lang, out, non_interactive, no_fill, no_report,
         non_interactive: If set, take the top-ranked translation without prompting.
         no_fill: If set, only insert placeholders (skip the FLAMS fill step).
         no_report: If set, do not write the .json report.
+        no_placeholders: If set, do not insert translation placeholders.
+        no_review_comments: If set, do not add the review-comment header.
         referenced: Large-scale reference-closure mode (see run_referenced).
         out_dir: Staging directory for --referenced output.
         depth: --referenced closure depth (1 = only directly referenced definitions).
@@ -133,7 +138,8 @@ def trans_command(paths, lang, out, non_interactive, no_fill, no_report,
         from stextools.trans.trans import run_referenced
         run_referenced(seeds, lang, out_dir=out_dir, depth=depth, only_archives=archives,
                        translate_seeds=with_seeds, interactive=not non_interactive, yes=yes,
-                       write_report=not no_report, refresh=refresh)
+                       write_report=not no_report, placeholders=not no_placeholders,
+                       review_comments=not no_review_comments, refresh=refresh)
         return
 
     # normal mode: translate the given files (a directory expands to its *.en.tex sources)
@@ -150,7 +156,8 @@ def trans_command(paths, lang, out, non_interactive, no_fill, no_report,
 
     from stextools.trans.trans import run_batch
     run_batch(files, lang, out=out, interactive=not non_interactive,
-              fill=not no_fill, write_report=not no_report)
+              fill=not no_fill, write_report=not no_report,
+              placeholders=not no_placeholders, review_comments=not no_review_comments)
 
 
 @cli.command(name='lexgen', help='lexicon generation (experimental and work-in-progress)')

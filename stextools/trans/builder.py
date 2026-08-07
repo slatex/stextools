@@ -33,9 +33,12 @@ def _key_pattern(key: str) -> str:
     The extractor normalizes a symbol key to single spaces, but the source may write the key
     with a double space, tab, or line break (e.g. ``\\sr{measure  space}{...}``). Escaping the
     normalized key and matching it literally would then find nothing, silently leaving the term
-    untranslated. Escape the key, then let any whitespace run match.
+    untranslated. Escape the key, then let any whitespace run match. (Callers additionally allow
+    padding *inside* the braces, e.g. ``\\sr{ key }{...}``.)
     """
-    return re.escape(key).replace("\\ ", r"\s+").replace(" ", r"\s+")
+    # Collapse any run of whitespace in the escaped key (a plain space, or the ``\ `` that
+    # re.escape emits for a space on some Python versions) into a flexible ``\s+``.
+    return re.sub(r"(?:\\ |\s)+", r"\\s+", re.escape(key))
 
 # replace \definame / \Definame with \definiendum and a placeholder for translation.
 # The definame option (e.g. [post=s]) is a surface-generation hint that is already folded
@@ -47,7 +50,7 @@ def _key_pattern(key: str) -> str:
 # returns:
 #     A tuple containing the modified text and the number of replacements made.
 def _replace_definame(slice_text: str, key: str, placeholder: str) -> Tuple[str, int]:
-    pat = re.compile(r'\\[dD]efinames?(?:\[.*?\])?\{' + _key_pattern(key) + r'\}(?!\{)', re.DOTALL)
+    pat = re.compile(r'\\[dD]efinames?(?:\[.*?\])?\{\s*' + _key_pattern(key) + r'\s*\}(?!\{)', re.DOTALL)
 
     # Build the \definiendum replacement (key + placeholder) for a matched \definame.
     def _repl(m: re.Match) -> str:
@@ -87,7 +90,7 @@ def _replace_item_text(slice_text: str, typ: Optional[Any], key: str, placeholde
     
     # if typ is definiendum, replace the display text with a placeholder (keeping any [..] option)
     if typ == 'definiendum':
-        pat = re.compile(r'(\\definiendum(?:\[[^\]]*\])?\{' + _key_pattern(key) + r'\}\{)(.*?)(\})', re.DOTALL)
+        pat = re.compile(r'(\\definiendum(?:\[[^\]]*\])?\{\s*' + _key_pattern(key) + r'\s*\}\{)(.*?)(\})', re.DOTALL)
         return pat.subn(lambda m: m.group(1) + placeholder + m.group(3), slice_text, count=1)
 
     # if typ is definame, replace with \definiendum{key}{placeholder}
@@ -96,7 +99,7 @@ def _replace_item_text(slice_text: str, typ: Optional[Any], key: str, placeholde
 
     # if typ is sr, replace the display text with a placeholder
     if typ == 'sr':
-        pat = re.compile(r'(\\sr\{' + _key_pattern(key) + r'\}\{)(.*?)(\})', re.DOTALL)
+        pat = re.compile(r'(\\sr\{\s*' + _key_pattern(key) + r'\s*\}\{)(.*?)(\})', re.DOTALL)
         return pat.subn(lambda m: m.group(1) + placeholder + m.group(3), slice_text, count=1)
 
     # ????? if typ is notation, replace with \notation{placeholder} ?????
