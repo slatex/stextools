@@ -68,14 +68,22 @@ def snify_command(anno_format, mode, deep, files, interface):
 @click.option('--with-seeds', 'with_seeds', is_flag=True,
               help='--referenced: also translate the seed documents themselves.')
 @click.option('--yes', '-y', 'yes', is_flag=True, help='--referenced: skip the confirmation prompt.')
+@click.option('--refresh', 'refresh', is_flag=True,
+              help='--referenced: only (re)translate modules whose staged output is missing or stale.')
+@click.option('--check-stale', 'check_stale', is_flag=True,
+              help='Change management: report which translated templates have gone stale (no --lang needed).')
+@click.option('--source-root', 'source_root', default=None, type=click.Path(path_type=Path),
+              help='--check-stale: base directory to locate the recorded source paths.')
 def trans_command(paths, lang, out, non_interactive, no_fill, no_report,
-                  referenced, out_dir, depth, only_archives, with_seeds, yes):
+                  referenced, out_dir, depth, only_archives, with_seeds, yes,
+                  refresh, check_stale, source_root):
     """Click entry point for `stextools trans`.
     args:
         paths: One or more input paths. In normal mode a file is translated directly and a
             directory is expanded to its `*.en.tex` files. In --referenced mode these are the
-            seed documents whose references drive the closure.
-        lang: Target language code or alias; required (errors if None).
+            seed documents whose references drive the closure. In --check-stale mode they are
+            the translated templates (or directories of them) to check.
+        lang: Target language code or alias; required except in --check-stale mode.
         out: Optional output path; only allowed with a single input file (normal mode).
         non_interactive: If set, take the top-ranked translation without prompting.
         no_fill: If set, only insert placeholders (skip the FLAMS fill step).
@@ -86,9 +94,24 @@ def trans_command(paths, lang, out, non_interactive, no_fill, no_report,
         only_archives: --referenced comma-separated archive allowlist.
         with_seeds: --referenced also translates the seed files.
         yes: --referenced skip the confirmation prompt.
+        refresh: --referenced only (re)translate modules whose staged output is missing/stale.
+        check_stale: report which translated templates have gone stale vs their English sources.
+        source_root: --check-stale base directory to locate recorded source paths.
     returns:
-        None. Delegates to run_referenced() (large-scale) or run_batch() (normal).
+        None. Delegates to run_check_stale(), run_referenced() (large-scale), or run_batch().
     """
+    import sys
+    from stextools.trans.trans import ensure_utf8_stdout
+    ensure_utf8_stdout()   # tolerate non-ASCII (e.g. CJK) verbalizations on a legacy code page
+
+    if check_stale:
+        # read-only staleness report; needs neither FLAMS nor a target language
+        if not paths:
+            raise click.UsageError('Provide template file(s) or a directory to check.')
+        from stextools.trans.trans import run_check_stale
+        sys.exit(run_check_stale([str(p) for p in paths],
+                                 str(source_root) if source_root else None))
+
     from stextools.trans.patterns import lang_flag_tokens
     if lang is None:
         raise click.UsageError(
@@ -110,7 +133,7 @@ def trans_command(paths, lang, out, non_interactive, no_fill, no_report,
         from stextools.trans.trans import run_referenced
         run_referenced(seeds, lang, out_dir=out_dir, depth=depth, only_archives=archives,
                        translate_seeds=with_seeds, interactive=not non_interactive, yes=yes,
-                       write_report=not no_report)
+                       write_report=not no_report, refresh=refresh)
         return
 
     # normal mode: translate the given files (a directory expands to its *.en.tex sources)

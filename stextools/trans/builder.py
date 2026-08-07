@@ -4,6 +4,7 @@ import re
 from typing import Any, Dict, List, Optional, Tuple
 
 from .extractor import extract_items
+from .provenance import provenance_comment
 
 # create a placeholder for translation, or return the original text if no placeholders are desired
 # args:
@@ -25,6 +26,17 @@ def _make_placeholder(orig_text: str, key: str, lang: str, opts: Dict[str, Any])
 def _normalize_sn_key(key_raw: str) -> str:
     return re.sub(r"\s+", " ", key_raw).strip()
 
+
+def _key_pattern(key: str) -> str:
+    """Regex fragment matching `key` with internal whitespace matched flexibly.
+
+    The extractor normalizes a symbol key to single spaces, but the source may write the key
+    with a double space, tab, or line break (e.g. ``\\sr{measure  space}{...}``). Escaping the
+    normalized key and matching it literally would then find nothing, silently leaving the term
+    untranslated. Escape the key, then let any whitespace run match.
+    """
+    return re.escape(key).replace("\\ ", r"\s+").replace(" ", r"\s+")
+
 # replace \definame / \Definame with \definiendum and a placeholder for translation.
 # The definame option (e.g. [post=s]) is a surface-generation hint that is already folded
 # into the placeholder text, so it is dropped rather than carried onto \definiendum.
@@ -35,7 +47,7 @@ def _normalize_sn_key(key_raw: str) -> str:
 # returns:
 #     A tuple containing the modified text and the number of replacements made.
 def _replace_definame(slice_text: str, key: str, placeholder: str) -> Tuple[str, int]:
-    pat = re.compile(r'\\[dD]efinames?(?:\[.*?\])?\{' + re.escape(key) + r'\}(?!\{)', re.DOTALL)
+    pat = re.compile(r'\\[dD]efinames?(?:\[.*?\])?\{' + _key_pattern(key) + r'\}(?!\{)', re.DOTALL)
 
     # Build the \definiendum replacement (key + placeholder) for a matched \definame.
     def _repl(m: re.Match) -> str:
@@ -75,7 +87,7 @@ def _replace_item_text(slice_text: str, typ: Optional[Any], key: str, placeholde
     
     # if typ is definiendum, replace the display text with a placeholder (keeping any [..] option)
     if typ == 'definiendum':
-        pat = re.compile(r'(\\definiendum(?:\[[^\]]*\])?\{' + re.escape(key) + r'\}\{)(.*?)(\})', re.DOTALL)
+        pat = re.compile(r'(\\definiendum(?:\[[^\]]*\])?\{' + _key_pattern(key) + r'\}\{)(.*?)(\})', re.DOTALL)
         return pat.subn(lambda m: m.group(1) + placeholder + m.group(3), slice_text, count=1)
 
     # if typ is definame, replace with \definiendum{key}{placeholder}
@@ -84,7 +96,7 @@ def _replace_item_text(slice_text: str, typ: Optional[Any], key: str, placeholde
 
     # if typ is sr, replace the display text with a placeholder
     if typ == 'sr':
-        pat = re.compile(r'(\\sr\{' + re.escape(key) + r'\}\{)(.*?)(\})', re.DOTALL)
+        pat = re.compile(r'(\\sr\{' + _key_pattern(key) + r'\}\{)(.*?)(\})', re.DOTALL)
         return pat.subn(lambda m: m.group(1) + placeholder + m.group(3), slice_text, count=1)
 
     # ????? if typ is notation, replace with \notation{placeholder} ?????
@@ -360,5 +372,14 @@ def build_template(original_text: str, lang: str, opts: Dict[str, Any],
 
     if opts.get("add_review_comments", True):
         working_text = _add_review_comment(working_text, lang, report)
+
+    # Provenance marker (change management): record the English source this template was
+    # derived from, so a later run can detect when the source has changed. Independent of the
+    # review-comment header so it is present even with add_review_comments=False.
+    fp = opts.get("provenance")
+    if fp:
+        working_text = provenance_comment(fp) + working_text
+        report["provenance"] = fp
+        report["actions"].append("Recorded source provenance")
 
     return working_text, report

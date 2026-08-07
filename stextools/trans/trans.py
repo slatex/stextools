@@ -6,6 +6,7 @@ translations.
 """
 import json
 import re
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -14,6 +15,21 @@ import click
 from .builder import build_template
 from .fill import compute_fills, build_index, _BUILD_INDEX
 from .patterns import lang_flag_tokens, resolve_lang_alias
+from .provenance import fingerprint_file, check_staleness
+
+
+def ensure_utf8_stdout():
+    """Make stdout/stderr tolerate non-ASCII output even under a legacy code page.
+
+    Term verbalizations can be non-ASCII (e.g. CJK for zhs/jp). On Windows a redirected or piped
+    stdout defaults to cp1252, so printing such a candidate would crash with UnicodeEncodeError.
+    Reconfigure to UTF-8 with errors='replace'; best-effort no-op where reconfigure is missing.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
 
 
 def _interactive_select(item, candidates, context, default):
@@ -86,7 +102,8 @@ def _process_one(file: Path, lang: str, select, index, fill: bool, out: Optional
     if fill:
         fills, fill_stats = compute_fills(text, str(in_path.resolve()), lang, select, index=index)
 
-    opts = {"insert_placeholders": placeholders, "add_review_comments": review_comments}
+    opts = {"insert_placeholders": placeholders, "add_review_comments": review_comments,
+            "provenance": fingerprint_file(in_path)}
     new_text, report = build_template(text, lang, opts, fills)
     if fill_stats is not None:
         report["fill"] = fill_stats
@@ -186,6 +203,7 @@ def run_referenced(
         write_report: bool = True,
         placeholders: bool = True,
         review_comments: bool = True,
+        refresh: bool = False,
 ):
     """Translate the reference closure of the seed documents into a staging directory.
 
@@ -209,7 +227,11 @@ def run_referenced(
 
     lang = resolve_lang_alias(lang_arg)
     out_dir = Path(out_dir)
-    index = build_index(lang)
+    try:
+        index = build_index(lang)
+    except Exception as e:   # a FLAMS/catalog failure should not surface as a raw traceback
+        click.echo(f"--referenced needs FLAMS ({type(e).__name__}: {e}).", err=True)
+        return
     if index is None:
         click.echo(f"(no verbalization catalog for lang={lang}; translations cannot be suggested)")
         index = {}
@@ -232,6 +254,17 @@ def run_referenced(
         click.echo(f"  {report['external_symbols']} referenced symbol(s) have no local source (skipped)")
     if report["out_of_scope_symbols"]:
         click.echo(f"  {report['out_of_scope_symbols']} referenced symbol(s) out of scope (skipped)")
+    if refresh:
+        # change management: only (re)translate modules whose staged output is missing or stale
+        kept, up_to_date = [], 0
+        for m in order:
+            tgt = _staging_path(m, out_dir, lang)
+            if tgt.exists() and check_staleness(tgt)["status"] == "up-to-date":
+                up_to_date += 1
+            else:
+                kept.append(m)
+        click.echo(f"  --refresh: {len(kept)} to (re)translate, {up_to_date} already up-to-date (skipped)")
+        order = kept
     if not order:
         click.echo("Nothing to translate - every referenced concept already has a translation.")
         return
@@ -249,7 +282,7 @@ def run_referenced(
         text = Path(m).read_text(encoding="utf-8")
         fills, stats = compute_fills(text, m, lang, select, index=index, chosen_by_uri=chosen,
                                      ask_new_definienda=True)
-        new_text, rep = build_template(text, lang, opts, fills)
+        new_text, rep = build_template(text, lang, {**opts, "provenance": fingerprint_file(m)}, fills)
         rep["fill"] = stats
         out_path = _staging_path(m, out_dir, lang)
         out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -272,3 +305,44 @@ def run_referenced(
                f"{agg['kept_placeholder']} kept, {agg['no_verbalization']} untranslated, "
                f"{agg['unresolved']} unresolved ==")
     click.echo(f"Templates written under {out_dir}/ (staging - review before moving into archives).")
+
+
+def run_check_stale(targets, source_root=None) -> int:
+    """Report which translated templates have gone stale relative to their English sources.
+
+    Read-only change-management check (needs no FLAMS and no target language): for each template
+    under `targets` that carries a provenance marker, re-hash the recorded English source and
+    report up-to-date / stale / source-missing. Untracked files (no marker) are counted only.
+
+    Returns a process exit code: 0 if nothing is stale/broken, 1 otherwise (handy for CI).
+    """
+    files = []
+    for t in targets:
+        p = Path(t)
+        if not p.exists():
+            click.echo(f"  (not found: {p})", err=True)
+            continue
+        files.extend(sorted(p.rglob("*.tex")) if p.is_dir() else [p])
+
+    counts = {"up-to-date": 0, "stale": 0, "source-missing": 0, "no-provenance": 0}
+    stale = []
+    for f in files:
+        r = check_staleness(f, source_root)
+        counts[r["status"]] += 1
+        if r["status"] == "no-provenance":
+            continue
+        label = {"up-to-date": "ok   ", "stale": "STALE", "source-missing": "MISS "}[r["status"]]
+        click.echo(f"  {label}  {f}")
+        if r["status"] in ("stale", "source-missing"):
+            stale.append(str(f))
+
+    tracked = counts["up-to-date"] + counts["stale"] + counts["source-missing"]
+    click.echo(f"\n{tracked} tracked template(s): {counts['up-to-date']} up-to-date, "
+               f"{counts['stale']} stale, {counts['source-missing']} source-missing; "
+               f"{counts['no-provenance']} untracked (no provenance).")
+    if stale:
+        click.echo("\nStale / broken (English changed or moved since translation):")
+        for s in stale:
+            click.echo(f"  - {s}")
+        click.echo("Re-translate them: --referenced --refresh (staging), or re-run trans on the sources.")
+    return 1 if stale else 0
