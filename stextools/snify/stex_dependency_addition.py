@@ -392,3 +392,22 @@ def get_import(
             raise AnnotationAborted()
 
     return list(results) + [DependencyModificationOutcome(document)]
+
+
+def simple_dependency_addition(path: Path, offset: int, symbol_uri: str, symbol_path: str):
+    """
+    Modifies the sTeX file at `path` so that the symbol `symbol` is in scope at position `offset`.
+    """
+    document = STeXDocument(path, language='?')   # language should be irrelevant
+    importinfo = get_modules_in_scope_and_import_locations(document, offset)
+
+    _import_outcomes = get_import(
+        document, importinfo, LocalStexSymbol(symbol_uri, symbol_path), lambda : None
+    )
+
+    content = path.read_text()
+    for outcome in _import_outcomes:
+        if isinstance(outcome, SubstitutionOutcome):
+            content = content[:outcome.start_pos] + outcome.new_str + content[outcome.end_pos:]
+
+    path.write_text(content)
