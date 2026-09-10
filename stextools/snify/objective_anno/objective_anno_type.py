@@ -106,8 +106,13 @@ class ObjectiveAnnoType(AnnoType[ObjectiveAnnoState]):
         for i, dim in enumerate(DIMENSIONS):
             if i > 0:
                 wt(', ')
-            wt(dim[0].upper(), style='bold')
-            wt(dim[1:])
+            if dim == 'analyze':
+                wt('a')
+                wt('N', style='bold')
+                wt('alyze')
+            else:
+                wt(dim[0].upper(), style='bold')
+                wt(dim[1:])
         wt(':')
         nl()
         objs = ObjectiveStatus.from_flams_json(flams_json)

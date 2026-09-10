@@ -10,13 +10,16 @@ class ObjectiveAnnoState:
 
 
 # bloom dimensions (we currently only use three)
-Dimension: TypeAlias = Literal['remember', 'understand', 'apply']
-DIMENSIONS: list[Dimension] = ['remember', 'understand', 'apply']
+Dimension: TypeAlias = Literal['remember', 'understand', 'apply', 'analyze', 'evaluate', 'create']
+DIMENSIONS: list[Dimension] = ['remember', 'understand', 'apply', 'analyze', 'evaluate', 'create']
 
 DIM_TO_LETTER: dict[Dimension, str] = {
     'remember': 'R',
     'understand': 'U',
     'apply': 'A',
+    'analyze': 'N',
+    'evaluate': 'E',
+    'create': 'C',
 }
 
 DIM_BY_LETTER: dict[str, Dimension] = {
