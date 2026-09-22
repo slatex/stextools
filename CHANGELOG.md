@@ -1,6 +1,15 @@
 # Changelog
 
 
+
+## Release 0.3.2 (2026-09-22)
+
+* A large variety of bug fixes and small improvements
+* Added support for annotating learning objectives with snify
+* Windows support
+* Prototype for verbalization annotation with snify
+
+
 ## Release 0.3.1 (2026-01-09)
 This release is the result of significant changes to all of `stextools` (which were not tracked in the changelog).
 The most important change is that `snify` now uses [FLAMS](https://github.com/flexiformal/flams) for processing sTeX files.
