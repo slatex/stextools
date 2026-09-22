@@ -1,6 +1,6 @@
 [project]
 name = "stextools"
-version = "0.3.1"
+version = "0.3.2"
 authors = [
     { name="Jan Frederik Schaefer" },
 ]
@@ -11,6 +11,7 @@ dependencies = [
     "pylatexenc >= 3.0a33",
     "click >= 8.1",
     "nltk",
+    "intervaltree",
     # the following are only needed for some commands,
     # but they should be sufficiently lightweight to always be installed
     "pygments",

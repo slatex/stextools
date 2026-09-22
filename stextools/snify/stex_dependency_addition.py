@@ -12,8 +12,18 @@ The problem is inherently rather tricky:
 """
 
 import dataclasses
+import functools
 from copy import deepcopy
 from typing import Sequence, Optional, Literal, Iterable, Callable
+
+try:
+    from intervaltree import IntervalTree
+except ImportError:
+    import sys
+    print(f'''Missing dependency: intervaltree.
+You can probably install it via
+    {sys.executable} -m pip install intervaltree''', file=sys.stderr)
+    sys.exit(1)
 
 from pylatexenc.latexwalker import LatexEnvironmentNode
 
@@ -254,15 +264,20 @@ def get_modules_in_scope_and_import_locations(
     )
 
 
+_ENVIRONMENT_INTERVAL_CACHE: dict[tuple[str, str], IntervalTree] = {}
+
 def get_surrounding_envs(document: STeXDocument, offset: int) -> list[LatexEnvironmentNode]:
-    """
-    Returns the surrounding environments of the given offset in the document.
-    """
-    return [
-        node
-        for node in iterate_latex_nodes(document.get_latex_walker().get_latex_nodes()[0])
-        if isinstance(node, LatexEnvironmentNode) and node.pos <= offset < node.pos + node.len
-    ]
+    key = (str(document.path), document.get_content())
+    if key not in _ENVIRONMENT_INTERVAL_CACHE:
+        if len(_ENVIRONMENT_INTERVAL_CACHE) > 4:
+            del _ENVIRONMENT_INTERVAL_CACHE[next(iter(_ENVIRONMENT_INTERVAL_CACHE))]
+
+        it = IntervalTree()
+        for node in iterate_latex_nodes(document.get_latex_walker().get_latex_nodes()[0]):
+            if isinstance(node, LatexEnvironmentNode):
+                it[node.pos:node.pos + node.len] = node
+        _ENVIRONMENT_INTERVAL_CACHE[key] = it
+    return [iv.data for iv in _ENVIRONMENT_INTERVAL_CACHE[key][offset]]
 
 
 def get_import(
