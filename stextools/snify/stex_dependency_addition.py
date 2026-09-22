@@ -277,7 +277,7 @@ def get_surrounding_envs(document: STeXDocument, offset: int) -> list[LatexEnvir
             if isinstance(node, LatexEnvironmentNode):
                 it[node.pos:node.pos + node.len] = node
         _ENVIRONMENT_INTERVAL_CACHE[key] = it
-    return [iv.data for iv in _ENVIRONMENT_INTERVAL_CACHE[key][offset]]
+    return sorted([iv.data for iv in _ENVIRONMENT_INTERVAL_CACHE[key][offset]], key=lambda n: n.pos)
 
 
 def get_import(
