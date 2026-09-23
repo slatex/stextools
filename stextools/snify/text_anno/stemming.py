@@ -16,7 +16,7 @@ def get_stem_fun(lang: str):
         import nltk.stem.porter  # type: ignore
         return nltk.stem.porter.PorterStemmer().stem
     elif lang == 'de':
-        from nltk.stem.cistem import Cistem         # allegedly better
+        from nltk.stem.cistem import Cistem   # type: ignore      # allegedly better
         # must be case-insensitive,
         # otherwise e.g. "konstant" and "Konstant" at beginning of sentence are stemmed differently
         return lambda s: Cistem(case_insensitive=True).stem(s).lower()

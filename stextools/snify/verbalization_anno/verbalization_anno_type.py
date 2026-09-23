@@ -3,7 +3,7 @@ import re
 import functools
 import nltk
 from typing import Optional
-from stextools.snify.text_anno.local_stex_catalog import local_flams_stex_catalogs
+from stextools.snify.text_anno.local_stex_catalog import local_flams_stex_catalogs, LocalFlamsCatalog
 from stextools.snify.annotype import AnnoType, StateType, StepperStatus
 from stextools.snify.objective_anno.objective_anno_state import ObjectiveAnnoState
 from stextools.snify.snify_commands import SkipCommand

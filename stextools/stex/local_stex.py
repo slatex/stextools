@@ -227,3 +227,4 @@ def get_module_import_sequence(available_modules: list[tuple[str, str]], target_
                 predecessors[import_uri] = uri
                 to_process.append((import_uri, import_path))
 
+    return None

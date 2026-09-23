@@ -208,7 +208,7 @@ def local_flams_stex_catalogs() -> dict[str, LocalFlamsCatalog]:
                 symb
                 for entry in cache.values()
                 for symb in entry['symbols']
-                if not matches_ignore(symb)
+                if not discard_uri(symb)   # TODO: why is this not called here?
             )
         )
 

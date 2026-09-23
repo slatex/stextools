@@ -3,14 +3,14 @@ import typing
 from typing import Iterator, Optional
 
 
-if typing.TYPE_CHECKING or True:
-    import stanza
-    from stanza.models.common.doc import Word
+if typing.TYPE_CHECKING:
+    import stanza   # type: ignore
+    from stanza.models.common.doc import Word  # type: ignore
 
 
 
 
-T: typing.TypeAlias = typing.TypeVar('T')
+T = typing.TypeVar('T')
 
 def iter2list(f: typing.Callable[..., Iterator[T]]) -> typing.Callable[..., list[T]]:
     @functools.wraps(f)

@@ -95,9 +95,11 @@ class _HelpCommand(Command):
             for command in self.command_collection.commands:
                 if isinstance(command, Command):
                     command.help_display()
-                else:
+                elif isinstance(command, CommandSectionLabel):
                     interface.newline()
                     interface.write_header(command.message, style='section')
+                else:
+                    raise ValueError(f'Unexpected command type: {type(command)}')
         return []
 
 

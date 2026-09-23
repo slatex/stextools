@@ -3,7 +3,7 @@ from typing import Optional, Generic
 
 from stextools.stepper.command import Command, CommandInfo, CommandOutcome
 from stextools.stepper.interface import interface
-from stextools.stepper.stepper import Stepper, Modification, StateType, StopStepper, CursorType
+from stextools.stepper.stepper import Stepper, Modification, StateType, StopStepper, CursorType, State
 
 
 #######################################################################
@@ -120,14 +120,17 @@ class UndoableStepper(Stepper[StateType]):
                 mod.unapply(self.state)
                 self.reset_after_modification(mod)
                 self.modification_future.append(mods)
+            return None
         elif isinstance(outcome, RedoOutcome):
             mods = self.modification_future.pop()
             for mod in mods:
                 mod.apply(self.state)
                 self.reset_after_modification(mod)
             self.modification_history.append(mods)
+            return None
         else:
             return super().handle_command_outcome(outcome)
+
 
 
 #######################################################################
@@ -135,7 +138,7 @@ class UndoableStepper(Stepper[StateType]):
 #######################################################################
 
 
-class FocussableState:
+class FocussableState(State):
     """
     Idea:
     There is a stack of states.
@@ -143,7 +146,7 @@ class FocussableState:
     The stepper references the current (focussed state).
     ``on_unfocus`` links to the state below in the stack.
     """
-    on_unfocus = None
+    on_unfocus: FocussableState | None = None
 
     def is_focussed(self) -> bool:
         return self.on_unfocus is not None
@@ -161,6 +164,7 @@ class FocusOutcome(CommandOutcome, Modification):
         self.stepper.state = self.new_state
 
     def unapply(self, state: FocussableState):
+        assert state.on_unfocus is not None
         self.stepper.state = state.on_unfocus
 
 
@@ -170,6 +174,7 @@ class UnfocusOutcome(CommandOutcome):
         self.focus_state = self.stepper.state
 
     def apply(self, state: FocussableState):
+        assert state.on_unfocus is not None
         self.stepper.state = state.on_unfocus
 
     def unapply(self, state: FocussableState):

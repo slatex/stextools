@@ -31,5 +31,6 @@ class TestCatalog(unittest.TestCase):
                     symbols_to_ignore=set(),
                 )
                 self.assertIsNotNone(match)
+                assert match is not None   # for mypy
                 start, end = match[:2]
                 self.assertEqual(example[start:end], expected_string)

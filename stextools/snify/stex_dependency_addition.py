@@ -14,6 +14,7 @@ The problem is inherently rather tricky:
 import dataclasses
 import functools
 from copy import deepcopy
+from pathlib import Path
 from typing import Sequence, Optional, Literal, Iterable, Callable
 
 try:

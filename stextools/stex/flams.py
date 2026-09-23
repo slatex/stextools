@@ -85,11 +85,16 @@ extern size_t FFI_VERSION;
         lib.initialize()
         return lib
 
-    def _cstr_to_json(self, c_str) -> Any:
-        """Convert a C string to a JSON object."""
-        py_str = self.ffi.string(c_str).decode('utf-8')
+    def _cstr_to_py_str(self, c_str) -> str:
+        # also frees the C string
+        s = self.ffi.string(c_str)
+        py_str = s.decode('utf-8') if isinstance(s, bytes) else s
         self.lib.free_string(c_str)
-        return orjson.loads(py_str)
+        return py_str
+
+    def _cstr_to_json(self, c_str) -> Any:
+        """Convert a C string to a JSON object. (also frees the C string)"""
+        return orjson.loads(self._cstr_to_py_str(c_str))
 
     def hello_world(self, arg: int):
         self.lib.hello_world(arg)
@@ -113,13 +118,11 @@ extern size_t FFI_VERSION;
             self.load_file(filepath)
         filepath_c = self.ffi.new('char[]', str(filepath).encode('utf-8'))
         c_str = self.lib.get_file_annotations(filepath_c)
-        py_str = self.ffi.string(c_str).decode('utf-8')
-        self.lib.free_string(c_str)
+        py_str = self._cstr_to_py_str(c_str)
         if not py_str:
             self.load_file(filepath)
             c_str = self.lib.get_file_annotations(filepath_c)
-            py_str = self.ffi.string(c_str).decode('utf-8')
-            self.lib.free_string(c_str)
+            py_str = self._cstr_to_py_str(c_str)
         if py_str:
             return orjson.loads(py_str)
         return None

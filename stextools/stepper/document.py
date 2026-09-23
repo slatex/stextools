@@ -226,8 +226,7 @@ class WdAnnoTexDocument(LocalFileDocument):
 
     def get_annotatable_formulae(self) -> Iterable[LinkedStr[None]]:
         result: list[LinkedStr] = []
-        walker = self.get_latex_walker()
-        # walker = LatexWalker(latex_text, latex_context=STEX_CONTEXT_DB)
+        walker = self.get_latex_walker()   # type: ignore
         latex_text = walker.s
 
         def _recurse(nodes):
@@ -285,13 +284,18 @@ class LocalHtmlDocument(LocalFileDocument):
             self.html_parser.feed(self.get_content())
         return self.html_parser
 
-    def get_body_range(self) -> tuple[int, int]:
+    def get_body_range(self) -> tuple[int, int] | None:
         html_parser = self._get_html_parser()
-        return html_parser.body_start, html_parser.body_end
+        a, b = html_parser.body_start, html_parser.body_end
+        if a is not None and b is not None:
+            return a, b
+        return None
 
     def get_body_content(self) -> str:
-        a, b = self.get_body_range()
-        return self.get_content()[a:b]
+        r = self.get_body_range()
+        if r is None:
+            return self.get_content()
+        return self.get_content()[r[0]:r[1]]
 
     def get_annotatable_plaintext(self) -> Iterable[LinkedStr[None]]:
         return iter(self._get_html_parser().annotatable_plaintext_ranges)
@@ -379,7 +383,7 @@ def documents_from_paths(
                 if subpath:
                     log_once(f'Skipping files in {subpath}.')
                     continue
-            new_doc = STeXDocument(path=path, language=lang_from_path(path))
+            new_doc: Document = STeXDocument(path=path, language=lang_from_path(path))
         elif annotation_format == 'wikidata' and path.suffix == '.tex':
             new_doc = WdAnnoTexDocument(path=path, language=lang_from_path(path))
         elif annotation_format == 'wikidata' and path.suffix == '.html':
