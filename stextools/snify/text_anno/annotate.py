@@ -9,7 +9,7 @@ from stextools.snify.snify_state import SnifyState, SnifyCursor, SetOngoingAnnoT
 from stextools.snify.stex_dependency_addition import AnnotationAborted, get_modules_in_scope_and_import_locations, \
     get_import
 from stextools.snify.text_anno.catalog import Verbalization
-from stextools.snify.text_anno.text_anno_state import TextAnnoState
+from stextools.snify.text_anno.text_anno_state import TextAnnoState, TextAnnoSetSelectionModification
 from stextools.stepper import document
 from stextools.stepper.document import STeXDocument, LocalFtmlDocument
 from stextools.stex.flams import FLAMS
@@ -303,3 +303,34 @@ class STeXLookupCommand(STeXAnnotateBase, Command):
         )
 
         return self.annotate_symbol(symbol) if symbol else []
+
+
+
+class OperatorAnnoCommand(Command):
+    def __init__(self, state: SnifyState, anno_type_name: str):
+        self.snify_state = state
+        self.anno_type_name = anno_type_name
+
+        super().__init__(CommandInfo(
+            pattern_presentation='o',
+            description_short='perator annotation',
+            description_long='Creates a \\opr annotation (will probably be reworked in the future)',
+            show=False,
+        ))
+
+    def execute(self, call: str) -> list[CommandOutcome]:
+        state = self.snify_state[self.anno_type_name]
+        old = self.snify_state.get_current_document().get_content()[state.selection[0]:state.selection[1]]
+        new = '\\opr{' + old + '}'
+        offset = len(new) - (state.selection[1] - state.selection[0])
+        c = self.snify_state.cursor
+        new_cursor = SnifyCursor(
+            document_index=c.document_index,
+            banned_annotypes=c.banned_annotypes | {self.snify_state.ongoing_annotype},
+            in_doc_pos=c.in_doc_pos + offset,
+        )
+        return [
+            SetOngoingAnnoTypeModification(self.snify_state.ongoing_annotype, None),
+            SubstitutionOutcome(new, state.selection[0], state.selection[1]),
+            SetCursorOutcome(new_cursor=new_cursor),
+        ]

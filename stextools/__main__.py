@@ -88,6 +88,8 @@ def version():
     print('python:', python_version())
 
 if __name__ == '__main__':
+    # import cProfile
+    # cProfile.run('cli(standalone_mode=False)', sort='cumtime')
     cli(
         standalone_mode=False,   # helps with debugging if stuck
     )

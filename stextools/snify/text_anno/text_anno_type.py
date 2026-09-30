@@ -6,7 +6,7 @@ from stextools.snify.displaysupport import display_snify_header, display_text_se
 from stextools.snify.snify_commands import ExitFileCommand, SkipCommand, ViewCommand, RescanCommand, \
     get_set_cursor_after_edit_function, View_i_Command
 from stextools.snify.text_anno.annotate import AnnotationCandidates, TextAnnotationCandidates, STeXAnnotateCommand, \
-    STeXLookupCommand
+    STeXLookupCommand, OperatorAnnoCommand
 from stextools.snify.text_anno.catalog import Catalog
 from stextools.snify.text_anno.change_selection_commands import PreviousWordShouldBeIncluded, \
     FirstWordShouldntBeIncluded, NextWordShouldBeIncluded, LastWordShouldntBeIncluded
@@ -193,6 +193,7 @@ class TextAnnoType(AnnoType[TextAnnoState]):
                     self.snify_state, self.get_annotation_candidates(), catalog, self.name
                 ) if self.anno_format == 'wikidata' else None,
                 STeXLookupCommand(self.snify_state, catalog, self.show_current_state, self.name) if self.anno_format == 'stex' else None,
+                OperatorAnnoCommand(self.snify_state, self.name),
 
                 CommandSectionLabel('\nSelection modification'),
                 PreviousWordShouldBeIncluded(self.snify_state, self.name),
