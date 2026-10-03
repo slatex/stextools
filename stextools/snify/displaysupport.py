@@ -36,11 +36,11 @@ def display_text_selection(doc: Document, selection: tuple[int, int] | None):
         if isinstance(selection, tuple):
             a, b = selection
             content = (
-                    _remove_style_attrs(doc.get_content()[doc.get_body_range()[0]:a]) +
+                    _remove_style_attrs(doc.get_content()[doc.get_body_range(True)[0]:a]) +
                     '<span class="highlight" id="snifyhighlight">' +  # TODO: in MathML, this works but is not ideal
                     _remove_style_attrs(doc.get_content()[a:b]) +
                     '</span>' +
-                    _remove_style_attrs(doc.get_content()[b:doc.get_body_range()[1]])
+                    _remove_style_attrs(doc.get_content()[b:doc.get_body_range(True)[1]])
             )
         else:
             content = doc.get_body_content()

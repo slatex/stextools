@@ -284,11 +284,13 @@ class LocalHtmlDocument(LocalFileDocument):
             self.html_parser.feed(self.get_content())
         return self.html_parser
 
-    def get_body_range(self) -> tuple[int, int] | None:
+    def get_body_range(self, full_range_if_no_body: bool = False) -> tuple[int, int] | None:
         html_parser = self._get_html_parser()
         a, b = html_parser.body_start, html_parser.body_end
         if a is not None and b is not None:
             return a, b
+        elif full_range_if_no_body:
+            return 0, len(self.get_content())
         return None
 
     def get_body_content(self) -> str:
