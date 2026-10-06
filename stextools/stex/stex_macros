@@ -65,6 +65,10 @@
 \setSGvar{{
 \ifSGvar{{{,3
 \renamedecl{[{
+\excursion[{{{
+\excursionref[{{{
+\excursiongroup[{{{
+\printexcursion{
 
 # ENVIRONMENTS
 \begin{smodule}[{
