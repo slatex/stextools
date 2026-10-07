@@ -4,7 +4,7 @@ from typing import Optional, Literal, cast
 from stextools.snify.annotype import AnnoType, StepperStatus
 from stextools.snify.displaysupport import display_snify_header, display_text_selection
 from stextools.snify.snify_commands import ExitFileCommand, SkipCommand, ViewCommand, RescanCommand, \
-    get_set_cursor_after_edit_function, View_i_Command
+    get_set_cursor_after_edit_function, View_i_Command, Edit_i_Command
 from stextools.snify.text_anno.annotate import AnnotationCandidates, TextAnnotationCandidates, STeXAnnotateCommand, \
     STeXLookupCommand, OperatorAnnoCommand
 from stextools.snify.text_anno.catalog import Catalog
@@ -226,6 +226,7 @@ class TextAnnoType(AnnoType[TextAnnoState]):
                 EditCommand(
                     2, document, get_set_cursor_after_edit_function(self.snify_state)
                 ) if isinstance(document, LocalFileDocument) else None,
+                Edit_i_Command(self.get_annotation_candidates().candidates),
                 RescanCommand(),
             ],
             have_help=True

@@ -1,3 +1,4 @@
+import subprocess
 from pathlib import Path
 from typing import Sequence, Any
 
@@ -7,6 +8,7 @@ from stextools.snify.text_anno.catalog import Verbalization
 from stextools.stepper.document import Document
 from stextools.snify.text_anno.local_stex_catalog import LocalStexSymbol
 from stextools.stepper.command import Command, CommandInfo, CommandOutcome
+from stextools.stepper.document_stepper import get_editor
 from stextools.stepper.interface import interface
 from stextools.stepper.stepper_extensions import SetCursorOutcome
 
@@ -30,13 +32,40 @@ def get_set_cursor_after_edit_function(state: SnifyState):
     return set_cursor_after_edit
 
 
+class Edit_i_Command(Command):
+    def __init__(self, options: list[tuple[Any, Verbalization]]):
+        super().__init__(CommandInfo(
+            show=False,
+            pattern_presentation='e𝑖',
+            pattern_regex='^e[0-9]+$',
+            description_short=' edit document for candidate 𝑖',
+            description_long='Opens the document that introduces symbol no. 𝑖 in an editor')
+        )
+        self.options = options
+        self.editor = get_editor(1)
+
+    def execute(self, call: str) -> Sequence[CommandOutcome]:
+        i = int(call[1:])
+        if i >= len(self.options):
+            interface.admonition('Invalid number', 'error', True)
+            return []
+
+        symbol = self.options[i][0]
+        if not isinstance(symbol, LocalStexSymbol):
+            interface.admonition(f'Unsupported symbol type {type(symbol)}', 'error', True)
+            return []
+
+        subprocess.Popen([self.editor, str(symbol.path)]).wait()
+        return [RescanOutcome()]
+
+
 class View_i_Command(Command):
     def __init__(self, options: list[tuple[Any, Verbalization]]):
         super().__init__(CommandInfo(
             show=False,
             pattern_presentation='v𝑖',
             pattern_regex='^v[0-9]+$',
-            description_short=' view document for 𝑖',
+            description_short=' view document for candidate 𝑖',
             description_long='Displays the document that introduces symbol no. 𝑖')
         )
         self.options = options
