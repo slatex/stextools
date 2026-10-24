@@ -72,14 +72,15 @@
 
 # ENVIRONMENTS
 \begin{smodule}[{
-\begin{sdefinition}[
-\begin{sproblem}[
+\begin{sdefinition}[,1:title
+\begin{ndefinition}[,1:title
+\begin{sproblem}[,1:title
 \begin{sexample}[,1:title
 \begin{sassertion}[,1:title
 \begin{sparagraph}[,1:title
+\begin{nparagraph}[,1:title
 \begin{sfragment}[{
 \begin{assignment}[
-\begin{nparagraph}[
 \begin{mathstructure}{[
 \begin{extstructure*}{[{
 \begin{textsymdecl}{[{
