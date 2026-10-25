@@ -87,6 +87,7 @@
 \begin{scb}[
 \begin{smcb}[
 \begin{sproof}[{,2
+\begin{subproof}[{,2
 \begin{testheading}[
 \begin{interpretmodule*}{{
 \begin{splitslide}{{
