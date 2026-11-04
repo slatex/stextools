@@ -4,7 +4,6 @@ import re
 from typing import Any, Dict, List, Optional, Tuple
 
 from .extractor import extract_items
-from .provenance import provenance_comment
 
 # create a placeholder for translation, or return the original text if no placeholders are desired
 # args:
@@ -375,14 +374,5 @@ def build_template(original_text: str, lang: str, opts: Dict[str, Any],
 
     if opts.get("add_review_comments", True):
         working_text = _add_review_comment(working_text, lang, report)
-
-    # Provenance marker (change management): record the English source this template was
-    # derived from, so a later run can detect when the source has changed. Independent of the
-    # review-comment header so it is present even with add_review_comments=False.
-    fp = opts.get("provenance")
-    if fp:
-        working_text = provenance_comment(fp) + working_text
-        report["provenance"] = fp
-        report["actions"].append("Recorded source provenance")
 
     return working_text, report

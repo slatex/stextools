@@ -5,7 +5,6 @@ from .builder import build_template
 from .extractor import extract_items
 from .fill import compute_fills
 from .patterns import LANG_ALIASES, lang_flag_tokens, resolve_lang_alias
-from .provenance import check_staleness, fingerprint_file, parse_provenance, provenance_comment
 
 __all__ = [
     "build_template",
@@ -14,8 +13,4 @@ __all__ = [
     "resolve_lang_alias",
     "LANG_ALIASES",
     "lang_flag_tokens",
-    "fingerprint_file",
-    "provenance_comment",
-    "parse_provenance",
-    "check_staleness",
 ]

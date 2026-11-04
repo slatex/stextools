@@ -15,7 +15,6 @@ import click
 from .builder import build_template
 from .fill import compute_fills, build_index, _BUILD_INDEX
 from .patterns import lang_flag_tokens, resolve_lang_alias
-from .provenance import fingerprint_file, check_staleness
 
 
 def ensure_utf8_stdout():
@@ -102,8 +101,7 @@ def _process_one(file: Path, lang: str, select, index, fill: bool, out: Optional
     if fill:
         fills, fill_stats = compute_fills(text, str(in_path.resolve()), lang, select, index=index)
 
-    opts = {"insert_placeholders": placeholders, "add_review_comments": review_comments,
-            "provenance": fingerprint_file(in_path.resolve())}   # absolute -> cwd-independent marker
+    opts = {"insert_placeholders": placeholders, "add_review_comments": review_comments}
     new_text, report = build_template(text, lang, opts, fills)
     if fill_stats is not None:
         report["fill"] = fill_stats
@@ -211,7 +209,6 @@ def run_referenced(
         write_report: bool = True,
         placeholders: bool = True,
         review_comments: bool = True,
-        refresh: bool = False,
 ):
     """Translate the reference closure of the seed documents into a staging directory.
 
@@ -262,17 +259,6 @@ def run_referenced(
         click.echo(f"  {report['external_symbols']} referenced symbol(s) have no local source (skipped)")
     if report["out_of_scope_symbols"]:
         click.echo(f"  {report['out_of_scope_symbols']} referenced symbol(s) out of scope (skipped)")
-    if refresh:
-        # change management: only (re)translate modules whose staged output is missing or stale
-        kept, up_to_date = [], 0
-        for m in order:
-            tgt = _staging_path(m, out_dir, lang)
-            if tgt.exists() and check_staleness(tgt)["status"] == "up-to-date":
-                up_to_date += 1
-            else:
-                kept.append(m)
-        click.echo(f"  --refresh: {len(kept)} to (re)translate, {up_to_date} already up-to-date (skipped)")
-        order = kept
     if not order:
         click.echo("Nothing to translate - every referenced concept already has a translation.")
         return
@@ -290,7 +276,7 @@ def run_referenced(
         text = Path(m).read_text(encoding="utf-8")
         fills, stats = compute_fills(text, m, lang, select, index=index, chosen_by_uri=chosen,
                                      ask_new_definienda=True)
-        new_text, rep = build_template(text, lang, {**opts, "provenance": fingerprint_file(m)}, fills)
+        new_text, rep = build_template(text, lang, opts, fills)
         rep["fill"] = stats
         out_path = _staging_path(m, out_dir, lang)
         out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -313,55 +299,3 @@ def run_referenced(
                f"{agg['kept_placeholder']} kept, {agg['no_verbalization']} untranslated, "
                f"{agg['unresolved']} unresolved ==")
     click.echo(f"Templates written under {out_dir}/ (staging - review before moving into archives).")
-
-
-def run_check_stale(targets, source_root=None) -> int:
-    """Report which translated templates have gone stale relative to their English sources.
-
-    Read-only change-management check (needs no FLAMS and no target language): for each template
-    under `targets` that carries a provenance marker, re-hash the recorded English source and
-    report up-to-date / stale / source-missing. Untracked files (no marker) are counted only.
-
-    Returns a process exit code: 0 if nothing is stale/broken, 1 otherwise (handy for CI).
-    """
-    files = []
-    for t in targets:
-        p = Path(t)
-        if not p.exists():
-            click.echo(f"  (not found: {p})", err=True)
-            continue
-        files.extend(sorted(p.rglob("*.tex")) if p.is_dir() else [p])
-
-    counts = {"up-to-date": 0, "stale": 0, "source-missing": 0,
-              "malformed-provenance": 0, "no-provenance": 0, "error": 0}
-    problems = []   # stale / source-missing / malformed / unreadable -> nonzero exit
-    labels = {"up-to-date": "ok   ", "stale": "STALE", "source-missing": "MISS ",
-              "malformed-provenance": "MALF "}
-    for f in files:
-        try:
-            r = check_staleness(f, source_root)
-        except OSError as e:   # a single unreadable file must not abort the whole batch
-            counts["error"] += 1
-            problems.append(str(f))
-            click.echo(f"  ERROR  {f}: {e}", err=True)
-            continue
-        counts[r["status"]] += 1
-        if r["status"] == "no-provenance":
-            continue
-        click.echo(f"  {labels[r['status']]}  {f}")
-        if r["status"] != "up-to-date":
-            problems.append(str(f))
-
-    tracked = (counts["up-to-date"] + counts["stale"] + counts["source-missing"]
-               + counts["malformed-provenance"])
-    click.echo(f"\n{tracked} tracked template(s): {counts['up-to-date']} up-to-date, "
-               f"{counts['stale']} stale, {counts['source-missing']} source-missing, "
-               f"{counts['malformed-provenance']} malformed; "
-               f"{counts['no-provenance']} untracked (no provenance)"
-               + (f"; {counts['error']} unreadable" if counts["error"] else "") + ".")
-    if problems:
-        click.echo("\nStale / broken (English changed or moved, or marker unreadable):")
-        for s in problems:
-            click.echo(f"  - {s}")
-        click.echo("Re-translate them: --referenced --refresh (staging), or re-run trans on the sources.")
-    return 1 if problems else 0
