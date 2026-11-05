@@ -27,17 +27,16 @@ def _normalize_sn_key(key_raw: str) -> str:
 
 
 def _key_pattern(key: str) -> str:
-    """Regex fragment matching `key` with internal whitespace matched flexibly.
+    """Regex fragment matching `key` with any internal whitespace matched flexibly.
 
-    The extractor normalizes a symbol key to single spaces, but the source may write the key
-    with a double space, tab, or line break (e.g. ``\\sr{measure  space}{...}``). Escaping the
-    normalized key and matching it literally would then find nothing, silently leaving the term
-    untranslated. Escape the key, then let any whitespace run match. (Callers additionally allow
-    padding *inside* the braces, e.g. ``\\sr{ key }{...}``.)
+    A key can reach the builder with a different whitespace than the source: it may have been
+    normalized to single spaces, or it may still carry the source's raw form with a double space,
+    a tab, or a line break (e.g. ``\\definame{measure\\n    space}``). Matching the escaped key
+    literally would then find nothing and silently leave the term untranslated. So split the key
+    on whitespace, escape each word, and let any whitespace run match between the words.
+    (Callers additionally allow padding *inside* the braces, e.g. ``\\sr{ key }{...}``.)
     """
-    # Collapse any run of whitespace in the escaped key (a plain space, or the ``\ `` that
-    # re.escape emits for a space on some Python versions) into a flexible ``\s+``.
-    return re.sub(r"(?:\\ |\s)+", r"\\s+", re.escape(key))
+    return r"\s+".join(re.escape(word) for word in key.split())
 
 # replace \definame / \Definame with \definiendum and a placeholder for translation.
 # The definame option (e.g. [post=s]) is a surface-generation hint that is already folded
