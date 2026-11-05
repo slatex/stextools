@@ -92,7 +92,7 @@ def _print_todo(stats, limit: Optional[int] = None):
 
 
 def _process_one(file: Path, lang: str, select, index, fill: bool, out: Optional[Path],
-                 write_report: bool, placeholders: bool, review_comments: bool):
+                 write_report: bool):
     """Translate a single file. Returns (out_path, fill_stats | None)."""
     in_path = Path(file)
     text = in_path.read_text(encoding="utf-8")
@@ -101,7 +101,7 @@ def _process_one(file: Path, lang: str, select, index, fill: bool, out: Optional
     if fill:
         fills, fill_stats = compute_fills(text, str(in_path.resolve()), lang, select, index=index)
 
-    opts = {"insert_placeholders": placeholders, "add_review_comments": review_comments}
+    opts = {"insert_placeholders": True, "add_review_comments": True}
     new_text, report = build_template(text, lang, opts, fills)
     if fill_stats is not None:
         report["fill"] = fill_stats
@@ -126,8 +126,6 @@ def run_batch(
         interactive: bool = True,
         fill: bool = True,
         write_report: bool = True,
-        placeholders: bool = True,
-        review_comments: bool = True,
 ):
     """Translate one or more English (annotated) sTeX modules to target-language templates.
 
@@ -141,8 +139,6 @@ def run_batch(
         interactive: Prompt on ambiguous terms (default); if False, take the top candidate.
         fill: Auto-fill known translations via FLAMS; if False, only insert placeholders.
         write_report: Write a .json report next to each output.
-        placeholders: Insert placeholders for untranslated terms.
-        review_comments: Add the review-comment header to each output.
     """
     files = list(files)
     lang = resolve_lang_alias(lang_arg)
@@ -157,8 +153,7 @@ def run_batch(
     agg = {"filled": 0, "kept_placeholder": 0, "no_verbalization": 0, "unresolved": 0}
     for f in files:
         try:
-            out_path, stats = _process_one(f, lang, select, index, fill, out,
-                                           write_report, placeholders, review_comments)
+            out_path, stats = _process_one(f, lang, select, index, fill, out, write_report)
         except ValueError as e:   # e.g. output path would overwrite the input source
             click.echo(f"  skipped {f}: {e}", err=True)
             continue
@@ -177,11 +172,10 @@ def run_batch(
                    f"{agg['unresolved']} unresolved ==")
 
 
-def run_trans(file, lang_arg, out=None, interactive=True, fill=True, write_report=True,
-              placeholders=True, review_comments=True):
+def run_trans(file, lang_arg, out=None, interactive=True, fill=True, write_report=True):
     """Backward-compatible single-file wrapper around run_batch()."""
     run_batch([file], lang_arg, out=out, interactive=interactive, fill=fill,
-              write_report=write_report, placeholders=placeholders, review_comments=review_comments)
+              write_report=write_report)
 
 
 def _staging_path(src, out_dir, lang) -> Path:
@@ -202,13 +196,8 @@ def run_referenced(
         lang_arg: str,
         out_dir,
         depth: Optional[int] = 1,
-        only_archives=None,
-        translate_seeds: bool = False,
         interactive: bool = True,
-        yes: bool = False,
         write_report: bool = True,
-        placeholders: bool = True,
-        review_comments: bool = True,
 ):
     """Translate the reference closure of the seed documents into a staging directory.
 
@@ -222,11 +211,8 @@ def run_referenced(
         lang_arg: target language code or alias.
         out_dir: staging directory to write the generated templates into.
         depth: how far to follow references (1 = only directly referenced definitions).
-        only_archives: optional iterable of archive ids to restrict the closure to.
-        translate_seeds: also translate the seed files themselves.
         interactive: prompt on ambiguous terms and ask to confirm the closure.
-        yes: skip the confirmation prompt.
-        write_report/placeholders/review_comments: as for run_batch.
+        write_report: as for run_batch.
     """
     from .closure import reference_closure
 
@@ -241,14 +227,8 @@ def run_referenced(
         click.echo(f"(no verbalization catalog for lang={lang}; translations cannot be suggested)")
         index = {}
 
-    scope = None
-    if only_archives:
-        allowed = {a.strip() for a in only_archives}
-        scope = lambda a: a in allowed
-
     seeds_abs = [str(Path(s).resolve()) for s in seeds]
-    order, report = reference_closure(seeds_abs, index, scope=scope,
-                                      translate_seeds=translate_seeds, max_depth=depth)
+    order, report = reference_closure(seeds_abs, index, max_depth=depth)
 
     click.echo(f"\nReference closure (seeds={report['seeds']}, depth={depth}):")
     click.echo(f"  {report['modules_to_translate']} module(s) to translate"
@@ -257,19 +237,17 @@ def run_referenced(
         click.echo(f"      {n:4}  {a}")
     if report["external_symbols"]:
         click.echo(f"  {report['external_symbols']} referenced symbol(s) have no local source (skipped)")
-    if report["out_of_scope_symbols"]:
-        click.echo(f"  {report['out_of_scope_symbols']} referenced symbol(s) out of scope (skipped)")
     if not order:
         click.echo("Nothing to translate - every referenced concept already has a translation.")
         return
-    if interactive and not yes:
+    if interactive:
         if not click.confirm(f"\nTranslate {len(order)} module(s) into {out_dir}/?", default=False):
             click.echo("Aborted.")
             return
 
     select = _interactive_select if interactive else None
     chosen: dict = {}   # run-wide synonym consistency + feed-forward defaults
-    opts = {"insert_placeholders": placeholders, "add_review_comments": review_comments}
+    opts = {"insert_placeholders": True, "add_review_comments": True}
     agg = {"filled": 0, "kept_placeholder": 0, "no_verbalization": 0, "unresolved": 0}
 
     for i, m in enumerate(order, 1):

@@ -56,8 +56,6 @@ def snify_command(anno_format, mode, deep, files, interface):
               help='Do not prompt on ambiguous terms; take the top-ranked translation.')
 @click.option('--no-fill', 'no_fill', is_flag=True, help='Do not fill translations via FLAMS; only insert placeholders.')
 @click.option('--no-report', 'no_report', is_flag=True, help='Do not write the .json report.')
-@click.option('--no-placeholders', 'no_placeholders', is_flag=True, help='Do not insert translation placeholders.')
-@click.option('--no-review-comments', 'no_review_comments', is_flag=True, help='Do not add the review-comment header.')
 @click.option('--referenced', 'referenced', is_flag=True,
               help='Large-scale mode: translate the (reference) closure of the input documents — the '
                    'definitions of everything they reference that lacks a target-language version.')
@@ -65,14 +63,8 @@ def snify_command(anno_format, mode, deep, files, interface):
               help='Staging directory for --referenced output (default: ./trans-staging).')
 @click.option('--depth', 'depth', default=1, type=int,
               help='--referenced: how far to follow references (1 = only directly referenced defs).')
-@click.option('--only-archives', 'only_archives', default=None,
-              help='--referenced: comma-separated archive ids to restrict the closure to.')
-@click.option('--with-seeds', 'with_seeds', is_flag=True,
-              help='--referenced: also translate the seed documents themselves.')
-@click.option('--yes', '-y', 'yes', is_flag=True, help='--referenced: skip the confirmation prompt.')
 def trans_command(paths, lang, out, non_interactive, no_fill, no_report,
-                  no_placeholders, no_review_comments,
-                  referenced, out_dir, depth, only_archives, with_seeds, yes):
+                  referenced, out_dir, depth):
     """Click entry point for `stextools trans`.
     args:
         paths: One or more input paths. In normal mode a file is translated directly and a
@@ -83,14 +75,9 @@ def trans_command(paths, lang, out, non_interactive, no_fill, no_report,
         non_interactive: If set, take the top-ranked translation without prompting.
         no_fill: If set, only insert placeholders (skip the FLAMS fill step).
         no_report: If set, do not write the .json report.
-        no_placeholders: If set, do not insert translation placeholders.
-        no_review_comments: If set, do not add the review-comment header.
         referenced: Large-scale reference-closure mode (see run_referenced).
         out_dir: Staging directory for --referenced output.
         depth: --referenced closure depth (1 = only directly referenced definitions).
-        only_archives: --referenced comma-separated archive allowlist.
-        with_seeds: --referenced also translates the seed files.
-        yes: --referenced skip the confirmation prompt.
     returns:
         None. Delegates to run_referenced() (large-scale) or run_batch() (normal).
     """
@@ -114,12 +101,9 @@ def trans_command(paths, lang, out, non_interactive, no_fill, no_report,
                 seeds.append(p)
         if not seeds:
             raise click.UsageError('No seed documents. Provide file(s) or a directory of sTeX sources.')
-        archives = [a for a in only_archives.split(',')] if only_archives else None
         from stextools.trans.trans import run_referenced
-        run_referenced(seeds, lang, out_dir=out_dir, depth=depth, only_archives=archives,
-                       translate_seeds=with_seeds, interactive=not non_interactive, yes=yes,
-                       write_report=not no_report, placeholders=not no_placeholders,
-                       review_comments=not no_review_comments)
+        run_referenced(seeds, lang, out_dir=out_dir, depth=depth,
+                       interactive=not non_interactive, write_report=not no_report)
         return
 
     # normal mode: translate the given files (a directory expands to its *.en.tex sources)
@@ -136,8 +120,7 @@ def trans_command(paths, lang, out, non_interactive, no_fill, no_report,
 
     from stextools.trans.trans import run_batch
     run_batch(files, lang, out=out, interactive=not non_interactive,
-              fill=not no_fill, write_report=not no_report,
-              placeholders=not no_placeholders, review_comments=not no_review_comments)
+              fill=not no_fill, write_report=not no_report)
 
 
 @cli.command(name='lexgen', help='lexicon generation (experimental and work-in-progress)')
