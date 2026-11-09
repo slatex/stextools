@@ -191,7 +191,7 @@ def _staging_path(src, out_dir, lang) -> Path:
     return Path(out_dir) / rel.with_name(f"{stem}.{lang}.tex")
 
 
-def run_referenced(
+def run_closure(
         seeds,
         lang_arg: str,
         out_dir,
@@ -221,7 +221,7 @@ def run_referenced(
     try:
         index = build_index(lang)
     except Exception as e:   # a FLAMS/catalog failure should not surface as a raw traceback
-        click.echo(f"--referenced needs FLAMS ({type(e).__name__}: {e}).", err=True)
+        click.echo(f"--closure needs FLAMS ({type(e).__name__}: {e}).", err=True)
         return
     if index is None:
         click.echo(f"(no verbalization catalog for lang={lang}; translations cannot be suggested)")

@@ -56,30 +56,30 @@ def snify_command(anno_format, mode, deep, files, interface):
               help='Do not prompt on ambiguous terms; take the top-ranked translation.')
 @click.option('--no-fill', 'no_fill', is_flag=True, help='Do not fill translations via FLAMS; only insert placeholders.')
 @click.option('--no-report', 'no_report', is_flag=True, help='Do not write the .json report.')
-@click.option('--referenced', 'referenced', is_flag=True,
+@click.option('--closure', 'closure', is_flag=True,
               help='Large-scale mode: translate the (reference) closure of the input documents — the '
                    'definitions of everything they reference that lacks a target-language version.')
 @click.option('--out-dir', 'out_dir', default='trans-staging', type=click.Path(path_type=Path),
-              help='Staging directory for --referenced output (default: ./trans-staging).')
+              help='Staging directory for --closure output (default: ./trans-staging).')
 @click.option('--depth', 'depth', default=1, type=int,
-              help='--referenced: how far to follow references (1 = only directly referenced defs).')
+              help='--closure: how far to follow references (1 = only directly referenced defs).')
 def trans_command(paths, lang, out, non_interactive, no_fill, no_report,
-                  referenced, out_dir, depth):
+                  closure, out_dir, depth):
     """Click entry point for `stextools trans`.
     args:
         paths: One or more input paths. In normal mode a file is translated directly and a
-            directory is expanded to its `*.en.tex` files. In --referenced mode these are the
+            directory is expanded to its `*.en.tex` files. In --closure mode these are the
             seed documents whose references drive the closure.
         lang: Target language code or alias; required (errors if None).
         out: Optional output path; only allowed with a single input file (normal mode).
         non_interactive: If set, take the top-ranked translation without prompting.
         no_fill: If set, only insert placeholders (skip the FLAMS fill step).
         no_report: If set, do not write the .json report.
-        referenced: Large-scale reference-closure mode (see run_referenced).
-        out_dir: Staging directory for --referenced output.
-        depth: --referenced closure depth (1 = only directly referenced definitions).
+        closure: Large-scale reference-closure mode (see run_closure).
+        out_dir: Staging directory for --closure output.
+        depth: how far the closure follows references (1 = only directly referenced definitions).
     returns:
-        None. Delegates to run_referenced() (large-scale) or run_batch() (normal).
+        None. Delegates to run_closure() (large-scale) or run_batch() (normal).
     """
     from stextools.trans.trans import ensure_utf8_stdout
     ensure_utf8_stdout()   # tolerate non-ASCII (e.g. CJK) verbalizations on a legacy code page
@@ -91,7 +91,7 @@ def trans_command(paths, lang, out, non_interactive, no_fill, no_report,
             + ', '.join(lang_flag_tokens())
         )
 
-    if referenced:
+    if closure:
         # seeds: files as given; a directory expands to all sTeX sources under it
         seeds = []
         for p in paths:
@@ -101,9 +101,9 @@ def trans_command(paths, lang, out, non_interactive, no_fill, no_report,
                 seeds.append(p)
         if not seeds:
             raise click.UsageError('No seed documents. Provide file(s) or a directory of sTeX sources.')
-        from stextools.trans.trans import run_referenced
-        run_referenced(seeds, lang, out_dir=out_dir, depth=depth,
-                       interactive=not non_interactive, write_report=not no_report)
+        from stextools.trans.trans import run_closure
+        run_closure(seeds, lang, out_dir=out_dir, depth=depth,
+                    interactive=not non_interactive, write_report=not no_report)
         return
 
     # normal mode: translate the given files (a directory expands to its *.en.tex sources)
