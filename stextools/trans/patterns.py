@@ -5,6 +5,7 @@ from typing import Dict, List, Pattern, Tuple
 # The following dictionary maps canonical language codes to a list of aliases that can be used to refer to that language. 
 # This allows for flexible input of language codes in the command-line interface or other contexts.
 LANG_ALIASES: Dict[str, List[str]] = {
+    "en": ["en", "english"],
     "de": ["de", "german"],
     "zhs": ["zhs", "chinese", "zh", "zh-cn", "zh_cn", "ch"],
     "fr": ["fr", "french"],
@@ -39,6 +40,36 @@ def lang_flag_tokens() -> List[str]:
     for aliases in LANG_ALIASES.values():
         tokens.update(aliases)
     return sorted(tokens)
+
+
+# sTeX names the language versions of a module <module>.<lang>.tex (set.en.tex, set.de.tex)
+_LANG_SUFFIX = re.compile(r'^(?P<base>.+)\.(?P<lang>[A-Za-z]{2,3})\.tex$')
+
+
+def _file_name(path) -> str:
+    return str(path).replace("\\", "/").rsplit("/", 1)[-1]
+
+
+def lang_of_path(path, default: str = "en") -> str:
+    """The language of an sTeX file, read from its name: ``set.de.tex`` -> ``de``.
+
+    Args:
+        path: the file path (str or Path).
+        default: the language to assume when the name carries no language code.
+    Returns:
+        The canonical language code.
+    """
+    m = _LANG_SUFFIX.match(_file_name(path))
+    return resolve_lang_alias(m.group("lang").lower()) if m else default
+
+
+def base_name(path) -> str:
+    """The file name without its language code and ``.tex``: ``set.de.tex`` -> ``set``."""
+    name = _file_name(path)
+    m = _LANG_SUFFIX.match(name)
+    if m:
+        return m.group("base")
+    return name[:-4] if name.endswith(".tex") else name
 
 
 # ---------------------------

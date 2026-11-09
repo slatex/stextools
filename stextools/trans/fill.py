@@ -204,7 +204,14 @@ def compute_fills(text: str, path: str, lang: str, select=None, index=_BUILD_IND
         stats["todo"].append({"key": item["key"], "surface": item["text"], "reason": reason})
 
     fills: Dict[Tuple[int, int], str] = {}
-    title_by_key: Dict[str, str] = {}   # defined-term key -> its chosen translation (for the title)
+    # defined term (its key and its source word) -> its chosen translation, for the title
+    title_by_key: Dict[str, str] = {}
+
+    def _remember_title(item, choice):
+        for k in (item.get("key"), item.get("text")):
+            if k:
+                title_by_key.setdefault(re.sub(r"\s+", " ", k).strip().lower(), choice)
+
     for item in sorted(items, key=lambda it: it["span"][0]):
         uri = _uri_for_item(item, annos)
         if not uri:
@@ -226,7 +233,7 @@ def compute_fills(text: str, path: str, lang: str, select=None, index=_BUILD_IND
                     fills[tuple(item["span"])] = choice
                     stats["filled"] += 1
                     stats["new_verbs"].append((uri, choice))
-                    title_by_key.setdefault(item["key"].strip().lower(), choice)
+                    _remember_title(item, choice)
                     continue
             stats["no_verbalization"] += 1
             _todo(item, "no-verbalization")
@@ -252,11 +259,11 @@ def compute_fills(text: str, path: str, lang: str, select=None, index=_BUILD_IND
         fills[tuple(item["span"])] = choice
         stats["filled"] += 1
         if item["type"] in ("definame", "definiendum"):
-            title_by_key.setdefault(item["key"].strip().lower(), choice)
+            _remember_title(item, choice)
             stats["new_verbs"].append((uri, choice))   # a new target-language verbalization
 
     # The module title verbalizes its primary defined term: reuse that term's translation.
-    title = (parsed.get("title") or "").strip().lower()
+    title = re.sub(r"\s+", " ", parsed.get("title") or "").strip().lower()
     if title and title in title_by_key:
         t = title_by_key[title]
         fills["title"] = t[:1].upper() + t[1:]   # titles are capitalized

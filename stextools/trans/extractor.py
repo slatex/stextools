@@ -96,12 +96,15 @@ def extract_items(text: str) -> Dict[str, Any]:
     Args:
         text: the sTeX source to scan.
     Returns:
-        A dict with keys ``module_id``, ``title``, ``imports``, ``symdecls``, ``symdefs``,
-        ``usestructure``, ``extstructure``, ``cmhtikz``, and ``items``.
+        A dict with keys ``module_id``, ``title``, ``sig`` (the signature language given in
+        the module's options, if the module is itself a translation), ``imports``,
+        ``symdecls``, ``symdefs``, ``usestructure``, ``extstructure``, ``cmhtikz``, and
+        ``items``.
     """
     out = {
         "module_id": None,
         "title": None,
+        "sig": None,
         "imports": [],
         "symdecls": [],
         "symdefs": [],
@@ -115,6 +118,9 @@ def extract_items(text: str) -> Dict[str, Any]:
     m = RE_SMODULE.search(text)
     if m:
         out["module_id"] = m.group('id').strip()
+        sig = re.search(r'(?:^|,)\s*sig\s*=\s*([^,\s]+)', m.group('opts') or '')
+        if sig:
+            out["sig"] = sig.group(1).strip()
 
     # Extract title from smodule options if present
     mtitle = RE_SMODULE_TITLE.search(text)

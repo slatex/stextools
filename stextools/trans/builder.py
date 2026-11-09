@@ -1,13 +1,40 @@
-"""Build a target-language sTeX translation template from an English source (optionally filling translations)."""
+"""Build a target-language sTeX translation template from a module in another language (optionally filling translations)."""
 import functools
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
 from .extractor import extract_items
 
+# First line of every generated template; it also tells the tool which files it may overwrite.
+TEMPLATE_HEADER = "% TRANSLATION TEMPLATE for lang="
+
+
+def is_generated_template(text: str) -> bool:
+    """True if `text` is a template this tool generated (it starts with the review header).
+
+    Hand-written translations, and templates whose header the translator has removed, are not.
+    """
+    return text.lstrip("\ufeff").startswith(TEMPLATE_HEADER)
+
+
+def direction_problem(text: str, src_lang: str, lang: str) -> Optional[str]:
+    """Why the module `text` (in `src_lang`) cannot be translated into `lang`, or None.
+
+    Refused: translating into the module's own language, and translating a translation back
+    into the language of its signature (a ``sig=en`` module into ``en``): that module is the
+    original and already exists.
+    """
+    if lang == src_lang:
+        return f"the source is already in '{lang}'"
+    sig = extract_items(text).get("sig")
+    if sig and sig == lang:
+        return (f"this module is a translation of the '{lang}' module (sig={sig}), "
+                f"which therefore already exists")
+    return None
+
 # create a placeholder for translation, or return the original text if no placeholders are desired
 # args:
-#     orig_text: The original English text to be translated.
+#     orig_text: The source-language text to be translated.
 #     key: The symbol key.
 #     lang: The target language code.
 #     opts: A dictionary of options.
@@ -151,7 +178,8 @@ def _process_items(text: str, items: List[Dict[str, Any]], lang: str, opts: Dict
 
     return working_text
 
-# Macros that declare English-only module material: whole lines are dropped from the template.
+# Macros that declare signature material (imports, symbol declarations): whole lines are dropped
+# from the template, which gets them from its signature module (sig=...).
 _LINE_MACROS: List[str] = [
     "importmodule",
     "usemodule",
@@ -162,7 +190,7 @@ _LINE_MACROS: List[str] = [
 ]
 
 # Remove a \STEXexport{...} block (may span multiple lines and contain nested braces),
-# which carries English-only macro definitions.
+# which carries the signature's macro definitions.
 # args:
 #     text: The original text.
 #     report: The report dictionary to update.
@@ -196,7 +224,7 @@ def _remove_stexexport(text: str, report: Dict[str, Any]) -> str:
         report["actions"].append("Removed \\STEXexport block")
     return text
 
-# Remove lines that declare English-only module material (imports, symbol declarations, etc.)
+# Remove lines that declare signature material (imports, symbol declarations, etc.)
 # args:
 #     text: The original text.
 #     report: The report dictionary to update.
@@ -222,25 +250,27 @@ def _replace_extstructure(match: re.Match) -> str:
     ext_id = match.group('id').strip()
     return f"\\usestructure{{{ext_id}}}\n"
 
-# Fix smodule options, ensuring that the title is included and that the sig option is set to "en" if not already present. 
-# Add a placeholder for translation if desired.
+# Fix smodule options: the template points to its signature with sig=..., and its title gets a
+# placeholder (or its translation). A source that is itself a translation keeps its sig=; an
+# original module (no sig=) is the signature, so the template gets sig=<source language>.
 # args:
 #     match: The regex match object for the \begin{smodule} command.
 #     parsed: The parsed module information.
 #     lang: The target language code.
 #     opts: The translation options.
 #     title_fill: The resolved translation of the title, or None to use a placeholder.
+#     src_lang: The language of the source module.
 # returns:
 #     The modified \begin{smodule} command.
 def _fix_smodule_opts(match: re.Match, parsed: Dict[str, Any], lang: str, opts: Dict[str, Any],
-                      title_fill: str = None) -> str:
+                      title_fill: str = None, src_lang: str = "en") -> str:
     opts_str = match.group('opts') or ''
     mod_id = parsed["module_id"] or match.group('id')
     # strip any existing title, whether braced (title={...}) or unbraced (title=Foo Bar)
     opts_clean = re.sub(r',?\s*title\s*=\s*(?:\{[^}]*\}|[^,\]]+)', '', opts_str)
 
     if 'sig=' not in opts_clean:
-        opts_clean = f"sig=en{(',' + opts_clean) if opts_clean.strip() else ''}"
+        opts_clean = f"sig={src_lang}{(',' + opts_clean) if opts_clean.strip() else ''}"
 
     if parsed.get('title'):
         title_val = parsed['title']
@@ -255,38 +285,43 @@ def _fix_smodule_opts(match: re.Match, parsed: Dict[str, Any], lang: str, opts: 
 
     return f"\\begin{{smodule}}[{opts_clean}]{{{mod_id}}}"
 
-# Ensure the document class includes the language option
+# Set the document class's language option to the target language (replacing the source's
+# lang=..., keeping any other options)
 # args:
 #     text: The original text.
 #     lang: The target language code.
 # returns:
-#     The text with the document class modified to include the language option.
+#     The text with the document class carrying lang=<target>.
 def _ensure_documentclass_lang(text: str, lang: str) -> str:
-    text = re.sub(
-        r'\\documentclass\[(?P<opts>[^\]]*)\]\{stex\}',
-        lambda m: f"\\documentclass[lang={lang}]{{stex}}" if 'lang=' not in m.group('opts') else m.group(0),
-        text,
-    )
-    if '\\documentclass{stex}' in text:
-        text = text.replace('\\documentclass{stex}', f'\\documentclass[lang={lang}]{{stex}}')
-    return text
+    def _fix(m: re.Match) -> str:
+        opts = (m.group('opts') or '').strip()
+        if not opts:
+            return f"\\documentclass[lang={lang}]{{stex}}"
+        if re.search(r'(?:^|,)\s*lang\s*=', opts):
+            opts = re.sub(r'((?:^|,)\s*lang\s*=\s*)[^,]*', lambda mm: mm.group(1) + lang, opts, count=1)
+            return f"\\documentclass[{opts}]{{stex}}"
+        return f"\\documentclass[lang={lang},{opts}]{{stex}}"
+
+    return re.sub(r'\\documentclass(?:\[(?P<opts>[^\]]*)\])?\{stex\}', _fix, text)
 
 # Rewrite paths for cmhtikz images based on the target language
 # args:
 #     text: The original text.
 #     cmhtikz_list: The list of cmhtikz image paths.
 #     lang: The target language code.
+#     src_lang: The language of the source module.
 # returns:
 #     The text with the paths updated for the target language.
-def _rewrite_cmhtikz(text: str, cmhtikz_list: List[str], lang: str) -> str:
+def _rewrite_cmhtikz(text: str, cmhtikz_list: List[str], lang: str, src_lang: str = "en") -> str:
+    codes = "en|eng|english" if src_lang == "en" else re.escape(src_lang)
     for path in cmhtikz_list:
-        if re.search(r'\.(en|eng|english)(?:\.tex)?$', path):
-            base = re.sub(r'\.(en|eng|english)(?:\.tex)?$', '', path)
+        if re.search(r'\.(' + codes + r')(?:\.tex)?$', path):
+            base = re.sub(r'\.(' + codes + r')(?:\.tex)?$', '', path)
             target_path = f"{base}.{lang}"
             text = text.replace(path, target_path)
     return text
 
-# Tidy up whitespace left behind after removing English-only lines: collapse runs of
+# Tidy up whitespace left behind after removing signature lines: collapse runs of
 # blank lines and drop a blank line immediately after the module/structure openings.
 # args:
 #     text: The original text.
@@ -306,27 +341,30 @@ def _tidy_blank_lines(text: str) -> str:
 # returns:
 #     The text with the review comment added.
 def _add_review_comment(text: str, lang: str, report: Dict[str, Any]) -> str:
-    header_comment = f"% TRANSLATION TEMPLATE for lang={lang}\n% REVIEW: verify placeholders and math tokens; semantic IDs must remain unchanged\n"
+    header_comment = f"{TEMPLATE_HEADER}{lang}\n% REVIEW: verify placeholders and math tokens; semantic IDs must remain unchanged\n"
     report["actions"].append("Added header review comment")
     return header_comment + text
 
 def build_template(original_text: str, lang: str, opts: Dict[str, Any],
-                   fills: Dict[Tuple[int, int], str] = None) -> Tuple[str, Dict[str, Any]]:
-    """Turn an English sTeX source into a target-language translation template.
+                   fills: Dict[Tuple[int, int], str] = None,
+                   src_lang: str = "en") -> Tuple[str, Dict[str, Any]]:
+    """Turn an sTeX module into a translation template for another language.
 
     This is the main templating entry point (the structural, language-agnostic stage). It
     extracts the module's items, rewrites each term annotation into a form with a translatable
-    surface slot (inserting placeholders or the supplied translations), removes English-only
-    declarations, converts structure environments, and stamps the target language onto
-    ``\\documentclass``/``\\begin{smodule}``.
+    surface slot (inserting placeholders or the supplied translations), removes the
+    declarations that belong to the signature module, converts structure environments, and
+    stamps the target language onto ``\\documentclass``/``\\begin{smodule}``.
 
     Args:
-        original_text: the original English sTeX source.
+        original_text: the source module.
         lang: the target language code (e.g. ``de``).
         opts: options dict; recognized keys ``insert_placeholders`` and ``add_review_comments``.
         fills: optional mapping of item span ``(start, end)`` -> chosen translation, as produced
             by ``compute_fills``. A special key ``"title"`` carries the module-title translation.
             When None, every term becomes a placeholder.
+        src_lang: the language of the source module (e.g. ``en``, ``de``); used for ``sig=``
+            when the source is an original (has no ``sig=`` of its own).
     Returns:
         ``(new_text, report)`` where ``report`` records the module id, language, the items
         processed, and the structural actions taken.
@@ -364,11 +402,12 @@ def build_template(original_text: str, lang: str, opts: Dict[str, Any],
     if parsed.get("module_id"):
         working_text = re.sub(
             r'\\begin\{smodule\}\s*(?:\[(?P<opts>[^\]]*)\])?\s*\{(?P<id>' + re.escape(parsed.get("module_id")) + r')\}',
-            functools.partial(_fix_smodule_opts, parsed=parsed, lang=lang, opts=opts, title_fill=title_fill),
+            functools.partial(_fix_smodule_opts, parsed=parsed, lang=lang, opts=opts, title_fill=title_fill,
+                              src_lang=src_lang),
             working_text,
         )
 
-    working_text = _rewrite_cmhtikz(working_text, parsed.get("cmhtikz", []), lang)
+    working_text = _rewrite_cmhtikz(working_text, parsed.get("cmhtikz", []), lang, src_lang)
     working_text = _tidy_blank_lines(working_text)
 
     if opts.get("add_review_comments", True):
