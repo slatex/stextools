@@ -1,7 +1,7 @@
 """
 Reference-driven translation closure.
 
-Given seed document(s), find the local English modules that must be translated so that
+Given seed document(s), find the local source modules that must be translated so that
 every symbol referenced (transitively) has a target-language verbalization, and order them
 so that a symbol's definition is translated *before* anything that references it
 (topological order). Translating in this order lets each new verbalization feed forward and
@@ -28,7 +28,7 @@ def _archive_of(uri: str) -> Optional[str]:
 
 
 def references(path: str) -> List[Tuple[str, str]]:
-    """[(symbol uri, defining .en.tex path), ...] for every symbol referenced/used in `path`.
+    """[(symbol uri, defining source path), ...] for every symbol referenced/used in `path`.
 
     FLAMS resolves each occurrence to a symbol and reports the file in which that symbol is
     defined, so we can follow references to their definitions (across archives).
@@ -54,7 +54,7 @@ def _topo_order(deps: Dict[str, Set[str]]) -> List[str]:
         if state.get(n, 0) != 0:
             return                     # done, or on the stack (cycle) -> stop
         state[n] = 1
-        for d in deps.get(n, ()):      # visit dependencies first
+        for d in sorted(deps.get(n, ())):   # dependencies first; sorted so the order is stable
             visit(d)
         state[n] = 2
         order.append(n)
@@ -72,7 +72,7 @@ def reference_closure(
         max_depth: Optional[int] = None,
         max_modules: int = 500,
 ) -> Tuple[List[str], dict]:
-    """Compute the ordered English modules to translate to cover the seeds' references.
+    """Compute the ordered source modules to translate to cover the seeds' references.
 
     Args:
         seeds: seed document paths whose references drive the closure.
@@ -86,8 +86,9 @@ def reference_closure(
             referenced definitions; None = the full transitive closure (can be very large).
         max_modules: safety bound on how many modules the closure may grow to.
     Returns:
-        (ordered_modules, report). `ordered_modules` lists defining .en.tex paths, definitions
-        before uses. `report` has counts and the reasons things were skipped.
+        (ordered_modules, report). `ordered_modules` lists the defining source modules (and
+        the seeds, if requested), definitions before uses. `report` has counts and the
+        reasons things were skipped.
     """
     covered = lambda uri: bool(index.get(uri))
     seeds = [os.path.abspath(s) for s in seeds]
@@ -121,7 +122,7 @@ def reference_closure(
                     out_of_scope.add(uri)
                     continue
                 if not dpath or not os.path.exists(dpath):
-                    external.add(uri)       # referenced but no local .en source
+                    external.add(uri)       # referenced but no local source
                     continue
                 dpath = os.path.abspath(dpath)
                 if dpath in seed_set and not translate_seeds:

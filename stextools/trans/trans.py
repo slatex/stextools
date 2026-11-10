@@ -31,6 +31,30 @@ def ensure_utf8_stdout():
             pass
 
 
+def _show_term(item, context):
+    """Print the term being translated in its context, highlighted for orientation.
+    Args:
+        item: the symbol's metadata (type, key, plural)
+        context: a (before, target, after) tuple of the source around the term; `target`
+            (the annotation being translated) is highlighted
+    """
+    plural = " (plural)" if item.get("plural") else ""
+    before, target, after = context
+    highlighted = before + click.style(target, fg="cyan", bold=True) + after
+    click.echo()
+    click.echo(f"  ...{highlighted}...")
+    click.echo(f"  \\{item['type']}{{{item['key']}}}{plural}")
+
+
+def _ask_new_word(item, context):
+    """Ask the author for a translation of a defined term that has none yet.
+    Returns the typed translation, or None (Enter) to keep the placeholder."""
+    _show_term(item, context)
+    val = click.prompt("  no existing translation - enter one (Enter to keep placeholder)",
+                       default="", show_default=False).strip()
+    return val or None
+
+
 def _interactive_select(item, candidates, context, default):
     """Prompt the author to choose a translation when a symbol has several candidates.
     Args:
@@ -40,18 +64,9 @@ def _interactive_select(item, candidates, context, default):
             (the annotation being translated) is highlighted in the prompt
         default: the default translation to use if the author presses Enter
     """
-
-    plural = " (plural)" if item.get("plural") else ""
-    before, target, after = context
-    highlighted = before + click.style(target, fg="cyan", bold=True) + after
-    click.echo()
-    click.echo(f"  ...{highlighted}...")
-    click.echo(f"  \\{item['type']}{{{item['key']}}}{plural}")
     if not candidates:
-        # a new defined term with no existing translation: ask the author to provide one
-        val = click.prompt("  no existing translation - enter one (Enter to keep placeholder)",
-                           default="", show_default=False).strip()
-        return val or None
+        return _ask_new_word(item, context)
+    _show_term(item, context)
     for i, c in enumerate(candidates, 1):
         mark = "  (default)" if c == default else ""
         click.echo(f"    {i}. {c}{mark}")
@@ -109,12 +124,13 @@ def _check_output(out_path, in_path=None):
 
 
 def _process_one(file: Path, lang: str, select, index, fill: bool, out: Optional[Path],
-                 write_report: bool, from_lang: str = "en"):
+                 write_report: bool, from_lang: str = "en", ask_new=None, chosen_by_uri=None):
     """Translate a single file. Returns (out_path, fill_stats | None).
 
     The source language is read from the file name (``set.de.tex`` is German), else `from_lang`.
     Raises ValueError, before any prompt, if the direction makes no sense or the output would
-    overwrite the input or a file this tool did not generate.
+    overwrite the input or a file this tool did not generate. `ask_new` and `chosen_by_uri`
+    are passed on to compute_fills (ask for missing words; reuse words given earlier in the run).
     """
     in_path = Path(file)
     text = in_path.read_text(encoding="utf-8")
@@ -127,7 +143,8 @@ def _process_one(file: Path, lang: str, select, index, fill: bool, out: Optional
 
     fills, fill_stats = {}, None
     if fill:
-        fills, fill_stats = compute_fills(text, str(in_path.resolve()), lang, select, index=index)
+        fills, fill_stats = compute_fills(text, str(in_path.resolve()), lang, select, index=index,
+                                          chosen_by_uri=chosen_by_uri, ask_new=ask_new)
 
     opts = {"insert_placeholders": True, "add_review_comments": True}
     new_text, report = build_template(text, lang, opts, fills, src_lang=src_lang)
@@ -149,6 +166,7 @@ def run_batch(
         fill: bool = True,
         write_report: bool = True,
         from_lang: str = "en",
+        ask_new: bool = False,
 ):
     """Translate one or more annotated sTeX modules into templates for the target language.
 
@@ -163,10 +181,13 @@ def run_batch(
         fill: Auto-fill known translations via FLAMS; if False, only insert placeholders.
         write_report: Write a .json report next to each output.
         from_lang: Source language of files whose name carries no language code.
+        ask_new: With interactive=False, still ask for a word when a defined term has none.
     """
     files = list(files)
     lang = resolve_lang_alias(lang_arg)
     select = _interactive_select if interactive else None
+    asker = _ask_new_word if (interactive or ask_new) else None
+    chosen: dict = {}   # words chosen or typed earlier in the run are reused for the same concept
 
     index = _BUILD_INDEX
     if fill:
@@ -178,7 +199,7 @@ def run_batch(
     for f in files:
         try:
             out_path, stats = _process_one(f, lang, select, index, fill, out, write_report,
-                                           from_lang=from_lang)
+                                           from_lang=from_lang, ask_new=asker, chosen_by_uri=chosen)
         except ValueError as e:   # e.g. output path would overwrite the input source
             click.echo(f"  skipped {f}: {e}", err=True)
             continue
@@ -198,10 +219,10 @@ def run_batch(
 
 
 def run_trans(file, lang_arg, out=None, interactive=True, fill=True, write_report=True,
-              from_lang="en"):
+              from_lang="en", ask_new=False):
     """Backward-compatible single-file wrapper around run_batch()."""
     run_batch([file], lang_arg, out=out, interactive=interactive, fill=fill,
-              write_report=write_report, from_lang=from_lang)
+              write_report=write_report, from_lang=from_lang, ask_new=ask_new)
 
 
 def _staging_path(src, out_dir, lang) -> Path:
@@ -223,61 +244,88 @@ def run_closure(
         depth: Optional[int] = 1,
         interactive: bool = True,
         write_report: bool = True,
+        ask_new: bool = False,
+        from_lang: str = "en",
 ):
-    """Translate the reference closure of the seed documents into a staging directory.
+    """Translate the given files together with the definitions they are missing (--depth >= 1).
 
-    Collects the symbols the seeds reference that lack a target-language verbalization,
-    finds the local English modules that define them (transitively, up to `depth`), orders
-    them so definitions come before uses, previews the plan, asks for confirmation, then
-    translates each in order --- feeding every newly created verbalization forward so later
-    modules' references fill, and keeping the author's synonym choices consistent run-wide.
+    Collects the concepts the files use that have no target-language word, finds the local
+    modules that define them (following references up to `depth` steps; None = no limit),
+    orders everything so definitions come before their uses and the given files last,
+    previews the plan, asks for confirmation, then translates each into the staging directory
+    --- feeding every new word forward so later files fill with it, and keeping the author's
+    synonym choices consistent run-wide.
     Args:
-        seeds: seed document paths whose references drive the closure.
+        seeds: the files to translate (their references drive the closure).
         lang_arg: target language code or alias.
-        out_dir: staging directory to write the generated templates into.
-        depth: how far to follow references (1 = only directly referenced definitions).
-        interactive: prompt on ambiguous terms and ask to confirm the closure.
+        out_dir: staging directory; outputs mirror their archive paths below it.
+        depth: how many steps of "this definition needs another one" to follow (None = all).
+        interactive: prompt on ambiguous terms and for missing words, and confirm the plan.
         write_report: as for run_batch.
+        ask_new: with interactive=False, still ask for missing words (and confirm the plan).
+        from_lang: source language of given files whose name carries no language code.
     """
     from .closure import reference_closure
 
     lang = resolve_lang_alias(lang_arg)
     out_dir = Path(out_dir)
+    select = _interactive_select if interactive else None
+    asker = _ask_new_word if (interactive or ask_new) else None
+    depth_txt = "all" if depth is None else str(depth)
+
+    # check the given files first, so a wrong direction is reported before any FLAMS work
+    seed_paths = []
+    for s in seeds:
+        s = str(Path(s).resolve())
+        text = Path(s).read_text(encoding="utf-8")
+        try:
+            problem = direction_problem(text, lang_of_path(s, default=from_lang), lang)
+            if problem:
+                raise ValueError(problem)
+            _check_output(_staging_path(s, out_dir, lang), s)
+        except ValueError as e:
+            click.echo(f"  skipped {s}: {e}", err=True)
+            continue
+        seed_paths.append(s)
+    if not seed_paths:
+        return
+
     try:
         index = build_index(lang)
     except Exception as e:   # a FLAMS/catalog failure should not surface as a raw traceback
-        click.echo(f"--closure needs FLAMS ({type(e).__name__}: {e}).", err=True)
+        click.echo(f"--depth needs FLAMS ({type(e).__name__}: {e}).", err=True)
         return
     if index is None:
         click.echo(f"(no verbalization catalog for lang={lang}; translations cannot be suggested)")
         index = {}
 
-    seeds_abs = [str(Path(s).resolve()) for s in seeds]
-    order, report = reference_closure(seeds_abs, index, max_depth=depth)
+    order, report = reference_closure(seed_paths, index, translate_seeds=True, max_depth=depth)
+    seed_set = set(seed_paths)
+    n_defs = sum(1 for m in order if m not in seed_set)
 
-    click.echo(f"\nReference closure (seeds={report['seeds']}, depth={depth}):")
-    click.echo(f"  {report['modules_to_translate']} module(s) to translate"
+    click.echo(f"\nPlan (depth={depth_txt}): {len(order)} file(s) to translate into {out_dir}/ "
+               f"- {n_defs} missing definition(s) first, then your {len(order) - n_defs} file(s)"
                + (" [capped at the safety limit]" if report["capped"] else ""))
     for a, n in sorted(report["by_archive"].items(), key=lambda x: -x[1]):
         click.echo(f"      {n:4}  {a}")
     if report["external_symbols"]:
-        click.echo(f"  {report['external_symbols']} referenced symbol(s) have no local source (skipped)")
-    if not order:
-        click.echo("Nothing to translate - every referenced concept already has a translation.")
-        return
-    if interactive:
-        if not click.confirm(f"\nTranslate {len(order)} module(s) into {out_dir}/?", default=False):
+        click.echo(f"  {report['external_symbols']} referenced concept(s) have no local source "
+                   "(they stay placeholders)")
+    if not n_defs:
+        click.echo("  No definitions are missing: every concept they use already has a translation.")
+    if asker is not None:
+        if not click.confirm(f"\nTranslate {len(order)} file(s) into {out_dir}/?", default=False):
             click.echo("Aborted.")
             return
 
-    select = _interactive_select if interactive else None
     chosen: dict = {}   # run-wide synonym consistency + feed-forward defaults
     opts = {"insert_placeholders": True, "add_review_comments": True}
     agg = {"filled": 0, "kept_placeholder": 0, "no_verbalization": 0, "unresolved": 0}
 
     for i, m in enumerate(order, 1):
+        is_seed = m in seed_set
         text = Path(m).read_text(encoding="utf-8")
-        src_lang = lang_of_path(m)
+        src_lang = lang_of_path(m, default=from_lang if is_seed else "en")
         out_path = _staging_path(m, out_dir, lang)
         try:
             problem = direction_problem(text, src_lang, lang)
@@ -288,7 +336,7 @@ def run_closure(
             click.echo(f"[{i}/{len(order)}] skipped {m}: {e}", err=True)
             continue
         fills, stats = compute_fills(text, m, lang, select, index=index, chosen_by_uri=chosen,
-                                     ask_new_definienda=True)
+                                     ask_new=asker)
         new_text, rep = build_template(text, lang, opts, fills, src_lang=src_lang)
         rep["fill"] = stats
         out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -303,11 +351,14 @@ def run_closure(
                 index[uri].append(verb)
         for k in agg:
             agg[k] += stats[k]
-        click.echo(f"[{i}/{len(order)}] {out_path}   ({_coverage(stats)})")
+        click.echo(f"[{i}/{len(order)}] {out_path}   ({_coverage(stats)})"
+                   + ("   <- your file" if is_seed else ""))
+        if is_seed:
+            _print_todo(stats, limit=None if len(seed_set) == 1 else 8)
 
     total = sum(agg.values())
     pct = f"{100 * agg['filled'] / total:.0f}%" if total else "n/a"
-    click.echo(f"\n== closure: {len(order)} modules, filled {agg['filled']}/{total} ({pct}); "
+    click.echo(f"\n== depth {depth_txt}: {len(order)} files, filled {agg['filled']}/{total} ({pct}); "
                f"{agg['kept_placeholder']} kept, {agg['no_verbalization']} untranslated, "
                f"{agg['unresolved']} unresolved ==")
     click.echo(f"Templates written under {out_dir}/ (staging - review before moving into archives).")

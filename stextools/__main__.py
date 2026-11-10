@@ -48,6 +48,19 @@ def snify_command(anno_format, mode, deep, files, interface):
     snify(files, anno_format=anno_format, mode=mode, deep=deep)
 
 
+def _trans_depth(ctx, param, value):
+    """--depth for `stextools trans`: a number >= 0, or 'all' (no limit) -> None."""
+    if str(value).strip().lower() == 'all':
+        return None
+    try:
+        n = int(value)
+    except ValueError:
+        n = -1
+    if n < 0:
+        raise click.BadParameter(f"expected a number >= 0 or 'all', got {value!r}")
+    return n
+
+
 @cli.command(name='trans', help='Create translation templates of sTeX files (or whole directories) for another language, from any language into any other (the source language is read from the file name, set.de.tex is German), auto-filling known term translations.')
 @click.argument('paths', nargs=-1, type=click.Path(exists=True, path_type=Path))
 @click.option('--lang', '-l', 'lang', default=None, help='Target language code or alias (e.g. de, german, en, zhs, fr).')
@@ -55,35 +68,35 @@ def snify_command(anno_format, mode, deep, files, interface):
               help='Source language for directories (they expand to *.<from>.tex) and for files whose name has no language code (default: en).')
 @click.option('--out', '-o', default=None, type=click.Path(path_type=Path), help='Output path (single input only; default: <module>.<lang>.tex next to the input).')
 @click.option('--non-interactive', '--auto', 'non_interactive', is_flag=True,
-              help='Do not prompt on ambiguous terms; take the top-ranked translation.')
+              help='Never stop to ask: take the top-ranked translation, leave missing words as placeholders.')
+@click.option('--ask-new', 'ask_new', is_flag=True,
+              help='With --auto: still stop to ask for a word when a defined term has no translation yet.')
 @click.option('--no-fill', 'no_fill', is_flag=True, help='Do not fill translations via FLAMS; only insert placeholders.')
 @click.option('--no-report', 'no_report', is_flag=True, help='Do not write the .json report.')
-@click.option('--closure', 'closure', is_flag=True,
-              help='Large-scale mode: translate the (reference) closure of the input documents — the '
-                   'definitions of everything they reference that lacks a target-language version.')
+@click.option('--depth', 'depth', default='0', metavar='N|all', callback=_trans_depth,
+              help='Also translate the definitions the inputs are missing, first, following references '
+                   'N steps (all = no limit). 0 = only the inputs (default).')
 @click.option('--out-dir', 'out_dir', default='trans-staging', type=click.Path(path_type=Path),
-              help='Staging directory for --closure output (default: ./trans-staging).')
-@click.option('--depth', 'depth', default=1, type=int,
-              help='--closure: how far to follow references (1 = only directly referenced defs).')
-def trans_command(paths, lang, from_lang, out, non_interactive, no_fill, no_report,
-                  closure, out_dir, depth):
+              help='Where --depth 1 or more writes (default: ./trans-staging).')
+def trans_command(paths, lang, from_lang, out, non_interactive, ask_new, no_fill, no_report,
+                  depth, out_dir):
     """Click entry point for `stextools trans`.
     args:
-        paths: One or more input paths. In normal mode a file is translated directly and a
-            directory is expanded to its `*.<from>.tex` files. In --closure mode these are the
-            seed documents whose references drive the closure.
+        paths: One or more input paths. A file is translated directly and a directory is
+            expanded to its `*.<from>.tex` files.
         lang: Target language code or alias; required (errors if None).
         from_lang: Source language for directories and for file names without a language
             code (default: en).
-        out: Optional output path; only allowed with a single input file (normal mode).
-        non_interactive: If set, take the top-ranked translation without prompting.
+        out: Optional output path; only allowed with a single input file and --depth 0.
+        non_interactive: If set, never prompt: take the top-ranked translation.
+        ask_new: With non_interactive, still ask for a word when a defined term has none.
         no_fill: If set, only insert placeholders (skip the FLAMS fill step).
         no_report: If set, do not write the .json report.
-        closure: Large-scale reference-closure mode (see run_closure).
-        out_dir: Staging directory for --closure output.
-        depth: how far the closure follows references (1 = only directly referenced definitions).
+        depth: 0 = only the inputs; N >= 1 or None (all) = first translate the definitions
+            the inputs are missing, following references N steps (see run_closure).
+        out_dir: Staging directory for --depth 1 or more.
     returns:
-        None. Delegates to run_closure() (large-scale) or run_batch() (normal).
+        None. Delegates to run_batch() (depth 0) or run_closure() (deeper).
     """
     from stextools.trans.trans import ensure_utf8_stdout
     ensure_utf8_stdout()   # tolerate non-ASCII (e.g. CJK) verbalizations on a legacy code page
@@ -96,22 +109,7 @@ def trans_command(paths, lang, from_lang, out, non_interactive, no_fill, no_repo
         )
     from_lang = resolve_lang_alias(from_lang) if from_lang else 'en'
 
-    if closure:
-        # seeds: files as given; a directory expands to all sTeX sources under it
-        seeds = []
-        for p in paths:
-            if p.is_dir():
-                seeds.extend(sorted(f for f in p.rglob('*.tex')))
-            else:
-                seeds.append(p)
-        if not seeds:
-            raise click.UsageError('No seed documents. Provide file(s) or a directory of sTeX sources.')
-        from stextools.trans.trans import run_closure
-        run_closure(seeds, lang, out_dir=out_dir, depth=depth,
-                    interactive=not non_interactive, write_report=not no_report)
-        return
-
-    # normal mode: translate the given files (a directory expands to its *.<from>.tex sources)
+    # a directory expands to its *.<from>.tex sources
     files = []
     for p in paths:
         if p.is_dir():
@@ -124,9 +122,21 @@ def trans_command(paths, lang, from_lang, out, non_interactive, no_fill, no_repo
     if out is not None and len(files) > 1:
         raise click.UsageError('--out can only be used with a single input file.')
 
+    if depth != 0:
+        # translate the missing definitions first, then the inputs, all into the staging dir
+        if out is not None:
+            raise click.UsageError('--out only works with --depth 0 (deeper runs write into --out-dir).')
+        if no_fill:
+            raise click.UsageError('--depth needs the fill (FLAMS); drop --no-fill.')
+        from stextools.trans.trans import run_closure
+        run_closure(files, lang, out_dir=out_dir, depth=depth, interactive=not non_interactive,
+                    write_report=not no_report, ask_new=ask_new, from_lang=from_lang)
+        return
+
     from stextools.trans.trans import run_batch
     run_batch(files, lang, out=out, interactive=not non_interactive,
-              fill=not no_fill, write_report=not no_report, from_lang=from_lang)
+              fill=not no_fill, write_report=not no_report, from_lang=from_lang,
+              ask_new=ask_new)
 
 
 @cli.command(name='lexgen', help='lexicon generation (experimental and work-in-progress)')

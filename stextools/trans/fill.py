@@ -161,7 +161,7 @@ def build_index(lang: str):
 
 
 def compute_fills(text: str, path: str, lang: str, select=None, index=_BUILD_INDEX,
-                  chosen_by_uri=None, ask_new_definienda=False) -> Tuple[Dict[Tuple[int, int], str], Dict]:
+                  chosen_by_uri=None, ask_new=None) -> Tuple[Dict[Tuple[int, int], str], Dict]:
     """Resolve + fill placeholders with target-language verbalizations.
 
     `select(item, candidates, context, default) -> chosen | None` is called only when a
@@ -178,13 +178,16 @@ def compute_fills(text: str, path: str, lang: str, select=None, index=_BUILD_IND
         chosen_by_uri: a dict of already-chosen translations per symbol URI to reuse and
             extend. Pass a shared dict across files for run-wide consistency; the same dict
             is updated in place with this file's choices.
+        ask_new: `ask_new(item, context) -> str | None`, called for a defined term that has
+            no translation at all (None or '' keeps the placeholder). The answer fills the
+            term here and every later use of the same symbol in the run. None = never ask.
     returns:
         A tuple containing:
         - A dictionary mapping (start, end) spans in the text to the chosen verbalization.
         - A statistics dictionary with counts of filled, kept placeholders, no verbalization,
           unresolved symbols, whether the catalog language is available, the `todo` list, and
           `new_verbs` (list of (uri, translation) for defined terms translated here — used to
-          feed the index forward during closure translation).
+          feed the index forward when a --depth run translates missing definitions first).
     """
     parsed = extract_items(text)
     items = parsed["items"]
@@ -212,6 +215,14 @@ def compute_fills(text: str, path: str, lang: str, select=None, index=_BUILD_IND
             if k:
                 title_by_key.setdefault(re.sub(r"\s+", " ", k).strip().lower(), choice)
 
+    def _context(item):
+        """(before, term, after) around an item, so a prompt can highlight the term."""
+        s, e = item["span"]
+        before = re.sub(r"\s+", " ", text[max(0, s - 50):s]).lstrip()
+        target = re.sub(r"\s+", " ", text[s:e])
+        after = re.sub(r"\s+", " ", text[e:e + 30]).rstrip()
+        return before, target, after
+
     for item in sorted(items, key=lambda it: it["span"][0]):
         uri = _uri_for_item(item, annos)
         if not uri:
@@ -219,48 +230,38 @@ def compute_fills(text: str, path: str, lang: str, select=None, index=_BUILD_IND
             _todo(item, "unresolved")
             continue
         cands = rank_candidates(index.get(uri, []), item.get("plural"))
+        if not cands and uri in chosen_by_uri:
+            cands = [chosen_by_uri[uri]]   # no catalog word, but one was given earlier in the run
         if not cands:
-            # a defined term with no existing translation: let the author supply one so it
-            # can be filled here and fed forward to later modules in a closure run
-            if ask_new_definienda and select is not None and item["type"] in ("definame", "definiendum"):
-                s, e = item["span"]
-                before = re.sub(r"\s+", " ", text[max(0, s - 50):s]).lstrip()
-                target = re.sub(r"\s+", " ", text[s:e])
-                after = re.sub(r"\s+", " ", text[e:e + 30]).rstrip()
-                choice = select(item, [], (before, target, after), None)
-                if choice:
-                    chosen_by_uri[uri] = choice
-                    fills[tuple(item["span"])] = choice
-                    stats["filled"] += 1
-                    stats["new_verbs"].append((uri, choice))
-                    _remember_title(item, choice)
-                    continue
-            stats["no_verbalization"] += 1
-            _todo(item, "no-verbalization")
-            continue
-        default = chosen_by_uri.get(uri, cands[0])
-        ordered = [default] + [c for c in cands if c != default]
-
-        if select is None or len(cands) == 1:
-            choice = default
+            # a defined term with no translation anywhere: ask for one, so it fills here and
+            # every later use of the same concept
+            choice = None
+            if ask_new is not None and item["type"] in ("definame", "definiendum"):
+                choice = ask_new(item, _context(item))
+            if not choice:
+                stats["no_verbalization"] += 1
+                _todo(item, "no-verbalization")
+                continue
         else:
-            s, e = item["span"]
-            # context split around the term so the selector can highlight it
-            before = re.sub(r"\s+", " ", text[max(0, s - 50):s]).lstrip()
-            target = re.sub(r"\s+", " ", text[s:e])
-            after = re.sub(r"\s+", " ", text[e:e + 30]).rstrip()
-            choice = select(item, ordered, (before, target, after), default)
+            # default = the earlier choice for this symbol, else the top-ranked candidate
+            default = chosen_by_uri.get(uri, cands[0])
+            ordered = [default] + [c for c in cands if c != default]
+            if select is None or len(cands) == 1:
+                choice = default
+            else:
+                choice = select(item, ordered, _context(item), default)
+            if choice is None:
+                stats["kept_placeholder"] += 1
+                _todo(item, "kept")
+                continue
 
-        if choice is None:
-            stats["kept_placeholder"] += 1
-            _todo(item, "kept")
-            continue
         chosen_by_uri[uri] = choice
         fills[tuple(item["span"])] = choice
         stats["filled"] += 1
         if item["type"] in ("definame", "definiendum"):
             _remember_title(item, choice)
-            stats["new_verbs"].append((uri, choice))   # a new target-language verbalization
+            if (uri, choice) not in stats["new_verbs"]:
+                stats["new_verbs"].append((uri, choice))   # a new target-language verbalization
 
     # The module title verbalizes its primary defined term: reuse that term's translation.
     title = re.sub(r"\s+", " ", parsed.get("title") or "").strip().lower()
