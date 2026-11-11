@@ -151,6 +151,7 @@ def _process_one(file: Path, lang: str, select, index, fill: bool, out: Optional
     if fill_stats is not None:
         report["fill"] = fill_stats
 
+    out_path.parent.mkdir(parents=True, exist_ok=True)   # --out may name a new folder
     out_path.write_text(new_text, encoding="utf-8")
     if write_report:
         out_path.with_suffix(".json").write_text(
