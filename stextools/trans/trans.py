@@ -94,14 +94,20 @@ def _coverage(stats) -> str:
             f"{stats['no_verbalization']} untranslated, {stats['unresolved']} unresolved")
 
 
+# The checklist names a reason only for the rare cases; the usual one (no word in the target
+# language yet) is said once in the heading. The .json report keeps the reason codes.
+_TODO_NOTES = {"unresolved": "not linked to a concept", "kept": "placeholder kept"}
+
+
 def _print_todo(stats, limit: Optional[int] = None):
     """Print the checklist of terms still needing manual translation."""
     todo = stats.get("todo", [])
     if not todo:
         return
-    click.echo("  still needs translation:")
+    click.echo("  still needs translation (no word yet unless noted):")
     for t in (todo if limit is None else todo[:limit]):
-        click.echo(f"    - {click.style(t['surface'], fg='yellow')}   [{t['key']}]  ({t['reason']})")
+        note = _TODO_NOTES.get(t['reason'])
+        click.echo(f"    - {click.style(t['surface'], fg='yellow')}   [{t['key']}]" + (f"  ({note})" if note else ""))
     if limit is not None and len(todo) > limit:
         click.echo(f"    ... and {len(todo) - limit} more (see the .json report)")
 
